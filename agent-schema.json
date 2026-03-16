@@ -182,6 +182,11 @@
           "description": "Maximum number of iterations",
           "minimum": 0
         },
+        "max_consecutive_tool_calls": {
+          "type": "integer",
+          "description": "Maximum consecutive identical tool calls before the agent is terminated. Prevents degenerate loops. 0 uses the default of 5.",
+          "minimum": 0
+        },
         "num_history_items": {
           "type": "integer",
           "description": "Number of history items to keep",

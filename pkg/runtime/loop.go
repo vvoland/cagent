@@ -118,6 +118,13 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		// Use a runtime copy of maxIterations so we don't modify the session's persistent config
 		runtimeMaxIterations := sess.MaxIterations
 
+		// Initialize consecutive duplicate tool call detector
+		loopThreshold := sess.MaxConsecutiveToolCalls
+		if loopThreshold == 0 {
+			loopThreshold = 5 // default: always active
+		}
+		loopDetector := newToolLoopDetector(loopThreshold)
+
 		// toolModelOverride holds the per-toolset model from the most recent
 		// tool calls. It applies for one LLM turn, then resets.
 		var toolModelOverride string
@@ -328,6 +335,22 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			messageCountBeforeTools := len(sess.GetAllMessages())
 
 			r.processToolCalls(ctx, sess, res.Calls, agentTools, events)
+
+			// Check for degenerate tool call loops
+			if loopDetector.record(res.Calls) {
+				toolName := "unknown"
+				if len(res.Calls) > 0 {
+					toolName = res.Calls[0].Function.Name
+				}
+				slog.Warn("Repetitive tool call loop detected",
+					"agent", a.Name(), "tool", toolName,
+					"consecutive", loopDetector.consecutive, "session_id", sess.ID)
+				events <- Error(fmt.Sprintf(
+					"Agent terminated: detected %d consecutive identical calls to %s. "+
+						"This indicates a degenerate loop where the model is not making progress.",
+					loopDetector.consecutive, toolName))
+				return
+			}
 
 			// Record per-toolset model override for the next LLM turn.
 			toolModelOverride = resolveToolCallModelOverride(res.Calls, agentTools)

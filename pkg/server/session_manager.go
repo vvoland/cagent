@@ -76,6 +76,7 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionTemplate *se
 	var opts []session.Opt
 	opts = append(opts,
 		session.WithMaxIterations(sessionTemplate.MaxIterations),
+		session.WithMaxConsecutiveToolCalls(sessionTemplate.MaxConsecutiveToolCalls),
 		session.WithToolsApproved(sessionTemplate.ToolsApproved),
 	)
 
@@ -359,6 +360,7 @@ func (sm *SessionManager) runtimeForSession(ctx context.Context, sess *session.S
 		return nil, nil, err
 	}
 	sess.MaxIterations = agent.MaxIterations()
+	sess.MaxConsecutiveToolCalls = agent.MaxConsecutiveToolCalls()
 	// Initialize thinking state based on whether thinking_budget was explicitly configured
 	// in the agent's YAML config. Only enable thinking by default when explicitly configured.
 	sess.Thinking = agent.ThinkingConfigured()
