@@ -85,6 +85,24 @@ func TestToolLoopDetector(t *testing.T) {
 			},
 			wantTrip: false,
 		},
+		{
+			name:      "reordered JSON keys are treated as identical",
+			threshold: 2,
+			batches: [][]tools.ToolCall{
+				makeCalls("run", `{"cmd":"ls","cwd":"/tmp"}`),
+				makeCalls("run", `{"cwd":"/tmp","cmd":"ls"}`),
+			},
+			wantTrip: true,
+		},
+		{
+			name:      "nested JSON key reordering is normalized",
+			threshold: 2,
+			batches: [][]tools.ToolCall{
+				makeCalls("call", `{"a":{"y":2,"x":1},"b":1}`),
+				makeCalls("call", `{"b":1,"a":{"x":1,"y":2}}`),
+			},
+			wantTrip: true,
+		},
 	}
 
 	for _, tt := range tests {

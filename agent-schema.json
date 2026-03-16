@@ -184,8 +184,8 @@
         },
         "max_consecutive_tool_calls": {
           "type": "integer",
-          "description": "Maximum consecutive identical tool calls before the agent is terminated. Prevents degenerate loops. Default: 5.",
-          "minimum": 1
+          "description": "Maximum consecutive identical tool calls before the agent is terminated. Prevents degenerate loops. 0 uses the default of 5.",
+          "minimum": 0
         },
         "num_history_items": {
           "type": "integer",
