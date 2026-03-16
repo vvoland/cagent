@@ -543,10 +543,12 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*
 		}, nil
 	}
 
+	text := string(content)
+
 	return &tools.ToolCallResult{
-		Output: string(content),
+		Output: text,
 		Meta: ReadFileMeta{
-			LineCount: strings.Count(string(content), "\n") + 1,
+			LineCount: strings.Count(text, "\n") + 1,
 		},
 	}, nil
 }
