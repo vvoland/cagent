@@ -3,6 +3,39 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.32.4] - 2026-03-16
+
+This release optimizes tool instructions, removes unused session metadata, and includes several bug fixes and improvements.
+
+## Improvements
+
+- Optimizes builtin tool instructions for conciseness by applying Claude 4 prompt engineering best practices
+- Removes unused branch metadata and split_diff_view from sessions to clean up data storage
+
+## Bug Fixes
+
+- Fixes emoji rendering issues in iTerm2
+- Reverts keyboard enhancement changes that caused incorrect behavior in VSCode with AZERTY layout
+
+## Technical Changes
+
+- Extracts compaction logic into dedicated pkg/compaction package for better code organization
+- Updates skill configuration
+- Improves evaluation system by validating LLM judge, disabling thinking for LLM as judge, and removing handoffs scoring
+- Disallows unknown fields in configuration validation
+
+### Pull Requests
+
+- [#2078](https://github.com/docker/docker-agent/pull/2078) - Remove unused branch metadata and split_diff_view from sessions
+- [#2091](https://github.com/docker/docker-agent/pull/2091) - Optimize builtin tool instructions for conciseness
+- [#2094](https://github.com/docker/docker-agent/pull/2094) - Bump dependencies
+- [#2097](https://github.com/docker/docker-agent/pull/2097) - docs: update CHANGELOG.md for v1.32.3
+- [#2098](https://github.com/docker/docker-agent/pull/2098) - Revert "tui: improve tmux experience and simplify keyboard enhancements"
+- [#2099](https://github.com/docker/docker-agent/pull/2099) - Fix 2089 - emoji rendering in iTerm2
+- [#2100](https://github.com/docker/docker-agent/pull/2100) - Improve evals
+- [#2101](https://github.com/docker/docker-agent/pull/2101) - Extract compaction into a dedicated pkg/compaction package
+
+
 ## [v1.32.3] - 2026-03-13
 
 This release removes an experimental feature and improves error handling for rate-limited API requests.
@@ -1289,3 +1322,5 @@ This release improves the terminal user interface with better error handling and
 [v1.32.2]: https://github.com/docker/docker-agent/releases/tag/v1.32.2
 
 [v1.32.3]: https://github.com/docker/docker-agent/releases/tag/v1.32.3
+
+[v1.32.4]: https://github.com/docker/docker-agent/releases/tag/v1.32.4
