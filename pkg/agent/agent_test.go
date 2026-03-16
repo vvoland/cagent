@@ -1,8 +1,10 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -137,6 +139,28 @@ func TestModelOverride(t *testing.T) {
 	// Model() should return the default again
 	model = a.Model()
 	assert.Equal(t, "openai/gpt-4o", model.ID())
+}
+
+func TestModel_LogsSelection(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	handler := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo})
+	prev := slog.Default()
+	slog.SetDefault(slog.New(handler))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	model1 := &mockProvider{id: "anthropic/claude-sonnet-4-0"}
+	model2 := &mockProvider{id: "openai/gpt-4o"}
+
+	a := New("scanner", "test", WithModel(model1), WithModel(model2))
+
+	_ = a.Model()
+	logOutput := buf.String()
+
+	assert.Contains(t, logOutput, "Model selected")
+	assert.Contains(t, logOutput, "agent=scanner")
+	assert.Contains(t, logOutput, "pool_size=2")
 }
 
 func TestModelOverride_ConcurrentAccess(t *testing.T) {
