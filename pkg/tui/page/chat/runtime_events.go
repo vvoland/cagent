@@ -120,9 +120,8 @@ func (p *chatPage) handleRuntimeEvent(msg tea.Msg) (bool, tea.Cmd) {
 		return true, nil
 
 	case *runtime.ToolsetInfoEvent:
-		p.sidebar.SetToolsetInfo(msg.AvailableTools, msg.Loading)
 		p.sidebar.SetSkillsInfo(len(p.app.CurrentAgentSkills()))
-		return true, nil
+		return true, p.forwardToSidebar(msg)
 
 	case *runtime.SessionTitleEvent:
 		return true, p.forwardToSidebar(msg)
