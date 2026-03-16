@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -512,7 +513,7 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*
 	info, err := os.Stat(resolvedPath)
 	if err != nil {
 		var errMsg string
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			errMsg = "not found"
 		} else {
 			errMsg = err.Error()
@@ -558,7 +559,7 @@ func (t *FilesystemTool) readImageFile(resolvedPath, originalPath string) (*tool
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		var errMsg string
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			errMsg = "not found"
 		} else {
 			errMsg = err.Error()
@@ -629,7 +630,7 @@ func (t *FilesystemTool) handleReadMultipleFiles(ctx context.Context, args ReadM
 		content, err := os.ReadFile(resolvedPath)
 		if err != nil {
 			errMsg := err.Error()
-			if os.IsNotExist(err) {
+			if errors.Is(err, fs.ErrNotExist) {
 				errMsg = "not found"
 			}
 			contents = append(contents, PathContent{
