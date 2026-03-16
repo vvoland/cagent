@@ -27,6 +27,14 @@ type Skill struct {
 	Compatibility string            `yaml:"compatibility"`
 	Metadata      map[string]string `yaml:"metadata"`
 	AllowedTools  stringOrList      `yaml:"allowed-tools"`
+	Context       string            `yaml:"context"` // "fork" to run the skill as an isolated sub-agent
+}
+
+// IsFork returns true when the skill should be executed in an isolated
+// sub-agent context rather than inline in the current conversation.
+// This matches Claude Code's `context: fork` frontmatter syntax.
+func (s *Skill) IsFork() bool {
+	return s.Context == "fork"
 }
 
 // stringOrList is a []string that can be unmarshalled from either a YAML list

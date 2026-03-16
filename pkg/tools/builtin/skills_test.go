@@ -280,3 +280,102 @@ func TestSkillsToolset_ReadSkillContent_RemoteSkillSkipsExpansion(t *testing.T) 
 	require.NoError(t, err)
 	assert.Equal(t, content, result, "commands in remote skills must not be expanded")
 }
+
+func TestSkillsToolset_FindSkill(t *testing.T) {
+	st := NewSkillsToolset([]skills.Skill{
+		{Name: "alpha", Description: "Alpha skill"},
+		{Name: "beta", Description: "Beta skill"},
+	}, "")
+
+	found := st.FindSkill("alpha")
+	require.NotNil(t, found)
+	assert.Equal(t, "alpha", found.Name)
+
+	found = st.FindSkill("beta")
+	require.NotNil(t, found)
+	assert.Equal(t, "beta", found.Name)
+
+	assert.Nil(t, st.FindSkill("missing"))
+}
+
+func TestSkillsToolset_Instructions_ForkSkills(t *testing.T) {
+	st := NewSkillsToolset([]skills.Skill{
+		{Name: "inline-skill", Description: "Runs inline"},
+		{Name: "fork-skill", Description: "Runs as sub-agent", Context: "fork"},
+	}, "")
+
+	instructions := st.Instructions()
+
+	// Should mention run_skill for fork skills
+	assert.Contains(t, instructions, "run_skill")
+	assert.Contains(t, instructions, "context: fork")
+	assert.Contains(t, instructions, "isolated sub-agents")
+
+	// Fork skill should have sub-agent mode tag
+	assert.Contains(t, instructions, "<mode>sub-agent</mode>")
+
+	// Inline skill should NOT have the mode tag
+	// We check that inline-skill's entry does not contain <mode>
+	assert.Contains(t, instructions, "<name>inline-skill</name>")
+	assert.Contains(t, instructions, "<name>fork-skill</name>")
+}
+
+func TestSkillsToolset_Instructions_NoForkSkills(t *testing.T) {
+	st := NewSkillsToolset([]skills.Skill{
+		{Name: "normal", Description: "Normal skill"},
+	}, "")
+
+	instructions := st.Instructions()
+
+	// Should NOT mention run_skill or sub-agent
+	assert.NotContains(t, instructions, "run_skill")
+	assert.NotContains(t, instructions, "<mode>sub-agent</mode>")
+	assert.NotContains(t, instructions, "context: fork")
+}
+
+func TestSkillsToolset_Tools_WithForkSkills(t *testing.T) {
+	st := NewSkillsToolset([]skills.Skill{
+		{Name: "inline", Description: "Inline skill"},
+		{Name: "forked", Description: "Forked skill", Context: "fork"},
+	}, "")
+
+	result, err := st.Tools(t.Context())
+	require.NoError(t, err)
+
+	// Should have read_skill + run_skill (no files, so no read_skill_file)
+	require.Len(t, result, 2)
+	assert.Equal(t, ToolNameReadSkill, result[0].Name)
+	assert.Equal(t, ToolNameRunSkill, result[1].Name)
+}
+
+func TestSkillsToolset_Tools_NoForkSkills(t *testing.T) {
+	st := NewSkillsToolset([]skills.Skill{
+		{Name: "inline", Description: "Inline skill"},
+	}, "")
+
+	result, err := st.Tools(t.Context())
+	require.NoError(t, err)
+
+	// Should only have read_skill
+	require.Len(t, result, 1)
+	assert.Equal(t, ToolNameReadSkill, result[0].Name)
+}
+
+func TestSkillsToolset_Tools_ForkAndFiles(t *testing.T) {
+	st := NewSkillsToolset([]skills.Skill{
+		{Name: "full", Description: "Full skill", Context: "fork", Files: []string{"SKILL.md", "ref.md"}},
+	}, "")
+
+	result, err := st.Tools(t.Context())
+	require.NoError(t, err)
+
+	// Should have read_skill + read_skill_file + run_skill
+	require.Len(t, result, 3)
+	names := make([]string, len(result))
+	for i, tool := range result {
+		names[i] = tool.Name
+	}
+	assert.Contains(t, names, ToolNameReadSkill)
+	assert.Contains(t, names, ToolNameReadSkillFile)
+	assert.Contains(t, names, ToolNameRunSkill)
+}

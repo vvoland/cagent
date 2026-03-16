@@ -33,6 +33,7 @@ func (r *LocalRuntime) registerDefaultTools() {
 	r.toolMap[builtin.ToolNameHandoff] = r.handleHandoff
 	r.toolMap[builtin.ToolNameChangeModel] = r.handleChangeModel
 	r.toolMap[builtin.ToolNameRevertModel] = r.handleRevertModel
+	r.toolMap[builtin.ToolNameRunSkill] = r.handleRunSkill
 
 	r.bgAgents.RegisterHandlers(func(name string, fn func(context.Context, *session.Session, tools.ToolCall) (*tools.ToolCallResult, error)) {
 		r.toolMap[name] = func(ctx context.Context, sess *session.Session, tc tools.ToolCall, _ chan Event) (*tools.ToolCallResult, error) {

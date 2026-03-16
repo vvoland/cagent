@@ -125,6 +125,40 @@ Body`,
 			},
 			wantOK: true,
 		},
+		{
+			name: "context fork",
+			content: `---
+name: forked-skill
+description: A skill that runs as a sub-agent
+context: fork
+---
+
+Body`,
+			want: Skill{
+				Name:        "forked-skill",
+				Description: "A skill that runs as a sub-agent",
+				Context:     "fork",
+			},
+			wantOK: true,
+		},
+		{
+			name: "context fork with allowed-tools",
+			content: `---
+name: scoped-fork
+description: Fork skill with tool restrictions
+context: fork
+allowed-tools: Read, Grep
+---
+
+Body`,
+			want: Skill{
+				Name:         "scoped-fork",
+				Description:  "Fork skill with tool restrictions",
+				Context:      "fork",
+				AllowedTools: stringOrList{"Read", "Grep"},
+			},
+			wantOK: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -138,6 +172,7 @@ Body`,
 				assert.Equal(t, tt.want.Compatibility, got.Compatibility)
 				assert.Equal(t, tt.want.Metadata, got.Metadata)
 				assert.Equal(t, tt.want.AllowedTools, got.AllowedTools)
+				assert.Equal(t, tt.want.Context, got.Context)
 			}
 		})
 	}
@@ -605,6 +640,13 @@ func TestFindGitRoot(t *testing.T) {
 		got := findGitRoot(tmpDir)
 		assert.Empty(t, got)
 	})
+}
+
+func TestSkill_IsFork(t *testing.T) {
+	assert.True(t, (&Skill{Context: "fork"}).IsFork())
+	assert.False(t, (&Skill{Context: ""}).IsFork())
+	assert.False(t, (&Skill{Context: "inline"}).IsFork())
+	assert.False(t, (&Skill{}).IsFork())
 }
 
 func TestProjectSearchDirs(t *testing.T) {
