@@ -25,12 +25,14 @@ var (
 // agent load skill content and supporting resources by name. It hides whether
 // a skill is local or remote — the agent just sees a name and description.
 type SkillsToolset struct {
-	skills []skills.Skill
+	skills     []skills.Skill
+	workingDir string
 }
 
-func NewSkillsToolset(loadedSkills []skills.Skill) *SkillsToolset {
+func NewSkillsToolset(loadedSkills []skills.Skill, workingDir string) *SkillsToolset {
 	return &SkillsToolset{
-		skills: loadedSkills,
+		skills:     loadedSkills,
+		workingDir: workingDir,
 	}
 }
 
@@ -49,7 +51,10 @@ func (s *SkillsToolset) findSkill(name string) *skills.Skill {
 }
 
 // ReadSkillContent returns the content of a skill's SKILL.md by name.
-func (s *SkillsToolset) ReadSkillContent(name string) (string, error) {
+// For local skills, it expands any !`command` patterns in the content by
+// executing the commands and replacing the patterns with their stdout output.
+// Command expansion is disabled for remote skills to prevent arbitrary code execution.
+func (s *SkillsToolset) ReadSkillContent(ctx context.Context, name string) (string, error) {
 	skill := s.findSkill(name)
 	if skill == nil {
 		return "", fmt.Errorf("skill %q not found", name)
@@ -58,6 +63,10 @@ func (s *SkillsToolset) ReadSkillContent(name string) (string, error) {
 	content, err := readFileContent(skill.FilePath)
 	if err != nil {
 		return "", err
+	}
+
+	if skill.Local {
+		content = skills.ExpandCommands(ctx, content, s.workingDir)
 	}
 
 	return content, nil
@@ -119,8 +128,8 @@ type readSkillFileArgs struct {
 	Path      string `json:"path" jsonschema:"The relative path to the file within the skill (e.g. references/FORMS.md)"`
 }
 
-func (s *SkillsToolset) handleReadSkill(_ context.Context, args readSkillArgs) (*tools.ToolCallResult, error) {
-	content, err := s.ReadSkillContent(args.Name)
+func (s *SkillsToolset) handleReadSkill(ctx context.Context, args readSkillArgs) (*tools.ToolCallResult, error) {
+	content, err := s.ReadSkillContent(ctx, args.Name)
 	if err != nil {
 		return tools.ResultError(err.Error()), nil
 	}

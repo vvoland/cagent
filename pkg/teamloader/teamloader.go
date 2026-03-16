@@ -218,7 +218,7 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 		if agentConfig.Skills.Enabled() {
 			loadedSkills := skills.Load(agentConfig.Skills.Sources)
 			if len(loadedSkills) > 0 {
-				agentTools = append(agentTools, builtin.NewSkillsToolset(loadedSkills))
+				agentTools = append(agentTools, builtin.NewSkillsToolset(loadedSkills, runConfig.WorkingDir))
 			}
 		}
 

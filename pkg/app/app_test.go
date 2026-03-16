@@ -245,7 +245,7 @@ func TestApp_ResolveSkillCommand_NoLocalRuntime(t *testing.T) {
 	app := New(ctx, rt, sess)
 
 	// mockRuntime is not a LocalRuntime, so no skills should be returned
-	resolved, err := app.ResolveSkillCommand("/some-skill")
+	resolved, err := app.ResolveSkillCommand(ctx, "/some-skill")
 	require.NoError(t, err)
 	assert.Empty(t, resolved)
 }
@@ -258,7 +258,7 @@ func TestApp_ResolveSkillCommand_NotSlashCommand(t *testing.T) {
 	sess := session.New()
 	app := New(ctx, rt, sess)
 
-	resolved, err := app.ResolveSkillCommand("not a slash command")
+	resolved, err := app.ResolveSkillCommand(ctx, "not a slash command")
 	require.NoError(t, err)
 	assert.Empty(t, resolved)
 }

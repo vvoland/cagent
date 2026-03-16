@@ -3,6 +3,7 @@ package builtin
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,9 +19,9 @@ func TestSkillsToolset_ReadSkillContent_Local(t *testing.T) {
 
 	st := NewSkillsToolset([]skills.Skill{
 		{Name: "local-skill", Description: "A local skill", FilePath: skillFile, BaseDir: tmpDir},
-	})
+	}, "")
 
-	content, err := st.ReadSkillContent("local-skill")
+	content, err := st.ReadSkillContent(t.Context(), "local-skill")
 	require.NoError(t, err)
 	assert.Equal(t, "# Local Skill\nDo the thing.", content)
 }
@@ -28,9 +29,9 @@ func TestSkillsToolset_ReadSkillContent_Local(t *testing.T) {
 func TestSkillsToolset_ReadSkillContent_NotFound(t *testing.T) {
 	st := NewSkillsToolset([]skills.Skill{
 		{Name: "exists", Description: "Exists", FilePath: "/tmp/nonexistent"},
-	})
+	}, "")
 
-	_, err := st.ReadSkillContent("does-not-exist")
+	_, err := st.ReadSkillContent(t.Context(), "does-not-exist")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -46,7 +47,7 @@ func TestSkillsToolset_ReadSkillFile(t *testing.T) {
 			Name: "my-skill", Description: "My skill", FilePath: filepath.Join(tmpDir, "SKILL.md"), BaseDir: tmpDir,
 			Files: []string{"SKILL.md", "references/FORMS.md"},
 		},
-	})
+	}, "")
 
 	content, err := st.ReadSkillFile("my-skill", "references/FORMS.md")
 	require.NoError(t, err)
@@ -59,7 +60,7 @@ func TestSkillsToolset_ReadSkillFile_PathTraversal(t *testing.T) {
 
 	st := NewSkillsToolset([]skills.Skill{
 		{Name: "my-skill", Description: "My skill", FilePath: filepath.Join(tmpDir, "SKILL.md"), BaseDir: tmpDir},
-	})
+	}, "")
 
 	_, err := st.ReadSkillFile("my-skill", "../../../etc/passwd")
 	require.Error(t, err)
@@ -73,7 +74,7 @@ func TestSkillsToolset_ReadSkillFile_PathTraversal(t *testing.T) {
 func TestSkillsToolset_ReadSkillFile_SkillNotFound(t *testing.T) {
 	st := NewSkillsToolset([]skills.Skill{
 		{Name: "exists", Description: "Exists", FilePath: "/tmp/test"},
-	})
+	}, "")
 
 	_, err := st.ReadSkillFile("nonexistent", "SKILL.md")
 	require.Error(t, err)
@@ -84,7 +85,7 @@ func TestSkillsToolset_Instructions(t *testing.T) {
 	st := NewSkillsToolset([]skills.Skill{
 		{Name: "skill-a", Description: "Does A"},
 		{Name: "skill-b", Description: "Does B", Files: []string{"SKILL.md", "references/HELP.md"}},
-	})
+	}, "")
 
 	instructions := st.Instructions()
 
@@ -103,7 +104,7 @@ func TestSkillsToolset_Instructions(t *testing.T) {
 func TestSkillsToolset_Instructions_NoFiles(t *testing.T) {
 	st := NewSkillsToolset([]skills.Skill{
 		{Name: "simple", Description: "Simple skill"},
-	})
+	}, "")
 
 	instructions := st.Instructions()
 
@@ -113,17 +114,17 @@ func TestSkillsToolset_Instructions_NoFiles(t *testing.T) {
 }
 
 func TestSkillsToolset_Instructions_Empty(t *testing.T) {
-	st := NewSkillsToolset(nil)
+	st := NewSkillsToolset(nil, "")
 	assert.Empty(t, st.Instructions())
 
-	st = NewSkillsToolset([]skills.Skill{})
+	st = NewSkillsToolset([]skills.Skill{}, "")
 	assert.Empty(t, st.Instructions())
 }
 
 func TestSkillsToolset_Tools_WithFiles(t *testing.T) {
 	st := NewSkillsToolset([]skills.Skill{
 		{Name: "test", Description: "Test skill", Files: []string{"SKILL.md", "references/HELP.md"}},
-	})
+	}, "")
 
 	tools, err := st.Tools(t.Context())
 	require.NoError(t, err)
@@ -136,7 +137,7 @@ func TestSkillsToolset_Tools_WithFiles(t *testing.T) {
 func TestSkillsToolset_Tools_WithoutFiles(t *testing.T) {
 	st := NewSkillsToolset([]skills.Skill{
 		{Name: "test", Description: "Test skill"},
-	})
+	}, "")
 
 	tools, err := st.Tools(t.Context())
 	require.NoError(t, err)
@@ -146,7 +147,7 @@ func TestSkillsToolset_Tools_WithoutFiles(t *testing.T) {
 }
 
 func TestSkillsToolset_Tools_Empty(t *testing.T) {
-	st := NewSkillsToolset(nil)
+	st := NewSkillsToolset(nil, "")
 
 	tools, err := st.Tools(t.Context())
 	require.NoError(t, err)
@@ -158,7 +159,7 @@ func TestSkillsToolset_Skills(t *testing.T) {
 		{Name: "a", Description: "A"},
 		{Name: "b", Description: "B"},
 	}
-	st := NewSkillsToolset(input)
+	st := NewSkillsToolset(input, "")
 
 	assert.Equal(t, input, st.Skills())
 }
@@ -170,7 +171,7 @@ func TestSkillsToolset_HandleReadSkill(t *testing.T) {
 
 	st := NewSkillsToolset([]skills.Skill{
 		{Name: "test-skill", Description: "Test", FilePath: skillFile, BaseDir: tmpDir},
-	})
+	}, "")
 
 	result, err := st.handleReadSkill(t.Context(), readSkillArgs{Name: "test-skill"})
 	require.NoError(t, err)
@@ -181,7 +182,7 @@ func TestSkillsToolset_HandleReadSkill(t *testing.T) {
 func TestSkillsToolset_HandleReadSkill_NotFound(t *testing.T) {
 	st := NewSkillsToolset([]skills.Skill{
 		{Name: "exists", Description: "Exists", FilePath: "/tmp/test"},
-	})
+	}, "")
 
 	result, err := st.handleReadSkill(t.Context(), readSkillArgs{Name: "missing"})
 	require.NoError(t, err)
@@ -200,7 +201,7 @@ func TestSkillsToolset_HandleReadSkillFile(t *testing.T) {
 			Name: "my-skill", Description: "My skill", FilePath: filepath.Join(tmpDir, "SKILL.md"), BaseDir: tmpDir,
 			Files: []string{"SKILL.md", "scripts/deploy.sh"},
 		},
-	})
+	}, "")
 
 	result, err := st.handleReadSkillFile(t.Context(), readSkillFileArgs{SkillName: "my-skill", Path: "scripts/deploy.sh"})
 	require.NoError(t, err)
@@ -214,10 +215,68 @@ func TestSkillsToolset_HandleReadSkillFile_PathTraversal(t *testing.T) {
 
 	st := NewSkillsToolset([]skills.Skill{
 		{Name: "my-skill", Description: "My skill", FilePath: filepath.Join(tmpDir, "SKILL.md"), BaseDir: tmpDir},
-	})
+	}, "")
 
 	result, err := st.handleReadSkillFile(t.Context(), readSkillFileArgs{SkillName: "my-skill", Path: "../../../etc/passwd"})
 	require.NoError(t, err)
 	assert.True(t, result.IsError)
 	assert.Contains(t, result.Output, "invalid file path")
+}
+
+func TestSkillsToolset_ReadSkillContent_ExpandsCommands(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping on windows")
+	}
+
+	tmpDir := t.TempDir()
+	skillFile := filepath.Join(tmpDir, "SKILL.md")
+	content := "# Skill\nBranch: !`echo main`\nDone."
+	require.NoError(t, os.WriteFile(skillFile, []byte(content), 0o644))
+
+	st := NewSkillsToolset([]skills.Skill{
+		{Name: "expand-skill", Description: "Expands commands", FilePath: skillFile, BaseDir: tmpDir, Local: true},
+	}, tmpDir)
+
+	result, err := st.ReadSkillContent(t.Context(), "expand-skill")
+	require.NoError(t, err)
+	assert.Equal(t, "# Skill\nBranch: main\nDone.", result)
+}
+
+func TestSkillsToolset_ReadSkillContent_ExpandsScript(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping on windows")
+	}
+
+	tmpDir := t.TempDir()
+
+	// Create a script in the working directory
+	scriptPath := filepath.Join(tmpDir, "gather.sh")
+	require.NoError(t, os.WriteFile(scriptPath, []byte("#!/bin/sh\necho gathered-data"), 0o755))
+
+	skillFile := filepath.Join(tmpDir, "SKILL.md")
+	content := "Data: !`./gather.sh`"
+	require.NoError(t, os.WriteFile(skillFile, []byte(content), 0o644))
+
+	st := NewSkillsToolset([]skills.Skill{
+		{Name: "script-skill", Description: "Runs scripts", FilePath: skillFile, BaseDir: tmpDir, Local: true},
+	}, tmpDir)
+
+	result, err := st.ReadSkillContent(t.Context(), "script-skill")
+	require.NoError(t, err)
+	assert.Equal(t, "Data: gathered-data", result)
+}
+
+func TestSkillsToolset_ReadSkillContent_RemoteSkillSkipsExpansion(t *testing.T) {
+	tmpDir := t.TempDir()
+	skillFile := filepath.Join(tmpDir, "SKILL.md")
+	content := "Info: !`echo should-not-run`"
+	require.NoError(t, os.WriteFile(skillFile, []byte(content), 0o644))
+
+	st := NewSkillsToolset([]skills.Skill{
+		{Name: "remote-skill", Description: "Remote", FilePath: skillFile, BaseDir: tmpDir, Local: false},
+	}, "")
+
+	result, err := st.ReadSkillContent(t.Context(), "remote-skill")
+	require.NoError(t, err)
+	assert.Equal(t, content, result, "commands in remote skills must not be expanded")
 }
