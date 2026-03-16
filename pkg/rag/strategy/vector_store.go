@@ -231,7 +231,7 @@ func (s *VectorStore) Initialize(ctx context.Context, docPaths []string, chunkin
 
 	// Collect all files
 	slog.Debug("Collecting files", "strategy", s.name, "paths", docPaths)
-	files, err := fsx.CollectFiles(docPaths, s.shouldIgnore)
+	files, err := fsx.CollectFiles(ctx, docPaths, s.shouldIgnore)
 	if err != nil {
 		s.emitEvent(types.Event{Type: types.EventTypeError, Error: err})
 		return fmt.Errorf("failed to collect files: %w", err)
@@ -240,6 +240,12 @@ func (s *VectorStore) Initialize(ctx context.Context, docPaths []string, chunkin
 	// Track seen files for cleanup
 	seenFilesForCleanup := make(map[string]bool)
 	for _, f := range files {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		seenFilesForCleanup[f] = true
 	}
 
@@ -268,6 +274,13 @@ func (s *VectorStore) Initialize(ctx context.Context, docPaths []string, chunkin
 	filesToIndex := 0
 
 	for _, filePath := range files {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		seenFiles[filePath] = true
 
 		needsIndexing, err := s.needsIndexing(ctx, filePath)
@@ -307,7 +320,7 @@ func (s *VectorStore) Initialize(ctx context.Context, docPaths []string, chunkin
 		}
 
 		g.Go(func() error {
-			// Check for context cancellation
+			// Check for context cancellation at start of goroutine
 			select {
 			case <-gctx.Done():
 				return gctx.Err()
@@ -389,7 +402,7 @@ func (s *VectorStore) Query(ctx context.Context, query string, numResults int, t
 
 // CheckAndReindexChangedFiles checks for file changes and re-indexes if needed
 func (s *VectorStore) CheckAndReindexChangedFiles(ctx context.Context, docPaths []string, chunking ChunkingConfig) error {
-	files, err := fsx.CollectFiles(docPaths, s.shouldIgnore)
+	files, err := fsx.CollectFiles(ctx, docPaths, s.shouldIgnore)
 	if err != nil {
 		return fmt.Errorf("failed to collect files: %w", err)
 	}
@@ -397,6 +410,13 @@ func (s *VectorStore) CheckAndReindexChangedFiles(ctx context.Context, docPaths 
 	seenFiles := make(map[string]bool)
 
 	for _, filePath := range files {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		seenFiles[filePath] = true
 
 		needsIndexing, err := s.needsIndexing(ctx, filePath)
@@ -432,7 +452,7 @@ func (s *VectorStore) StartFileWatcher(ctx context.Context, docPaths []string, c
 	s.watcher = watcher
 
 	for _, docPath := range docPaths {
-		if err := s.addPathToWatcher(docPath); err != nil {
+		if err := s.addPathToWatcher(ctx, docPath); err != nil {
 			slog.Warn("Failed to watch path", "strategy", s.name, "path", docPath, "error", err)
 			continue
 		}
@@ -545,6 +565,13 @@ func (s *VectorStore) indexFile(ctx context.Context, filePath string) error {
 	// Filter out empty chunks
 	var validChunks []chunk.Chunk
 	for _, ch := range chunks {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		if ch.Content == "" {
 			continue
 		}
@@ -579,6 +606,13 @@ func (s *VectorStore) indexFile(ctx context.Context, filePath string) error {
 	// Store all documents
 	storedChunks := 0
 	for i, ch := range validChunks {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		doc := database.Document{
 			ID:         fmt.Sprintf("%s_%d_%d", filePath, ch.Index, time.Now().UnixNano()),
 			SourcePath: filePath,
@@ -624,7 +658,21 @@ func (s *VectorStore) buildEmbeddingInputs(ctx context.Context, filePath string,
 		g.SetLimit(s.embeddingConcurrency)
 
 		for i, ch := range chunks {
+			// Check for context cancellation
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			default:
+			}
+
 			g.Go(func() error {
+				// Check for context cancellation
+				select {
+				case <-gctx.Done():
+					return gctx.Err()
+				default:
+				}
+
 				text, berr := s.embeddingInputBuilder.BuildEmbeddingInput(gctx, filePath, ch)
 				if berr != nil || strings.TrimSpace(text) == "" {
 					slog.Warn("Embedding input builder failed; falling back to raw chunk content",
@@ -644,6 +692,13 @@ func (s *VectorStore) buildEmbeddingInputs(ctx context.Context, filePath string,
 		}
 	} else {
 		for i, ch := range chunks {
+			// Check for context cancellation
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			default:
+			}
+
 			text, berr := s.embeddingInputBuilder.BuildEmbeddingInput(ctx, filePath, ch)
 			if berr != nil || strings.TrimSpace(text) == "" {
 				slog.Warn("Embedding input builder failed; falling back to raw chunk content",
@@ -668,6 +723,13 @@ func (s *VectorStore) cleanupOrphanedDocuments(ctx context.Context, seenFiles ma
 
 	deletedCount := 0
 	for _, meta := range metadata {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		if seenFiles[meta.SourcePath] {
 			continue
 		}
@@ -700,9 +762,9 @@ func (s *VectorStore) cleanupOrphanedDocuments(ctx context.Context, seenFiles ma
 	return nil
 }
 
-func (s *VectorStore) addPathToWatcher(path string) error {
+func (s *VectorStore) addPathToWatcher(ctx context.Context, path string) error {
 	// Resolve path(s) using Processor (handles globs, directories, files)
-	files, err := fsx.CollectFiles([]string{path}, s.shouldIgnore)
+	files, err := fsx.CollectFiles(ctx, []string{path}, s.shouldIgnore)
 	if err != nil {
 		return fmt.Errorf("failed to collect files for watching: %w", err)
 	}
@@ -779,6 +841,13 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string) {
 
 		filesToReindex := make([]string, 0)
 		for _, file := range changedFiles {
+			// Check for context cancellation
+			select {
+			case <-ctx.Done():
+				return // Stop processing if context is cancelled
+			default:
+			}
+
 			// Check if the file matches any of the configured document paths/patterns
 			matches, matchErr := fsx.Matches(file, docPaths)
 			if matchErr != nil {
@@ -812,6 +881,14 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string) {
 			})
 
 			for i, file := range filesToReindex {
+				// Check for context cancellation
+				select {
+				case <-ctx.Done():
+					slog.Info("File watcher stopped during reindexing due to context cancellation", "strategy", s.name)
+					return
+				default:
+				}
+
 				s.emitEvent(types.Event{
 					Type:    "indexing_progress",
 					Message: "Re-indexing: " + filepath.Base(file),
@@ -862,7 +939,7 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string) {
 
 			if event.Op&fsnotify.Create != 0 {
 				s.watcherMu.Lock()
-				if err := s.addPathToWatcher(event.Name); err != nil {
+				if err := s.addPathToWatcher(ctx, event.Name); err != nil {
 					slog.Debug("Could not watch new path", "path", event.Name, "error", err)
 				}
 				s.watcherMu.Unlock()
@@ -906,13 +983,19 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string) {
 }
 
 func (s *VectorStore) cleanupOrphanedDocumentsFromDisk(ctx context.Context, docPaths []string) error {
-	files, err := fsx.CollectFiles(docPaths, s.shouldIgnore)
+	files, err := fsx.CollectFiles(ctx, docPaths, s.shouldIgnore)
 	if err != nil {
 		return fmt.Errorf("failed to collect files: %w", err)
 	}
 
 	seenFiles := make(map[string]bool)
 	for _, file := range files {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		seenFiles[file] = true
 	}
 
