@@ -95,6 +95,11 @@ type Session struct {
 	// If 0, there is no limit
 	MaxIterations int `json:"max_iterations"`
 
+	// MaxConsecutiveToolCalls is the maximum number of consecutive identical tool call
+	// batches before the agent is terminated. Prevents degenerate loops where the model
+	// repeatedly issues the same call without making progress. Default: 5.
+	MaxConsecutiveToolCalls int `json:"max_consecutive_tool_calls,omitempty"`
+
 	// Starred indicates if this session has been starred by the user
 	Starred bool `json:"starred"`
 
@@ -428,6 +433,12 @@ func WithSystemMessage(content string) Opt {
 func WithMaxIterations(maxIterations int) Opt {
 	return func(s *Session) {
 		s.MaxIterations = maxIterations
+	}
+}
+
+func WithMaxConsecutiveToolCalls(n int) Opt {
+	return func(s *Session) {
+		s.MaxConsecutiveToolCalls = n
 	}
 }
 

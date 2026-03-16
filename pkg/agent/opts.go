@@ -127,6 +127,12 @@ func WithMaxIterations(maxIterations int) Opt {
 	}
 }
 
+func WithMaxConsecutiveToolCalls(n int) Opt {
+	return func(a *Agent) {
+		a.maxConsecutiveToolCalls = n
+	}
+}
+
 func WithNumHistoryItems(numHistoryItems int) Opt {
 	return func(a *Agent) {
 		a.numHistoryItems = numHistoryItems

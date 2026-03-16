@@ -153,6 +153,7 @@ func (a *Agent) NewSession(ctx context.Context, params acp.NewSessionRequest) (a
 	// Build session options (title will be set after we have the session ID)
 	sessOpts := []session.Opt{
 		session.WithMaxIterations(rootAgent.MaxIterations()),
+		session.WithMaxConsecutiveToolCalls(rootAgent.MaxConsecutiveToolCalls()),
 		session.WithThinking(rootAgent.ThinkingConfigured()),
 	}
 	if workingDir != "" {
