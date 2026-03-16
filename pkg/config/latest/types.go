@@ -397,7 +397,10 @@ type ModelConfig struct {
 	TrackUsage   *bool          `json:"track_usage,omitempty"`
 	// ThinkingBudget controls reasoning effort/budget:
 	// - For OpenAI: accepts string levels "minimal", "low", "medium", "high"
-	// - For Anthropic: accepts integer token budget (1024-32000)
+	// - For Anthropic: accepts integer token budget (1024-32000), "adaptive",
+	//   or string levels "low", "medium", "high", "max" (uses adaptive thinking with effort)
+	// - For Bedrock Claude: accepts integer token budget or string levels
+	//   "minimal", "low", "medium", "high" (mapped to token budgets via EffortTokens)
 	// - For other providers: may be ignored
 	ThinkingBudget *ThinkingBudget `json:"thinking_budget,omitempty"`
 	// Routing defines rules for routing requests to different models.
@@ -670,6 +673,7 @@ func (d DeferConfig) MarshalYAML() (any, error) {
 // ThinkingBudget represents reasoning budget configuration.
 // It accepts either a string effort level or an integer token budget:
 // - String: "minimal", "low", "medium", "high" (for OpenAI)
+// - String: "adaptive" (for Anthropic models that support adaptive thinking)
 // - Integer: token count (for Anthropic, range 1024-32768)
 type ThinkingBudget struct {
 	// Effort stores string-based reasoning effort levels
@@ -717,6 +721,7 @@ func (t ThinkingBudget) MarshalYAML() (any, error) {
 // NOT disabled when:
 //   - Tokens > 0 or Tokens == -1 (explicit token budget)
 //   - Effort is a real level like "medium" or "high"
+//   - Effort is "adaptive"
 func (t *ThinkingBudget) IsDisabled() bool {
 	if t == nil {
 		return false
@@ -724,7 +729,42 @@ func (t *ThinkingBudget) IsDisabled() bool {
 	if t.Tokens == 0 && t.Effort == "" {
 		return true
 	}
-	return t.Effort == "none"
+	return strings.EqualFold(t.Effort, "none")
+}
+
+// IsAdaptive returns true if the thinking budget is set to adaptive mode.
+// Adaptive thinking lets the model decide how much thinking to do.
+func (t *ThinkingBudget) IsAdaptive() bool {
+	if t == nil {
+		return false
+	}
+	return strings.EqualFold(t.Effort, "adaptive")
+}
+
+// EffortTokens maps a string effort level to a token budget for providers
+// that only support token-based thinking (e.g. Bedrock Claude).
+//
+// The Anthropic direct API uses adaptive thinking + output_config.effort
+// for string levels instead; see anthropicEffort in the anthropic package.
+//
+// Returns (tokens, true) when a mapping exists, or (0, false) when
+// the budget uses an explicit token count or an unrecognised effort string.
+func (t *ThinkingBudget) EffortTokens() (int, bool) {
+	if t == nil || t.Effort == "" {
+		return 0, false
+	}
+	switch strings.ToLower(strings.TrimSpace(t.Effort)) {
+	case "minimal":
+		return 1024, true
+	case "low":
+		return 2048, true
+	case "medium":
+		return 8192, true
+	case "high":
+		return 16384, true
+	default:
+		return 0, false
+	}
 }
 
 // MarshalJSON implements custom marshaling to output simple string or int format

@@ -95,20 +95,38 @@ func (c *Client) createBetaStream(
 	// For interleaved thinking to make sense, we use a default of 16384 tokens for the thinking budget
 	thinkingEnabled := c.ModelOptions.Thinking() == nil || *c.ModelOptions.Thinking()
 	if thinkingEnabled {
-		thinkingTokens := int64(16384)
-		if c.ModelConfig.ThinkingBudget != nil {
-			thinkingTokens = int64(c.ModelConfig.ThinkingBudget.Tokens)
+		if c.ModelConfig.ThinkingBudget != nil && c.ModelConfig.ThinkingBudget.IsAdaptive() {
+			// Adaptive thinking: let the model decide how much thinking to do
+			adaptive := anthropic.NewBetaThinkingConfigAdaptiveParam()
+			params.Thinking = anthropic.BetaThinkingConfigParamUnion{
+				OfAdaptive: &adaptive,
+			}
+			slog.Debug("Anthropic Beta API using adaptive thinking")
+		} else if effort, ok := anthropicEffort(c.ModelConfig.ThinkingBudget); ok {
+			// Effort level: use adaptive thinking + output_config.effort
+			adaptive := anthropic.NewBetaThinkingConfigAdaptiveParam()
+			params.Thinking = anthropic.BetaThinkingConfigParamUnion{
+				OfAdaptive: &adaptive,
+			}
+			params.OutputConfig.Effort = anthropic.BetaOutputConfigEffort(effort)
+			slog.Debug("Anthropic Beta API using adaptive thinking with effort",
+				"effort", effort)
 		} else {
-			slog.Info("Anthropic Beta API using default thinking_budget with interleaved thinking", "budget_tokens", thinkingTokens)
-		}
-		switch {
-		case thinkingTokens >= 1024 && thinkingTokens < maxTokens:
-			params.Thinking = anthropic.BetaThinkingConfigParamOfEnabled(thinkingTokens)
-			slog.Debug("Anthropic Beta API using thinking_budget with interleaved thinking", "budget_tokens", thinkingTokens)
-		case thinkingTokens >= maxTokens:
-			slog.Warn("Anthropic Beta API thinking_budget must be less than max_tokens, ignoring", "tokens", thinkingTokens, "max_tokens", maxTokens)
-		default:
-			slog.Warn("Anthropic Beta API thinking_budget below minimum (1024), ignoring", "tokens", thinkingTokens)
+			thinkingTokens := int64(16384)
+			if c.ModelConfig.ThinkingBudget != nil {
+				thinkingTokens = int64(c.ModelConfig.ThinkingBudget.Tokens)
+			} else {
+				slog.Info("Anthropic Beta API using default thinking_budget with interleaved thinking", "budget_tokens", thinkingTokens)
+			}
+			switch {
+			case thinkingTokens >= 1024 && thinkingTokens < maxTokens:
+				params.Thinking = anthropic.BetaThinkingConfigParamOfEnabled(thinkingTokens)
+				slog.Debug("Anthropic Beta API using thinking_budget with interleaved thinking", "budget_tokens", thinkingTokens)
+			case thinkingTokens >= maxTokens:
+				slog.Warn("Anthropic Beta API thinking_budget must be less than max_tokens, ignoring", "tokens", thinkingTokens, "max_tokens", maxTokens)
+			default:
+				slog.Warn("Anthropic Beta API thinking_budget below minimum (1024), ignoring", "tokens", thinkingTokens)
+			}
 		}
 	} else {
 		slog.Debug("Anthropic Beta API: Thinking disabled via /think command")

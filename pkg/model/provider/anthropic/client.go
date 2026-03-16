@@ -50,12 +50,23 @@ func (c *Client) getResponseTrailer() http.Header {
 // adjustMaxTokensForThinking checks if max_tokens needs adjustment for thinking_budget.
 // Anthropic's max_tokens represents the combined budget for thinking + output tokens.
 // Returns the adjusted maxTokens value and an error if user-set max_tokens is too low.
+//
+// This only applies to fixed token budgets. Adaptive thinking and effort-based
+// budgets don't need adjustment since the model manages its own thinking allocation.
 func (c *Client) adjustMaxTokensForThinking(maxTokens int64) (int64, error) {
-	if c.ModelConfig.ThinkingBudget == nil || c.ModelConfig.ThinkingBudget.Tokens <= 0 {
+	if c.ModelConfig.ThinkingBudget == nil || c.ModelConfig.ThinkingBudget.IsAdaptive() {
+		return maxTokens, nil
+	}
+	// Effort-based budgets use adaptive thinking — no token adjustment needed.
+	if _, ok := anthropicEffort(c.ModelConfig.ThinkingBudget); ok {
 		return maxTokens, nil
 	}
 
 	thinkingTokens := int64(c.ModelConfig.ThinkingBudget.Tokens)
+	if thinkingTokens <= 0 {
+		return maxTokens, nil
+	}
+
 	minRequired := thinkingTokens + 1024 // configured thinking budget + minimum output buffer
 
 	if maxTokens <= thinkingTokens {
@@ -297,7 +308,25 @@ func (c *Client) CreateChatCompletionStream(
 
 	// Apply thinking budget first, as it affects whether we can set temperature
 	thinkingEnabled := false
-	if c.ModelConfig.ThinkingBudget != nil && c.ModelConfig.ThinkingBudget.Tokens > 0 {
+	if c.ModelConfig.ThinkingBudget != nil && c.ModelConfig.ThinkingBudget.IsAdaptive() {
+		// Adaptive thinking: let the model decide how much thinking to do
+		adaptive := anthropic.NewThinkingConfigAdaptiveParam()
+		params.Thinking = anthropic.ThinkingConfigParamUnion{
+			OfAdaptive: &adaptive,
+		}
+		thinkingEnabled = true
+		slog.Debug("Anthropic API using adaptive thinking (standard messages)")
+	} else if effort, ok := anthropicEffort(c.ModelConfig.ThinkingBudget); ok {
+		// Effort level: use adaptive thinking + output_config.effort
+		adaptive := anthropic.NewThinkingConfigAdaptiveParam()
+		params.Thinking = anthropic.ThinkingConfigParamUnion{
+			OfAdaptive: &adaptive,
+		}
+		params.OutputConfig.Effort = anthropic.OutputConfigEffort(effort)
+		thinkingEnabled = true
+		slog.Debug("Anthropic API using adaptive thinking with effort",
+			"effort", effort)
+	} else if c.ModelConfig.ThinkingBudget != nil && c.ModelConfig.ThinkingBudget.Tokens > 0 {
 		thinkingTokens := int64(c.ModelConfig.ThinkingBudget.Tokens)
 		switch {
 		case thinkingTokens >= 1024 && thinkingTokens < maxTokens:
@@ -893,6 +922,29 @@ func differenceIDs(a, b map[string]struct{}) []string {
 		}
 	}
 	return missing
+}
+
+// anthropicEffort maps a ThinkingBudget effort string to an Anthropic API
+// effort level ("low", "medium", "high", "max"). Returns ("", false) when
+// the budget uses token counts, adaptive mode, or an unrecognised string.
+func anthropicEffort(b *latest.ThinkingBudget) (string, bool) {
+	if b == nil {
+		return "", false
+	}
+	switch strings.ToLower(strings.TrimSpace(b.Effort)) {
+	case "low":
+		return "low", true
+	case "minimal": // "minimal" is not in the Anthropic API; map to closest
+		return "low", true
+	case "medium":
+		return "medium", true
+	case "high":
+		return "high", true
+	case "max":
+		return "max", true
+	default:
+		return "", false
+	}
 }
 
 // anthropicContextLimit returns a reasonable default context window for Anthropic models.

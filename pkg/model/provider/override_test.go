@@ -10,127 +10,79 @@ import (
 	"github.com/docker/docker-agent/pkg/model/provider/options"
 )
 
-// TestApplyOverrides_Thinking tests that applyOverrides correctly clears
-// thinking configuration when Thinking is set to false (disabled).
-func TestApplyOverrides_Thinking(t *testing.T) {
+func TestApplyOverrides(t *testing.T) {
 	t.Parallel()
 
+	boolPtr := func(v bool) *bool { return &v }
+
 	tests := []struct {
-		name                      string
-		config                    *latest.ModelConfig
-		thinkingEnabled           *bool // nil means no override, true means enabled, false means disabled
-		expectThinkingBudget      *latest.ThinkingBudget
-		expectInterleavedThinking *bool // nil means key should not exist
+		name            string
+		config          *latest.ModelConfig
+		thinking        *bool // nil = no override
+		wantBudget      *latest.ThinkingBudget
+		wantInterleaved *bool // nil = key must not exist
 	}{
+		// --- Disable clears everything ---
 		{
-			name: "clears explicit thinking_budget when disabled",
-			config: &latest.ModelConfig{
-				Provider:       "anthropic",
-				Model:          "claude-sonnet-4-0",
-				ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
-			},
-			thinkingEnabled:      new(false),
-			expectThinkingBudget: nil,
+			name:     "disable: clears thinking_budget",
+			config:   &latest.ModelConfig{Provider: "anthropic", Model: "claude-sonnet-4-0", ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192}},
+			thinking: boolPtr(false),
 		},
 		{
-			name: "clears interleaved_thinking when disabled",
-			config: &latest.ModelConfig{
-				Provider:       "anthropic",
-				Model:          "claude-sonnet-4-0",
-				ThinkingBudget: &latest.ThinkingBudget{Tokens: 16384},
-				ProviderOpts:   map[string]any{"interleaved_thinking": true},
-			},
-			thinkingEnabled:           new(false),
-			expectThinkingBudget:      nil,
-			expectInterleavedThinking: nil, // key should be removed
+			name:     "disable: clears interleaved_thinking",
+			config:   &latest.ModelConfig{Provider: "anthropic", Model: "claude-sonnet-4-0", ThinkingBudget: &latest.ThinkingBudget{Tokens: 16384}, ProviderOpts: map[string]any{"interleaved_thinking": true}},
+			thinking: boolPtr(false),
+		},
+
+		// --- Enable preserves existing budget ---
+		{
+			name:       "enable: preserves existing budget",
+			config:     &latest.ModelConfig{Provider: "anthropic", Model: "claude-sonnet-4-0", ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192}},
+			thinking:   boolPtr(true),
+			wantBudget: &latest.ThinkingBudget{Tokens: 8192},
 		},
 		{
-			name: "preserves thinking_budget when enabled",
-			config: &latest.ModelConfig{
-				Provider:       "anthropic",
-				Model:          "claude-sonnet-4-0",
-				ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
-			},
-			thinkingEnabled:      new(true),
-			expectThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
+			name:            "enable: preserves existing budget + interleaved",
+			config:          &latest.ModelConfig{Provider: "anthropic", Model: "claude-sonnet-4-0", ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192}, ProviderOpts: map[string]any{"interleaved_thinking": true}},
+			thinking:        boolPtr(true),
+			wantBudget:      &latest.ThinkingBudget{Tokens: 8192},
+			wantInterleaved: boolPtr(true),
+		},
+
+		// --- Enable applies defaults when no budget ---
+		{
+			name:       "enable: OpenAI gets medium default",
+			config:     &latest.ModelConfig{Provider: "openai", Model: "gpt-4o"},
+			thinking:   boolPtr(true),
+			wantBudget: &latest.ThinkingBudget{Effort: "medium"},
 		},
 		{
-			name: "preserves interleaved_thinking when enabled",
-			config: &latest.ModelConfig{
-				Provider:       "anthropic",
-				Model:          "claude-sonnet-4-0",
-				ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
-				ProviderOpts:   map[string]any{"interleaved_thinking": true},
-			},
-			thinkingEnabled:           new(true),
-			expectThinkingBudget:      &latest.ThinkingBudget{Tokens: 8192},
-			expectInterleavedThinking: new(true),
+			name:            "enable: Anthropic gets 8192 + interleaved",
+			config:          &latest.ModelConfig{Provider: "anthropic", Model: "claude-sonnet-4-0"},
+			thinking:        boolPtr(true),
+			wantBudget:      &latest.ThinkingBudget{Tokens: 8192},
+			wantInterleaved: boolPtr(true),
 		},
 		{
-			name: "preserves other ProviderOpts when clearing thinking",
-			config: &latest.ModelConfig{
-				Provider:       "anthropic",
-				Model:          "claude-sonnet-4-0",
-				ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
-				ProviderOpts: map[string]any{
-					"interleaved_thinking": true,
-					"other_option":         "preserved",
-				},
-			},
-			thinkingEnabled:      new(false),
-			expectThinkingBudget: nil,
+			name:       "enable: restores from tokens=0",
+			config:     &latest.ModelConfig{Provider: "openai", Model: "gpt-4o", ThinkingBudget: &latest.ThinkingBudget{Tokens: 0}},
+			thinking:   boolPtr(true),
+			wantBudget: &latest.ThinkingBudget{Effort: "medium"},
 		},
 		{
-			name: "nil options is a no-op",
-			config: &latest.ModelConfig{
-				Provider:       "anthropic",
-				Model:          "claude-sonnet-4-0",
-				ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
-			},
-			thinkingEnabled:      nil, // Will pass nil opts
-			expectThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
+			name:            "enable: restores from effort=none",
+			config:          &latest.ModelConfig{Provider: "anthropic", Model: "claude-sonnet-4-0", ThinkingBudget: &latest.ThinkingBudget{Effort: "none"}},
+			thinking:        boolPtr(true),
+			wantBudget:      &latest.ThinkingBudget{Tokens: 8192},
+			wantInterleaved: boolPtr(true),
 		},
+
+		// --- No override = no-op ---
 		{
-			name: "applies defaults when enabled and ThinkingBudget is nil (OpenAI)",
-			config: &latest.ModelConfig{
-				Provider:       "openai",
-				Model:          "gpt-4o",
-				ThinkingBudget: nil, // No thinking configured
-			},
-			thinkingEnabled:      new(true),
-			expectThinkingBudget: &latest.ThinkingBudget{Effort: "medium"}, // OpenAI default
-		},
-		{
-			name: "applies defaults when enabled and ThinkingBudget is nil (Anthropic)",
-			config: &latest.ModelConfig{
-				Provider:       "anthropic",
-				Model:          "claude-sonnet-4-0",
-				ThinkingBudget: nil, // No thinking configured
-			},
-			thinkingEnabled:           new(true),
-			expectThinkingBudget:      &latest.ThinkingBudget{Tokens: 8192}, // Anthropic default
-			expectInterleavedThinking: new(true),                            // Anthropic default
-		},
-		{
-			name: "restores defaults when /think used with tokens=0",
-			config: &latest.ModelConfig{
-				Provider:       "openai",
-				Model:          "gpt-4o",
-				ThinkingBudget: &latest.ThinkingBudget{Tokens: 0}, // User had thinking disabled
-			},
-			thinkingEnabled:      new(true),                                // User runs /think
-			expectThinkingBudget: &latest.ThinkingBudget{Effort: "medium"}, // Apply OpenAI default
-		},
-		{
-			name: "restores defaults when /think used with effort=none",
-			config: &latest.ModelConfig{
-				Provider:       "anthropic",
-				Model:          "claude-sonnet-4-0",
-				ThinkingBudget: &latest.ThinkingBudget{Effort: "none"}, // User had thinking disabled
-			},
-			thinkingEnabled:           new(true),                            // User runs /think
-			expectThinkingBudget:      &latest.ThinkingBudget{Tokens: 8192}, // Apply Anthropic default
-			expectInterleavedThinking: new(true),
+			name:       "nil opts: config unchanged",
+			config:     &latest.ModelConfig{Provider: "anthropic", Model: "claude-sonnet-4-0", ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192}},
+			thinking:   nil,
+			wantBudget: &latest.ThinkingBudget{Tokens: 8192},
 		},
 	}
 
@@ -138,230 +90,40 @@ func TestApplyOverrides_Thinking(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			// Build options
 			var opts *options.ModelOptions
-			if tt.thinkingEnabled != nil {
-				mo := options.ModelOptions{}
-				options.WithThinking(*tt.thinkingEnabled)(&mo)
-				opts = &mo
+			if tt.thinking != nil {
+				o := options.ModelOptions{}
+				options.WithThinking(*tt.thinking)(&o)
+				opts = &o
 			}
 
-			// Save original other options for preservation check
-			var originalOtherOpts map[string]any
-			if tt.config.ProviderOpts != nil {
-				originalOtherOpts = make(map[string]any)
-				for k, v := range tt.config.ProviderOpts {
-					if k != "interleaved_thinking" {
-						originalOtherOpts[k] = v
-					}
-				}
-			}
-
-			// Apply overrides
 			result := applyOverrides(tt.config, opts)
 
-			// Verify thinking budget
-			if tt.expectThinkingBudget == nil {
-				assert.Nil(t, result.ThinkingBudget, "ThinkingBudget should be nil")
+			// Budget
+			if tt.wantBudget == nil {
+				assert.Nil(t, result.ThinkingBudget)
 			} else {
-				require.NotNil(t, result.ThinkingBudget, "ThinkingBudget should be set")
-				assert.Equal(t, tt.expectThinkingBudget.Tokens, result.ThinkingBudget.Tokens)
-				assert.Equal(t, tt.expectThinkingBudget.Effort, result.ThinkingBudget.Effort)
+				require.NotNil(t, result.ThinkingBudget)
+				assert.Equal(t, *tt.wantBudget, *result.ThinkingBudget)
 			}
 
-			// Verify interleaved_thinking
-			if tt.expectInterleavedThinking == nil && tt.thinkingEnabled != nil && !*tt.thinkingEnabled {
-				// Key should be removed when thinking is disabled
+			// interleaved_thinking
+			if tt.wantInterleaved == nil && tt.thinking != nil && !*tt.thinking {
 				if result.ProviderOpts != nil {
 					_, exists := result.ProviderOpts["interleaved_thinking"]
 					assert.False(t, exists, "interleaved_thinking should be removed")
 				}
-			} else if tt.expectInterleavedThinking != nil {
+			} else if tt.wantInterleaved != nil {
 				require.NotNil(t, result.ProviderOpts)
-				val, exists := result.ProviderOpts["interleaved_thinking"]
-				require.True(t, exists, "interleaved_thinking should exist")
-				assert.Equal(t, *tt.expectInterleavedThinking, val)
-			}
-
-			// Verify other ProviderOpts are preserved
-			for k, v := range originalOtherOpts {
-				require.NotNil(t, result.ProviderOpts, "ProviderOpts should exist for preserved keys")
-				assert.Equal(t, v, result.ProviderOpts[k], "other ProviderOpts key %s should be preserved", k)
+				assert.Equal(t, *tt.wantInterleaved, result.ProviderOpts["interleaved_thinking"])
 			}
 		})
 	}
 }
 
-// TestApplyOverrides_AllProviders tests that thinking override works for all providers.
-func TestApplyOverrides_AllProviders(t *testing.T) {
-	t.Parallel()
-
-	providers := []struct {
-		name     string
-		provider string
-		model    string
-	}{
-		{"OpenAI", "openai", "gpt-4o"},
-		{"Anthropic", "anthropic", "claude-sonnet-4-0"},
-		{"Google", "google", "gemini-2.5-flash"},
-		{"Bedrock Claude", "amazon-bedrock", "global.anthropic.claude-sonnet-4-5-20250929-v1:0"},
-		{"Mistral (alias)", "mistral", "mistral-large-latest"},
-		{"xAI (alias)", "xai", "grok-2"},
-	}
-
-	for _, p := range providers {
-		t.Run(p.name, func(t *testing.T) {
-			t.Parallel()
-
-			// Create config with thinking budget
-			config := &latest.ModelConfig{
-				Provider:       p.provider,
-				Model:          p.model,
-				ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
-			}
-
-			// Apply override with thinking disabled
-			mo := options.ModelOptions{}
-			options.WithThinking(false)(&mo)
-			result := applyOverrides(config, &mo)
-
-			// Thinking should be cleared for all providers
-			assert.Nil(t, result.ThinkingBudget,
-				"ThinkingBudget should be cleared for provider %s", p.provider)
-		})
-	}
-}
-
-// TestDefaultsThenOverrides tests the full flow: defaults applied first, then overrides.
-func TestDefaultsThenOverrides(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name                 string
-		config               *latest.ModelConfig
-		thinkingEnabled      bool
-		expectThinkingBudget *latest.ThinkingBudget
-	}{
-		{
-			name: "OpenAI: defaults applied, then cleared by override",
-			config: &latest.ModelConfig{
-				Provider: "openai",
-				Model:    "gpt-4o",
-				// No ThinkingBudget set - defaults will apply
-			},
-			thinkingEnabled:      false,
-			expectThinkingBudget: nil, // Override clears the default
-		},
-		{
-			name: "OpenAI: defaults applied, preserved when enabled",
-			config: &latest.ModelConfig{
-				Provider: "openai",
-				Model:    "gpt-4o",
-			},
-			thinkingEnabled:      true,
-			expectThinkingBudget: &latest.ThinkingBudget{Effort: "medium"}, // Default preserved
-		},
-		{
-			name: "Anthropic: defaults applied, then cleared by override",
-			config: &latest.ModelConfig{
-				Provider: "anthropic",
-				Model:    "claude-sonnet-4-0",
-			},
-			thinkingEnabled:      false,
-			expectThinkingBudget: nil,
-		},
-		{
-			name: "Anthropic: defaults applied, preserved when enabled",
-			config: &latest.ModelConfig{
-				Provider: "anthropic",
-				Model:    "claude-sonnet-4-0",
-			},
-			thinkingEnabled:      true,
-			expectThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
-		},
-		{
-			name: "Google Gemini 2.5: defaults applied, then cleared by override",
-			config: &latest.ModelConfig{
-				Provider: "google",
-				Model:    "gemini-2.5-flash",
-			},
-			thinkingEnabled:      false,
-			expectThinkingBudget: nil,
-		},
-		{
-			name: "Google Gemini 3 Pro: defaults applied, then cleared by override",
-			config: &latest.ModelConfig{
-				Provider: "google",
-				Model:    "gemini-3-pro",
-			},
-			thinkingEnabled:      false,
-			expectThinkingBudget: nil,
-		},
-		{
-			name: "Bedrock Claude: defaults applied, then cleared by override",
-			config: &latest.ModelConfig{
-				Provider: "amazon-bedrock",
-				Model:    "anthropic.claude-3-sonnet",
-			},
-			thinkingEnabled:      false,
-			expectThinkingBudget: nil,
-		},
-		{
-			name: "Explicit budget cleared by override",
-			config: &latest.ModelConfig{
-				Provider:       "anthropic",
-				Model:          "claude-sonnet-4-0",
-				ThinkingBudget: &latest.ThinkingBudget{Tokens: 32000}, // Explicit
-			},
-			thinkingEnabled:      false,
-			expectThinkingBudget: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			// Step 1: Apply defaults (simulating createDirectProvider flow)
-			result := applyProviderDefaults(tt.config, nil)
-
-			// Step 2: Apply overrides
-			mo := options.ModelOptions{}
-			options.WithThinking(tt.thinkingEnabled)(&mo)
-			result = applyOverrides(result, &mo)
-
-			// Verify result
-			if tt.expectThinkingBudget == nil {
-				assert.Nil(t, result.ThinkingBudget, "ThinkingBudget should be nil after override")
-			} else {
-				require.NotNil(t, result.ThinkingBudget, "ThinkingBudget should be set")
-				assert.Equal(t, tt.expectThinkingBudget.Tokens, result.ThinkingBudget.Tokens)
-				assert.Equal(t, tt.expectThinkingBudget.Effort, result.ThinkingBudget.Effort)
-			}
-		})
-	}
-}
-
-// TestApplyOverrides_NilOpts tests that nil options returns config unchanged.
-func TestApplyOverrides_NilOpts(t *testing.T) {
-	t.Parallel()
-
-	config := &latest.ModelConfig{
-		Provider:       "anthropic",
-		Model:          "claude-sonnet-4-0",
-		ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
-		ProviderOpts:   map[string]any{"interleaved_thinking": true},
-	}
-
-	result := applyOverrides(config, nil)
-
-	// Should be unchanged
-	require.NotNil(t, result.ThinkingBudget)
-	assert.Equal(t, 8192, result.ThinkingBudget.Tokens)
-	assert.Equal(t, true, result.ProviderOpts["interleaved_thinking"])
-}
-
-// TestApplyOverrides_DoesNotModifyOriginal tests that applyOverrides creates a copy.
+// TestApplyOverrides_DoesNotModifyOriginal verifies that applyOverrides creates
+// a proper copy: neither the struct fields, the ProviderOpts map, nor the
+// ThinkingBudget pointer of the original config are mutated.
 func TestApplyOverrides_DoesNotModifyOriginal(t *testing.T) {
 	t.Parallel()
 
@@ -369,139 +131,137 @@ func TestApplyOverrides_DoesNotModifyOriginal(t *testing.T) {
 		Provider:       "anthropic",
 		Model:          "claude-sonnet-4-0",
 		ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
-		ProviderOpts:   map[string]any{"interleaved_thinking": true},
+		ProviderOpts:   map[string]any{"interleaved_thinking": true, "other": "value"},
 	}
 
-	mo := options.ModelOptions{}
-	options.WithThinking(false)(&mo)
-	result := applyOverrides(original, &mo)
+	o := options.ModelOptions{}
+	options.WithThinking(false)(&o)
+	result := applyOverrides(original, &o)
 
-	// Original should be unchanged
-	require.NotNil(t, original.ThinkingBudget, "Original ThinkingBudget should be unchanged")
+	// Result should have thinking cleared.
+	assert.Nil(t, result.ThinkingBudget, "result ThinkingBudget should be nil")
+
+	// Original ThinkingBudget must be untouched.
+	require.NotNil(t, original.ThinkingBudget, "original ThinkingBudget must survive")
 	assert.Equal(t, 8192, original.ThinkingBudget.Tokens)
 
-	// Result should have changes
-	assert.Nil(t, result.ThinkingBudget, "Result ThinkingBudget should be nil")
+	// Original ProviderOpts map must still have interleaved_thinking.
+	val, exists := original.ProviderOpts["interleaved_thinking"]
+	require.True(t, exists, "original ProviderOpts must still contain interleaved_thinking")
+	assert.Equal(t, true, val)
+
+	// Other keys must survive in both original and result.
+	assert.Equal(t, "value", original.ProviderOpts["other"])
+	require.NotNil(t, result.ProviderOpts)
+	assert.Equal(t, "value", result.ProviderOpts["other"])
 }
 
-// TestApplyOverrides_RestoresDefaultsFromDisabled tests that using /think when
-// the config has thinking explicitly disabled (Tokens=0 or Effort="none") applies
-// provider defaults. This is the key behavior that makes /think work when YAML
-// starts with thinking_budget: 0 or thinking_budget: none.
-//
-// Note: applyProviderDefaults now converts disabled thinking (Tokens=0 or Effort="none")
-// to nil ThinkingBudget. The /think command (applyOverrides with Thinking=true) then
-// applies provider defaults since ThinkingBudget is nil.
-func TestApplyOverrides_RestoresDefaultsFromDisabled(t *testing.T) {
+// TestApplyOverrides_DisablePreservesOtherProviderOpts verifies that disabling
+// thinking only removes "interleaved_thinking" and leaves other keys intact.
+func TestApplyOverrides_DisablePreservesOtherProviderOpts(t *testing.T) {
+	t.Parallel()
+
+	config := &latest.ModelConfig{
+		Provider:       "anthropic",
+		Model:          "claude-sonnet-4-0",
+		ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
+		ProviderOpts:   map[string]any{"interleaved_thinking": true, "custom_key": "preserved"},
+	}
+
+	o := options.ModelOptions{}
+	options.WithThinking(false)(&o)
+	result := applyOverrides(config, &o)
+
+	// Thinking should be cleared.
+	assert.Nil(t, result.ThinkingBudget)
+
+	// interleaved_thinking should be removed.
+	_, exists := result.ProviderOpts["interleaved_thinking"]
+	assert.False(t, exists, "interleaved_thinking should be removed from result")
+
+	// Other keys must survive.
+	assert.Equal(t, "preserved", result.ProviderOpts["custom_key"])
+}
+
+// TestDefaultsThenOverrides tests the complete flow: provider defaults → overrides.
+func TestDefaultsThenOverrides(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name                 string
-		config               *latest.ModelConfig
-		expectThinkingBudget *latest.ThinkingBudget
+		name       string
+		config     *latest.ModelConfig
+		thinking   bool
+		wantBudget *latest.ThinkingBudget
 	}{
-		{
-			name: "Anthropic: /think with Tokens=0 applies default 8192",
-			config: &latest.ModelConfig{
-				Provider:       "anthropic",
-				Model:          "claude-sonnet-4-0",
-				ThinkingBudget: &latest.ThinkingBudget{Tokens: 0},
-			},
-			expectThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
-		},
-		{
-			name: "Anthropic: /think with Effort=none applies default 8192",
-			config: &latest.ModelConfig{
-				Provider:       "anthropic",
-				Model:          "claude-sonnet-4-0",
-				ThinkingBudget: &latest.ThinkingBudget{Effort: "none"},
-			},
-			expectThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
-		},
-		{
-			name: "OpenAI: /think with Tokens=0 applies default medium",
-			config: &latest.ModelConfig{
-				Provider:       "openai",
-				Model:          "gpt-4o",
-				ThinkingBudget: &latest.ThinkingBudget{Tokens: 0},
-			},
-			expectThinkingBudget: &latest.ThinkingBudget{Effort: "medium"},
-		},
-		{
-			name: "OpenAI: /think with Effort=none applies default medium",
-			config: &latest.ModelConfig{
-				Provider:       "openai",
-				Model:          "gpt-4o",
-				ThinkingBudget: &latest.ThinkingBudget{Effort: "none"},
-			},
-			expectThinkingBudget: &latest.ThinkingBudget{Effort: "medium"},
-		},
-		{
-			name: "Gemini 2.5: /think with Tokens=0 applies default -1 (dynamic)",
-			config: &latest.ModelConfig{
-				Provider:       "google",
-				Model:          "gemini-2.5-flash",
-				ThinkingBudget: &latest.ThinkingBudget{Tokens: 0},
-			},
-			expectThinkingBudget: &latest.ThinkingBudget{Tokens: -1},
-		},
-		{
-			name: "Bedrock Claude: /think with Tokens=0 applies default 8192",
-			config: &latest.ModelConfig{
-				Provider:       "amazon-bedrock",
-				Model:          "anthropic.claude-3-sonnet",
-				ThinkingBudget: &latest.ThinkingBudget{Tokens: 0},
-			},
-			expectThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
-		},
+		// Disable on models without defaults — already nil, stays nil.
+		{"gpt-4o /think off", &latest.ModelConfig{Provider: "openai", Model: "gpt-4o"}, false, nil},
+		{"anthropic /think off", &latest.ModelConfig{Provider: "anthropic", Model: "claude-sonnet-4-0"}, false, nil},
+
+		// Enable on models without defaults — applies provider defaults.
+		{"gpt-4o /think on", &latest.ModelConfig{Provider: "openai", Model: "gpt-4o"}, true, &latest.ThinkingBudget{Effort: "medium"}},
+		{"anthropic /think on", &latest.ModelConfig{Provider: "anthropic", Model: "claude-sonnet-4-0"}, true, &latest.ThinkingBudget{Tokens: 8192}},
+		{"gemini-2.5 /think on", &latest.ModelConfig{Provider: "google", Model: "gemini-2.5-flash"}, true, &latest.ThinkingBudget{Tokens: -1}},
+		{"gemini-3-pro /think on", &latest.ModelConfig{Provider: "google", Model: "gemini-3-pro"}, true, &latest.ThinkingBudget{Effort: "high"}},
+		{"gemini-3-flash /think on", &latest.ModelConfig{Provider: "google", Model: "gemini-3-flash"}, true, &latest.ThinkingBudget{Effort: "medium"}},
+		{"bedrock claude /think on", &latest.ModelConfig{Provider: "amazon-bedrock", Model: "anthropic.claude-3-sonnet"}, true, &latest.ThinkingBudget{Tokens: 8192}},
+
+		// Old Gemini model that doesn't support thinking — /think should be a no-op.
+		{"gemini-2.0 /think on (no thinking support)", &latest.ModelConfig{Provider: "google", Model: "gemini-2.0-flash"}, true, nil},
+
+		// Thinking-only model defaults preserved when enabled, cleared when disabled.
+		{"o3-mini /think on", &latest.ModelConfig{Provider: "openai", Model: "o3-mini"}, true, &latest.ThinkingBudget{Effort: "medium"}},
+		{"o3-mini /think off", &latest.ModelConfig{Provider: "openai", Model: "o3-mini"}, false, nil},
+
+		// Explicit budget cleared by disable.
+		{"explicit cleared", &latest.ModelConfig{Provider: "anthropic", Model: "claude-sonnet-4-0", ThinkingBudget: &latest.ThinkingBudget{Tokens: 32000}}, false, nil},
+
+		// Restore from disabled (thinking_budget: 0) via /think on.
+		{"restore from 0", &latest.ModelConfig{Provider: "openai", Model: "gpt-4o", ThinkingBudget: &latest.ThinkingBudget{Tokens: 0}}, true, &latest.ThinkingBudget{Effort: "medium"}},
+		{"restore from none", &latest.ModelConfig{Provider: "anthropic", Model: "claude-sonnet-4-0", ThinkingBudget: &latest.ThinkingBudget{Effort: "none"}}, true, &latest.ThinkingBudget{Tokens: 8192}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			// Step 1: Apply provider defaults (simulating createDirectProvider flow)
-			// This now converts disabled thinking (Tokens=0 or Effort="none") to nil
 			result := applyProviderDefaults(tt.config, nil)
 
-			// Verify thinking is disabled (nil) after provider defaults
-			assert.Nil(t, result.ThinkingBudget,
-				"ThinkingBudget should be nil after applyProviderDefaults when explicitly disabled")
+			o := options.ModelOptions{}
+			options.WithThinking(tt.thinking)(&o)
+			result = applyOverrides(result, &o)
 
-			// Step 2: Apply override with thinking explicitly enabled (simulates /think toggle)
-			mo := options.ModelOptions{}
-			options.WithThinking(true)(&mo)
-			result = applyOverrides(result, &mo)
-
-			// Verify defaults were applied - /think enables thinking with provider defaults
-			require.NotNil(t, result.ThinkingBudget, "ThinkingBudget should be set after /think")
-			assert.Equal(t, tt.expectThinkingBudget.Tokens, result.ThinkingBudget.Tokens, "Tokens should match default")
-			assert.Equal(t, tt.expectThinkingBudget.Effort, result.ThinkingBudget.Effort, "Effort should match default")
+			if tt.wantBudget == nil {
+				assert.Nil(t, result.ThinkingBudget)
+			} else {
+				require.NotNil(t, result.ThinkingBudget)
+				assert.Equal(t, *tt.wantBudget, *result.ThinkingBudget)
+			}
 		})
 	}
 }
 
-// TestIsThinkingBudgetDisabled tests the helper function.
-func TestIsThinkingBudgetDisabled(t *testing.T) {
+// TestApplyProviderDefaults_DoesNotModifyOriginal verifies that applyProviderDefaults
+// does not mutate the input config's ProviderOpts map.
+func TestApplyProviderDefaults_DoesNotModifyOriginal(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name     string
-		budget   *latest.ThinkingBudget
-		expected bool
-	}{
-		{"nil budget", nil, false},
-		{"Tokens=0", &latest.ThinkingBudget{Tokens: 0}, true},
-		{"Effort=none", &latest.ThinkingBudget{Effort: "none"}, true},
-		{"Tokens=8192", &latest.ThinkingBudget{Tokens: 8192}, false},
-		{"Effort=medium", &latest.ThinkingBudget{Effort: "medium"}, false},
-		{"Tokens=-1 (dynamic)", &latest.ThinkingBudget{Tokens: -1}, false},
+	original := &latest.ModelConfig{
+		Provider:       "anthropic",
+		Model:          "claude-sonnet-4-0",
+		ThinkingBudget: &latest.ThinkingBudget{Tokens: 8192},
+		ProviderOpts:   map[string]any{"custom_key": "original_value"},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.expected, tt.budget.IsDisabled())
-		})
-	}
+	result := applyProviderDefaults(original, nil)
+
+	// Result should have interleaved_thinking set (because thinking_budget is set).
+	require.NotNil(t, result.ProviderOpts)
+	assert.Equal(t, true, result.ProviderOpts["interleaved_thinking"])
+
+	// Original must NOT have interleaved_thinking added.
+	_, exists := original.ProviderOpts["interleaved_thinking"]
+	assert.False(t, exists, "original ProviderOpts must not be mutated by applyProviderDefaults")
+
+	// Original custom key must still be there.
+	assert.Equal(t, "original_value", original.ProviderOpts["custom_key"])
 }
