@@ -551,20 +551,15 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*
 }
 
 // readImageFile reads an image file and returns it as base64-encoded image content.
+// The caller must ensure the file exists (e.g. via os.Stat) before calling this method.
 func (t *FilesystemTool) readImageFile(resolvedPath, originalPath string) (*tools.ToolCallResult, error) {
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		var errMsg string
-		if errors.Is(err, fs.ErrNotExist) {
-			errMsg = "not found"
-		} else {
-			errMsg = err.Error()
-		}
 		return &tools.ToolCallResult{
-			Output:  errMsg,
+			Output:  err.Error(),
 			IsError: true,
 			Meta: ReadFileMeta{
-				Error: errMsg,
+				Error: err.Error(),
 			},
 		}, nil
 	}
