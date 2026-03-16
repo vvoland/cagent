@@ -85,9 +85,8 @@ func StartTickIfFirst() tea.Cmd {
 }
 
 // tickLocked returns a tick command. Must be called with mu held.
-// 14 FPS - smooth enough for most animations without being too CPU-intensive.
 func (c *Coordinator) tickLocked() tea.Cmd {
-	return tea.Tick(time.Second/14, func(time.Time) tea.Msg {
+	return tea.Tick(time.Second, func(time.Time) tea.Msg {
 		c.mu.Lock()
 		c.frame++
 		frame := c.frame
