@@ -376,11 +376,7 @@ func (t *FilesystemTool) shouldIgnorePath(path string) bool {
 	// Lazily initialize the gitignore matcher on first use
 	t.initGitignoreMatcher()
 
-	if t.repoMatcher != nil && t.repoMatcher.ShouldIgnore(path) {
-		return true
-	}
-
-	return false
+	return t.repoMatcher != nil && t.repoMatcher.ShouldIgnore(path)
 }
 
 // Handler implementations
