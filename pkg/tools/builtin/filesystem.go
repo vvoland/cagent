@@ -384,14 +384,14 @@ func (t *FilesystemTool) shouldIgnorePath(path string) bool {
 
 // Handler implementations
 
-func (t *FilesystemTool) handleDirectoryTree(_ context.Context, args DirectoryTreeArgs) (*tools.ToolCallResult, error) {
+func (t *FilesystemTool) handleDirectoryTree(ctx context.Context, args DirectoryTreeArgs) (*tools.ToolCallResult, error) {
 	resolvedPath := t.resolvePath(args.Path)
 
 	isPathAllowed := func(_ string) error {
 		return nil
 	}
 
-	tree, err := fsx.DirectoryTree(resolvedPath, isPathAllowed, t.shouldIgnorePath, maxFiles)
+	tree, err := fsx.DirectoryTreeWithContext(ctx, resolvedPath, isPathAllowed, t.shouldIgnorePath, maxFiles)
 	if err != nil {
 		return tools.ResultError(fmt.Sprintf("Error building directory tree: %s", err)), nil
 	}

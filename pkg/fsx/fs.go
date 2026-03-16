@@ -17,10 +17,22 @@ type TreeNode struct {
 
 func DirectoryTree(path string, isPathAllowed func(string) error, shouldIgnore func(string) bool, maxItems int) (*TreeNode, error) {
 	itemCount := 0
-	return directoryTree(path, isPathAllowed, shouldIgnore, maxItems, &itemCount)
+	return directoryTree(context.Background(), path, isPathAllowed, shouldIgnore, maxItems, &itemCount)
 }
 
-func directoryTree(path string, isPathAllowed func(string) error, shouldIgnore func(string) bool, maxItems int, itemCount *int) (*TreeNode, error) {
+// DirectoryTreeWithContext is a context-aware version of DirectoryTree.
+func DirectoryTreeWithContext(ctx context.Context, path string, isPathAllowed func(string) error, shouldIgnore func(string) bool, maxItems int) (*TreeNode, error) {
+	itemCount := 0
+	return directoryTree(ctx, path, isPathAllowed, shouldIgnore, maxItems, &itemCount)
+}
+
+func directoryTree(ctx context.Context, path string, isPathAllowed func(string) error, shouldIgnore func(string) bool, maxItems int, itemCount *int) (*TreeNode, error) {
+	// Check for context cancellation
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
 	if maxItems > 0 && *itemCount >= maxItems {
 		return nil, nil
 	}
@@ -47,6 +59,13 @@ func directoryTree(path string, isPathAllowed func(string) error, shouldIgnore f
 		}
 
 		for _, entry := range entries {
+			// Check for context cancellation
+			select {
+			case <-ctx.Done():
+				return node, ctx.Err()
+			default:
+			}
+
 			childPath := filepath.Join(path, entry.Name())
 			if err := isPathAllowed(childPath); err != nil {
 				continue // Skip disallowed paths
@@ -57,7 +76,7 @@ func directoryTree(path string, isPathAllowed func(string) error, shouldIgnore f
 				continue
 			}
 
-			childNode, err := directoryTree(childPath, isPathAllowed, shouldIgnore, maxItems, itemCount)
+			childNode, err := directoryTree(ctx, childPath, isPathAllowed, shouldIgnore, maxItems, itemCount)
 			if err != nil || childNode == nil {
 				continue
 			}

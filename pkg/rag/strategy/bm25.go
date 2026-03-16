@@ -157,7 +157,7 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunki
 
 	// Collect all files
 	slog.Debug("Collecting files", "strategy", s.name, "paths", docPaths)
-	files, err := fsx.CollectFiles(docPaths, s.shouldIgnore)
+	files, err := fsx.CollectFiles(ctx, docPaths, s.shouldIgnore)
 	if err != nil {
 		s.emitEvent(types.Event{Type: types.EventTypeError, Error: err})
 		return fmt.Errorf("failed to collect files: %w", err)
@@ -165,6 +165,12 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunki
 
 	seenFilesForCleanup := make(map[string]bool)
 	for _, f := range files {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		seenFilesForCleanup[f] = true
 	}
 
@@ -188,6 +194,13 @@ func (s *BM25Strategy) Initialize(ctx context.Context, docPaths []string, chunki
 	filesToIndex := 0
 
 	for _, filePath := range files {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		seenFiles[filePath] = true
 
 		needsIndexing, err := s.needsIndexing(ctx, filePath)
@@ -324,7 +337,7 @@ func (s *BM25Strategy) Query(ctx context.Context, query string, numResults int, 
 
 // CheckAndReindexChangedFiles checks for file changes and re-indexes if needed
 func (s *BM25Strategy) CheckAndReindexChangedFiles(ctx context.Context, docPaths []string, chunking ChunkingConfig) error {
-	files, err := fsx.CollectFiles(docPaths, s.shouldIgnore)
+	files, err := fsx.CollectFiles(ctx, docPaths, s.shouldIgnore)
 	if err != nil {
 		return fmt.Errorf("failed to collect files: %w", err)
 	}
@@ -332,6 +345,13 @@ func (s *BM25Strategy) CheckAndReindexChangedFiles(ctx context.Context, docPaths
 	seenFiles := make(map[string]bool)
 
 	for _, filePath := range files {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		seenFiles[filePath] = true
 
 		needsIndexing, err := s.needsIndexing(ctx, filePath)
@@ -372,7 +392,7 @@ func (s *BM25Strategy) StartFileWatcher(ctx context.Context, docPaths []string, 
 	s.watcher = watcher
 
 	for _, docPath := range docPaths {
-		if err := s.addPathToWatcher(docPath); err != nil {
+		if err := s.addPathToWatcher(ctx, docPath); err != nil {
 			slog.Warn("Failed to watch path", "strategy", s.name, "path", docPath, "error", err)
 			continue
 		}
@@ -542,6 +562,13 @@ func (s *BM25Strategy) indexFile(ctx context.Context, filePath string) error {
 
 	storedChunks := 0
 	for _, chunk := range chunks {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		if chunk.Content == "" {
 			continue
 		}
@@ -582,6 +609,13 @@ func (s *BM25Strategy) cleanupOrphanedDocuments(ctx context.Context, seenFiles m
 	}
 
 	for _, meta := range metadata {
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		if !seenFiles[meta.SourcePath] {
 			if err := s.db.DeleteDocumentsByPath(ctx, meta.SourcePath); err != nil {
 				slog.Error("Failed to delete orphaned documents", "path", meta.SourcePath, "error", err)
@@ -600,7 +634,7 @@ func (s *BM25Strategy) cleanupOrphanedDocuments(ctx context.Context, seenFiles m
 	return nil
 }
 
-func (s *BM25Strategy) addPathToWatcher(path string) error {
+func (s *BM25Strategy) addPathToWatcher(ctx context.Context, path string) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
@@ -619,7 +653,7 @@ func (s *BM25Strategy) addPathToWatcher(path string) error {
 	}
 
 	if stat.IsDir() {
-		files, err := fsx.CollectFiles([]string{absPath}, s.shouldIgnore)
+		files, err := fsx.CollectFiles(ctx, []string{absPath}, s.shouldIgnore)
 		if err != nil {
 			return fmt.Errorf("failed to collect files: %w", err)
 		}
@@ -657,6 +691,13 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string) {
 		}
 
 		for _, file := range changedFiles {
+			// Check for context cancellation
+			select {
+			case <-ctx.Done():
+				return // Stop processing if context is cancelled
+			default:
+			}
+
 			// Check if the file matches any of the configured document paths/patterns
 			matches, matchErr := fsx.Matches(file, docPaths)
 			if matchErr != nil {
@@ -705,7 +746,7 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string) {
 
 			if event.Op&fsnotify.Create != 0 {
 				s.watcherMu.Lock()
-				_ = s.addPathToWatcher(event.Name)
+				_ = s.addPathToWatcher(ctx, event.Name)
 				s.watcherMu.Unlock()
 			}
 
