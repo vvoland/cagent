@@ -130,15 +130,27 @@ func validateConfig(cfg *latest.Config) error {
 	}
 
 	for _, agent := range cfg.Agents {
-		for _, subAgentName := range agent.SubAgents {
-			if _, exists := allNames[subAgentName]; !exists && !IsExternalReference(subAgentName) {
-				return fmt.Errorf("agent '%s' references non-existent sub-agent '%s'", agent.Name, subAgentName)
+		for _, subAgentRef := range agent.SubAgents {
+			if _, exists := allNames[subAgentRef]; !exists && !IsExternalReference(subAgentRef) {
+				return fmt.Errorf("agent '%s' references non-existent sub-agent '%s'", agent.Name, subAgentRef)
+			}
+			if IsExternalReference(subAgentRef) {
+				name, _ := ParseExternalAgentRef(subAgentRef)
+				if allNames[name] {
+					return fmt.Errorf("agent '%s': external sub-agent '%s' resolves to name '%s' which conflicts with a locally-defined agent", agent.Name, subAgentRef, name)
+				}
 			}
 		}
 
-		for _, handoffName := range agent.Handoffs {
-			if _, exists := allNames[handoffName]; !exists && !IsExternalReference(handoffName) {
-				return fmt.Errorf("agent '%s' references non-existent handoff agent '%s'", agent.Name, handoffName)
+		for _, handoffRef := range agent.Handoffs {
+			if _, exists := allNames[handoffRef]; !exists && !IsExternalReference(handoffRef) {
+				return fmt.Errorf("agent '%s' references non-existent handoff agent '%s'", agent.Name, handoffRef)
+			}
+			if IsExternalReference(handoffRef) {
+				name, _ := ParseExternalAgentRef(handoffRef)
+				if allNames[name] {
+					return fmt.Errorf("agent '%s': external handoff '%s' resolves to name '%s' which conflicts with a locally-defined agent", agent.Name, handoffRef, name)
+				}
 			}
 		}
 

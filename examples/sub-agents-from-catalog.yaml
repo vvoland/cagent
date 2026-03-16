@@ -3,6 +3,11 @@
 # This example demonstrates using agents from the catalog as sub-agents.
 # Sub-agents can be defined locally in the same config, or referenced from
 # external sources such as OCI registries (e.g., the Docker agent catalog).
+#
+# External sub-agents are automatically named after their last path segment
+# (e.g., "agentcatalog/pirate" becomes "pirate"). You can also give them
+# an explicit name using the "name:reference" syntax:
+#   - reviewer:agentcatalog/review-pr
 
 models:
   model:
@@ -17,7 +22,7 @@ agents:
       You are a coordinator agent. You have access to both local and external sub-agents.
 
       - Use the "local_helper" agent for simple tasks.
-      - Use the "agentcatalog/pirate" agent when users want responses in a pirate style.
+      - Use the "pirate" agent when users want responses in a pirate style.
 
       Delegate tasks to the most appropriate sub-agent based on the user's request.
     sub_agents:

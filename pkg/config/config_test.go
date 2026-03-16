@@ -534,6 +534,60 @@ func TestValidateConfig_ExternalSubAgentReferences(t *testing.T) {
 			wantErr: "non-existent handoff agent 'does_not_exist'",
 		},
 		{
+			name: "named OCI reference in sub_agents is allowed",
+			cfg: &latest.Config{
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "openai/gpt-4o", SubAgents: []string{"reviewer:agentcatalog/review-pr"}},
+				},
+			},
+		},
+		{
+			name: "named URL reference in sub_agents is allowed",
+			cfg: &latest.Config{
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "openai/gpt-4o", SubAgents: []string{"myagent:https://example.com/agent.yaml"}},
+				},
+			},
+		},
+		{
+			name: "named OCI reference in handoffs is allowed",
+			cfg: &latest.Config{
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "openai/gpt-4o", Handoffs: []string{"reviewer:agentcatalog/review-pr"}},
+				},
+			},
+		},
+		{
+			name: "external sub-agent name collides with local agent",
+			cfg: &latest.Config{
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "openai/gpt-4o", SubAgents: []string{"pirate", "agentcatalog/pirate"}},
+					{Name: "pirate", Model: "openai/gpt-4o"},
+				},
+			},
+			wantErr: "conflicts with a locally-defined agent",
+		},
+		{
+			name: "named external sub-agent collides with local agent",
+			cfg: &latest.Config{
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "openai/gpt-4o", SubAgents: []string{"helper", "helper:agentcatalog/review-pr"}},
+					{Name: "helper", Model: "openai/gpt-4o"},
+				},
+			},
+			wantErr: "conflicts with a locally-defined agent",
+		},
+		{
+			name: "external handoff name collides with local agent",
+			cfg: &latest.Config{
+				Agents: []latest.AgentConfig{
+					{Name: "root", Model: "openai/gpt-4o", Handoffs: []string{"agentcatalog/pirate"}},
+					{Name: "pirate", Model: "openai/gpt-4o"},
+				},
+			},
+			wantErr: "conflicts with a locally-defined agent",
+		},
+		{
 			name: "local handoff to another agent passes",
 			cfg: &latest.Config{
 				Agents: []latest.AgentConfig{
