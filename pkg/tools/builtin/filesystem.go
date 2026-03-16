@@ -53,7 +53,7 @@ var (
 )
 
 // allowAllPaths is a no-op path filter that permits every path.
-var allowAllPaths = func(_ string) error { return nil }
+func allowAllPaths(_ string) error { return nil }
 
 type FileSystemOpt func(*FilesystemTool)
 
@@ -554,11 +554,12 @@ func (t *FilesystemTool) handleReadFile(_ context.Context, args ReadFileArgs) (*
 func (t *FilesystemTool) readImageFile(resolvedPath, originalPath string) (*tools.ToolCallResult, error) {
 	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
+		errMsg := err.Error()
 		return &tools.ToolCallResult{
-			Output:  err.Error(),
+			Output:  errMsg,
 			IsError: true,
 			Meta: ReadFileMeta{
-				Error: err.Error(),
+				Error: errMsg,
 			},
 		}, nil
 	}
