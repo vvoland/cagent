@@ -683,6 +683,20 @@ type ThinkingBudget struct {
 	Tokens int `json:"tokens,omitempty"`
 }
 
+// validThinkingEfforts lists all accepted string values for thinking_budget.
+const validThinkingEfforts = "none, minimal, low, medium, high, max, adaptive"
+
+// isValidThinkingEffort reports whether s (case-insensitive, trimmed) is a
+// recognised thinking_budget effort level.
+func isValidThinkingEffort(s string) bool {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "none", "minimal", "low", "medium", "high", "max", "adaptive":
+		return true
+	default:
+		return false
+	}
+}
+
 func (t *ThinkingBudget) UnmarshalYAML(unmarshal func(any) error) error {
 	// Try integer tokens first
 	var n int
@@ -694,6 +708,9 @@ func (t *ThinkingBudget) UnmarshalYAML(unmarshal func(any) error) error {
 	// Try string level
 	var s string
 	if err := unmarshal(&s); err == nil {
+		if !isValidThinkingEffort(s) {
+			return fmt.Errorf("invalid thinking_budget effort %q: must be one of %s", s, validThinkingEfforts)
+		}
 		*t = ThinkingBudget{Effort: s}
 		return nil
 	}
@@ -793,6 +810,9 @@ func (t *ThinkingBudget) UnmarshalJSON(data []byte) error {
 	// Try string level
 	var s string
 	if err := json.Unmarshal(data, &s); err == nil {
+		if !isValidThinkingEffort(s) {
+			return fmt.Errorf("invalid thinking_budget effort %q: must be one of %s", s, validThinkingEfforts)
+		}
 		*t = ThinkingBudget{Effort: s}
 		return nil
 	}
