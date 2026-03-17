@@ -310,6 +310,11 @@ func TestEditFileArgs_UnmarshalJSON(t *testing.T) {
 			input:   `{"path": "test.txt", "edits": "not valid json"}`,
 			wantErr: true,
 		},
+		{
+			name:    "missing path in double-serialized fallback",
+			input:   `{"edits": "[{\"oldText\": \"a\", \"newText\": \"b\"}]"}`,
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range tests {

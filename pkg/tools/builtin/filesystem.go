@@ -187,6 +187,9 @@ func (a *EditFileArgs) UnmarshalJSON(data []byte) error {
 	}
 
 	a.Path = raw.Path
+	if a.Path == "" {
+		return errors.New("path field is required")
+	}
 
 	// Try parsing edits as an array first (normal case).
 	if err := json.Unmarshal(raw.Edits, &a.Edits); err == nil {
