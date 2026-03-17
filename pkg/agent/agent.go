@@ -131,11 +131,18 @@ func (a *Agent) HasSubAgents() bool {
 // If model override(s) are set, it returns one of the overrides (randomly for alloy).
 // Otherwise, it returns a random model from the available models.
 func (a *Agent) Model() provider.Provider {
+	var selected provider.Provider
+	var poolSize int
 	// Check for model override first (set via TUI model switching)
 	if overrides := a.modelOverrides.Load(); overrides != nil && len(*overrides) > 0 {
-		return (*overrides)[rand.Intn(len(*overrides))]
+		selected = (*overrides)[rand.Intn(len(*overrides))]
+		poolSize = len(*overrides)
+	} else {
+		selected = a.models[rand.Intn(len(a.models))]
+		poolSize = len(a.models)
 	}
-	return a.models[rand.Intn(len(a.models))]
+	slog.Info("Model selected", "agent", a.name, "model", selected.ID(), "pool_size", poolSize)
+	return selected
 }
 
 // SetModelOverride sets runtime model override(s) for this agent.
