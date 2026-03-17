@@ -35,7 +35,7 @@ func New() *Model {
 	return &Model{
 		width:     Width,
 		trackChar: "⎪",
-		thumbChar: "┃",
+		thumbChar: "⎪",
 	}
 }
 

@@ -28,38 +28,6 @@ func TestFrameWrapsAround(t *testing.T) {
 	require.Equal(t, spinnerFrames[0], Frame(n), "Frame should wrap around")
 }
 
-func TestSelectFrames(t *testing.T) {
-	require.Equal(t, brailleFrames, selectFrames(false))
-	require.Equal(t, asciiFrames, selectFrames(true))
-}
-
-func TestInMultiplexer(t *testing.T) {
-	tests := []struct {
-		name string
-		env  map[string]string
-		want bool
-	}{
-		{"plain terminal", map[string]string{"TERM": "xterm-256color"}, false},
-		{"TMUX set", map[string]string{"TMUX": "/tmp/tmux-1000/default,123,0"}, true},
-		{"STY set", map[string]string{"STY": "12345.pts-0"}, true},
-		{"TERM=tmux-256color", map[string]string{"TERM": "tmux-256color"}, true},
-		{"TERM=screen-256color", map[string]string{"TERM": "screen-256color"}, true},
-		{"TERM=screen", map[string]string{"TERM": "screen"}, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Clear all multiplexer env vars
-			t.Setenv("TMUX", "")
-			t.Setenv("STY", "")
-			t.Setenv("TERM", "")
-			for k, v := range tt.env {
-				t.Setenv(k, v)
-			}
-			require.Equal(t, tt.want, inMultiplexer())
-		})
-	}
-}
-
 func BenchmarkSpinner_ModeSpinnerOnly(b *testing.B) {
 	s := New(ModeSpinnerOnly, lipgloss.NewStyle())
 	for b.Loop() {
