@@ -3,6 +3,74 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.32.5] - 2026-03-17
+
+This release improves agent reliability and performance with better tool loop detection, enhanced MCP handling, and various bug fixes.
+
+## What's New
+
+- Adds framework-level tool loop detection to prevent degenerate agent loops when the same tool is called repeatedly
+- Adds support for dynamic command expansion in skills using `!\`command\`` syntax
+- Adds support for running skills as isolated sub-agents via `context: fork` frontmatter
+- Adds CLI flags (`--hook-pre-tool-use`, `--hook-post-tool-use`, etc.) to override agent hooks from command line
+- Adds stop and notification hooks with session lifecycle integration
+
+## Improvements
+
+- Reworks thinking budget system to be opt-in by default with adaptive thinking and effort levels
+- Caches syntax highlighting results for code blocks to improve markdown rendering performance
+- Optimizes MCP catalog loading with single fetch per run and ETag caching
+- Derives meaningful names for external sub-agents instead of using generic 'root' name
+- Optimizes filesystem tool performance by avoiding duplicate string allocations
+- Speeds up history loading with ReadFile and strconv.Unquote optimizations
+
+## Bug Fixes
+
+- Fixes context cancelling during RAG initialization and query operations
+- Fixes frozen spinner during MCP tool loading
+- Fixes model name display in TUI sidebar for all model types
+- Fixes two data races in shell tool execution
+- Fixes character handling issues in tmux integration
+- Fixes binary download URLs in documentation to match release artifact naming
+- Validates thinking_budget effort levels at parse time and rejects unknown values
+
+## Technical Changes
+
+- Removes unused methods from codebase
+- Hardens and simplifies MCP gateway code
+- Adds logging for selected model in Agent.Model() for better observability
+- Fixes pool_size reporting to reflect actual selection pool
+- Reverts timeout changes for remote MCP initialization and tool calls
+
+### Pull Requests
+
+- [#2112](https://github.com/docker/docker-agent/pull/2112) - docs: update CHANGELOG.md for v1.32.4
+- [#2113](https://github.com/docker/docker-agent/pull/2113) - Bump dependencies
+- [#2114](https://github.com/docker/docker-agent/pull/2114) - Fix rag init context cancel
+- [#2115](https://github.com/docker/docker-agent/pull/2115) - Fix frozen spinner during MCP tool loading
+- [#2116](https://github.com/docker/docker-agent/pull/2116) - Support dynamic command expansion in skills (\!`command` syntax)
+- [#2118](https://github.com/docker/docker-agent/pull/2118) - Fix model name display in TUI sidebar for all model types
+- [#2119](https://github.com/docker/docker-agent/pull/2119) - perf(markdown): cache syntax highlighting results for code blocks
+- [#2121](https://github.com/docker/docker-agent/pull/2121) - Rework thinking budget: opt-in by default, adaptive thinking, effort levels
+- [#2123](https://github.com/docker/docker-agent/pull/2123) - feat: framework-level tool loop detection
+- [#2124](https://github.com/docker/docker-agent/pull/2124) - Simplify MCP catalog loading: single fetch per run with ETag caching
+- [#2125](https://github.com/docker/docker-agent/pull/2125) - Fix issues on builtin filesystem tools
+- [#2127](https://github.com/docker/docker-agent/pull/2127) - Fix two data races in shell tool
+- [#2128](https://github.com/docker/docker-agent/pull/2128) - Fix a few characters for tmux
+- [#2129](https://github.com/docker/docker-agent/pull/2129) - docs: fix binary download URLs to match release artifact naming
+- [#2130](https://github.com/docker/docker-agent/pull/2130) - More doc fixing with "agent serve mcp"
+- [#2131](https://github.com/docker/docker-agent/pull/2131) - Add timeouts to remote MCP initialization and tool calls
+- [#2132](https://github.com/docker/docker-agent/pull/2132) - Derive meaningful names for external sub-agents instead of using 'root'
+- [#2133](https://github.com/docker/docker-agent/pull/2133) - gateway: harden and simplify MCP gateway code
+- [#2134](https://github.com/docker/docker-agent/pull/2134) - Log selected model in Agent.Model() for alloy observability
+- [#2135](https://github.com/docker/docker-agent/pull/2135) - Add --hook-* CLI flags to override agent hooks from the command line
+- [#2136](https://github.com/docker/docker-agent/pull/2136) - Add stop and notification hooks, wire up session lifecycle hooks
+- [#2137](https://github.com/docker/docker-agent/pull/2137) - feat: support running skills as isolated sub-agents via context: fork
+- [#2138](https://github.com/docker/docker-agent/pull/2138) - Optimize start time
+- [#2141](https://github.com/docker/docker-agent/pull/2141) - Revert "Add timeouts to remote MCP initialization and tool calls"
+- [#2142](https://github.com/docker/docker-agent/pull/2142) - Reject unknown thinking_budget effort levels at parse time
+
+
 ## [v1.32.4] - 2026-03-16
 
 This release optimizes tool instructions, removes unused session metadata, and includes several bug fixes and improvements.
@@ -1324,3 +1392,5 @@ This release improves the terminal user interface with better error handling and
 [v1.32.3]: https://github.com/docker/docker-agent/releases/tag/v1.32.3
 
 [v1.32.4]: https://github.com/docker/docker-agent/releases/tag/v1.32.4
+
+[v1.32.5]: https://github.com/docker/docker-agent/releases/tag/v1.32.5
