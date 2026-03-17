@@ -19,10 +19,10 @@ const (
 	DockerCatalogURL     = "https://desktop.docker.com/mcp/catalog/v3/catalog.yaml"
 	catalogCacheFileName = "mcp_catalog.json"
 	fetchTimeout         = 15 * time.Second
-)
 
-// catalogJSON is the URL we actually fetch (JSON is ~3x faster to parse than YAML).
-var catalogJSON = strings.Replace(DockerCatalogURL, ".yaml", ".json", 1)
+	// catalogJSON is the URL we actually fetch (JSON is ~3x faster to parse than YAML).
+	catalogJSON = "https://desktop.docker.com/mcp/catalog/v3/catalog.json"
+)
 
 func RequiredEnvVars(ctx context.Context, serverName string) ([]Secret, error) {
 	server, err := ServerSpec(ctx, serverName)
@@ -40,8 +40,8 @@ func RequiredEnvVars(ctx context.Context, serverName string) ([]Secret, error) {
 	return server.Secrets, nil
 }
 
-func ServerSpec(ctx context.Context, serverName string) (Server, error) {
-	catalog, err := loadCatalog(ctx)
+func ServerSpec(_ context.Context, serverName string) (Server, error) {
+	catalog, err := catalogOnce()
 	if err != nil {
 		return Server{}, err
 	}
@@ -52,6 +52,11 @@ func ServerSpec(ctx context.Context, serverName string) (Server, error) {
 	}
 
 	return server, nil
+}
+
+// ParseServerRef strips the optional "docker:" prefix from a server reference.
+func ParseServerRef(ref string) string {
+	return strings.TrimPrefix(ref, "docker:")
 }
 
 // cachedCatalog is the on-disk cache format.
@@ -68,12 +73,6 @@ type cachedCatalog struct {
 var catalogOnce = sync.OnceValues(func() (Catalog, error) {
 	return fetchAndCache(context.Background())
 })
-
-// loadCatalog returns the catalog, fetching it at most once per process run.
-// On network failure it falls back to the disk cache.
-func loadCatalog(_ context.Context) (Catalog, error) {
-	return catalogOnce()
-}
 
 // fetchAndCache tries to fetch the catalog from the network (using ETag for
 // conditional requests) and falls back to the disk cache on any failure.
@@ -128,16 +127,24 @@ func saveToDisk(path string, catalog Catalog, etag string) {
 	}
 
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		slog.Warn("Failed to create MCP catalog cache directory", "error", err)
-		return
-	}
 
 	// Write to a temp file and rename so readers never see a partial file.
+	// Try creating the temp file first; only create the directory if needed.
 	tmp, err := os.CreateTemp(dir, ".mcp_catalog_*.tmp")
 	if err != nil {
-		slog.Warn("Failed to create MCP catalog temp file", "error", err)
-		return
+		if !os.IsNotExist(err) {
+			slog.Warn("Failed to create MCP catalog temp file", "error", err)
+			return
+		}
+		if mkErr := os.MkdirAll(dir, 0o755); mkErr != nil {
+			slog.Warn("Failed to create MCP catalog cache directory", "error", mkErr)
+			return
+		}
+		tmp, err = os.CreateTemp(dir, ".mcp_catalog_*.tmp")
+		if err != nil {
+			slog.Warn("Failed to create MCP catalog temp file", "error", err)
+			return
+		}
 	}
 	tmpName := tmp.Name()
 
@@ -159,6 +166,10 @@ func saveToDisk(path string, catalog Catalog, etag string) {
 	}
 }
 
+// catalogClient is a dedicated HTTP client for catalog fetches, isolated from
+// http.DefaultClient so that other parts of the process cannot interfere.
+var catalogClient = &http.Client{}
+
 // fetchFromNetwork fetches the catalog, using the ETag for conditional requests.
 // It returns (nil, "", nil) when the server responds with 304 Not Modified.
 func fetchFromNetwork(ctx context.Context, etag string) (Catalog, string, error) {
@@ -174,7 +185,7 @@ func fetchFromNetwork(ctx context.Context, etag string) (Catalog, string, error)
 		req.Header.Set("If-None-Match", etag)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := catalogClient.Do(req)
 	if err != nil {
 		return nil, "", err
 	}
