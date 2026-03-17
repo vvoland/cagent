@@ -108,15 +108,7 @@ func runTUI(ctx context.Context, rt runtime.Runtime, sess *session.Session, spaw
 	wd, _ := os.Getwd()
 	model := tui.New(ctx, spawner, a, wd, cleanup)
 
-	programOpts := []tea.ProgramOption{tea.WithContext(ctx), tea.WithFilter(filter)}
-
-	// Terminal multiplexers can drop frames at the default 60 FPS, making
-	// spinners appear static. Cap the renderer at 30 FPS when detected.
-	if inMultiplexer() {
-		programOpts = append(programOpts, tea.WithFPS(30))
-	}
-
-	p := tea.NewProgram(model, programOpts...)
+	p := tea.NewProgram(model, tea.WithContext(ctx), tea.WithFilter(filter))
 	coalescer.SetSender(p.Send)
 
 	if m, ok := model.(interface{ SetProgram(p *tea.Program) }); ok {
@@ -125,17 +117,4 @@ func runTUI(ctx context.Context, rt runtime.Runtime, sess *session.Session, spaw
 
 	_, err := p.Run()
 	return err
-}
-
-// inMultiplexer reports whether the process is running inside a terminal
-// multiplexer (tmux, screen).
-func inMultiplexer() bool {
-	if os.Getenv("TMUX") != "" {
-		return true
-	}
-	if os.Getenv("STY") != "" {
-		return true
-	}
-	term := os.Getenv("TERM")
-	return strings.HasPrefix(term, "tmux") || strings.HasPrefix(term, "screen")
 }
