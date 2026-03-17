@@ -509,6 +509,8 @@ func configNameFromSource(sourceName string) string {
 // References that match a locally-defined agent name are looked up directly.
 // References that are external (OCI or URL) are loaded on-demand and cached
 // in externalAgents so the same reference isn't loaded twice.
+// External references may include an explicit name prefix ("name:ref") or
+// derive a short name from the reference (e.g. "agentcatalog/review-pr" → "review-pr").
 func resolveAgentRefs(
 	ctx context.Context,
 	refs []string,
@@ -536,12 +538,25 @@ func resolveAgentRefs(
 			continue
 		}
 
-		a, err := loadExternalAgent(ctx, ref, runConfig, loadOpts)
-		if err != nil {
-			return nil, fmt.Errorf("loading %q: %w", ref, err)
+		agentName, externalRef := config.ParseExternalAgentRef(ref)
+
+		// Check for name collisions before loading the external agent.
+		if existing, ok := agentsByName[agentName]; ok {
+			return nil, fmt.Errorf("external agent %q resolves to name %q which conflicts with agent %q", ref, agentName, existing.Name())
 		}
+
+		a, err := loadExternalAgent(ctx, externalRef, runConfig, loadOpts)
+		if err != nil {
+			return nil, fmt.Errorf("loading %q: %w", externalRef, err)
+		}
+
+		// Rename the external agent so it doesn't collide with locally-defined
+		// agents (external agents typically have the name "root").
+		agent.WithName(agentName)(a)
+
 		*agents = append(*agents, a)
 		externalAgents[ref] = a
+		agentsByName[agentName] = a
 		resolved = append(resolved, a)
 	}
 	return resolved, nil

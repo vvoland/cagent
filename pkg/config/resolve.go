@@ -216,6 +216,83 @@ func fileNameWithoutExt(path string) string {
 // (OCI image or URL) rather than a local agent name defined in the same config.
 // Local agent names never contain "/", so the slash check distinguishes them
 // from OCI references like "agentcatalog/pirate" or "docker.io/org/agent:v1".
+// It also handles the "name:ref" syntax (e.g. "reviewer:agentcatalog/review-pr").
 func IsExternalReference(input string) bool {
+	_, ref := ParseExternalAgentRef(input)
+	return isExternalRef(ref)
+}
+
+// ParseExternalAgentRef parses an external agent reference that may include an
+// explicit name prefix. The syntax is "name:reference" where name is a simple
+// identifier (no slashes) and reference is an OCI reference or URL.
+//
+// If no explicit name is provided, the base name is derived from the reference:
+//   - OCI refs: last path segment without tag (e.g. "agentcatalog/review-pr" → "review-pr")
+//   - URLs: filename without extension (e.g. "https://example.com/agent.yaml" → "agent")
+//
+// Examples:
+//
+//	ParseExternalAgentRef("reviewer:agentcatalog/review-pr") → ("reviewer", "agentcatalog/review-pr")
+//	ParseExternalAgentRef("agentcatalog/review-pr") → ("review-pr", "agentcatalog/review-pr")
+//	ParseExternalAgentRef("docker.io/myorg/myagent:v1") → ("myagent", "docker.io/myorg/myagent:v1")
+//	ParseExternalAgentRef("https://example.com/agent.yaml") → ("agent", "https://example.com/agent.yaml")
+func ParseExternalAgentRef(input string) (agentName, ref string) {
+	// If the whole input is already a valid external reference, derive the name
+	// from it without trying to split on ":".
+	if isExternalRef(input) {
+		return externalRefBaseName(input), input
+	}
+
+	// Check for explicit "name:reference" syntax.
+	// A name prefix is identified by not containing "/" (distinguishing it from
+	// OCI references or URLs which always contain slashes).
+	if i := strings.Index(input, ":"); i > 0 {
+		candidate := input[:i]
+		if !strings.Contains(candidate, "/") {
+			remainder := input[i+1:]
+			if isExternalRef(remainder) {
+				return candidate, remainder
+			}
+		}
+	}
+
+	// Fallback: return input as both name and ref (for local agent names).
+	return input, input
+}
+
+// isExternalRef is the core check for whether a string is an external reference.
+// It is used by both IsExternalReference and ParseExternalAgentRef to avoid
+// circular dependencies.
+func isExternalRef(input string) bool {
 	return IsURLReference(input) || (strings.Contains(input, "/") && IsOCIReference(input))
+}
+
+// externalRefBaseName extracts a short agent name from an external reference.
+//
+//   - OCI: last path segment, tag/digest stripped
+//     "agentcatalog/review-pr" → "review-pr"
+//     "docker.io/myorg/myagent:v1" → "myagent"
+//
+//   - URL: filename without extension
+//     "https://example.com/agent.yaml" → "agent"
+func externalRefBaseName(ref string) string {
+	if IsURLReference(ref) {
+		return fileNameWithoutExt(ref)
+	}
+
+	// OCI reference: strip tag or digest, then take last path segment.
+	base := ref
+	if i := strings.LastIndex(base, "@"); i >= 0 {
+		base = base[:i]
+	}
+	if i := strings.LastIndex(base, ":"); i >= 0 {
+		// Only strip if the colon is after the last slash (i.e. it's a tag, not a port).
+		if j := strings.LastIndex(base, "/"); j < i {
+			base = base[:i]
+		}
+	}
+	if i := strings.LastIndex(base, "/"); i >= 0 {
+		base = base[i+1:]
+	}
+	return base
 }

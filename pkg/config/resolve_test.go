@@ -665,6 +665,16 @@ func TestIsExternalReference(t *testing.T) {
 			input:    "",
 			expected: false,
 		},
+		{
+			name:     "named OCI reference is external",
+			input:    "reviewer:agentcatalog/review-pr",
+			expected: true,
+		},
+		{
+			name:     "named URL reference is external",
+			input:    "myagent:https://example.com/agent.yaml",
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -673,6 +683,88 @@ func TestIsExternalReference(t *testing.T) {
 
 			result := IsExternalReference(tt.input)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestParseExternalAgentRef(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		input        string
+		expectedName string
+		expectedRef  string
+	}{
+		{
+			name:         "simple OCI reference derives base name",
+			input:        "agentcatalog/pirate",
+			expectedName: "pirate",
+			expectedRef:  "agentcatalog/pirate",
+		},
+		{
+			name:         "OCI reference with tag derives base name without tag",
+			input:        "docker.io/myorg/myagent:v1",
+			expectedName: "myagent",
+			expectedRef:  "docker.io/myorg/myagent:v1",
+		},
+		{
+			name:         "OCI reference with digest derives base name",
+			input:        "docker.io/myorg/myagent@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			expectedName: "myagent",
+			expectedRef:  "docker.io/myorg/myagent@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		},
+		{
+			name:         "explicit name prefix",
+			input:        "reviewer:agentcatalog/review-pr",
+			expectedName: "reviewer",
+			expectedRef:  "agentcatalog/review-pr",
+		},
+		{
+			name:         "explicit name with tagged OCI ref",
+			input:        "myreviewer:docker.io/myorg/review-pr:v2",
+			expectedName: "myreviewer",
+			expectedRef:  "docker.io/myorg/review-pr:v2",
+		},
+		{
+			name:         "URL reference derives filename",
+			input:        "https://example.com/agent.yaml",
+			expectedName: "agent",
+			expectedRef:  "https://example.com/agent.yaml",
+		},
+		{
+			name:         "named URL reference",
+			input:        "myagent:https://example.com/agent.yaml",
+			expectedName: "myagent",
+			expectedRef:  "https://example.com/agent.yaml",
+		},
+		{
+			name:         "simple name without slash is not split",
+			input:        "my_agent",
+			expectedName: "my_agent",
+			expectedRef:  "my_agent",
+		},
+		{
+			name:         "OCI ref with registry port is not confused with name prefix",
+			input:        "localhost:5000/test/agent",
+			expectedName: "agent",
+			expectedRef:  "localhost:5000/test/agent",
+		},
+		{
+			name:         "deeply nested OCI path",
+			input:        "registry.example.com/org/sub/agent:latest",
+			expectedName: "agent",
+			expectedRef:  "registry.example.com/org/sub/agent:latest",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			name, ref := ParseExternalAgentRef(tt.input)
+			assert.Equal(t, tt.expectedName, name)
+			assert.Equal(t, tt.expectedRef, ref)
 		})
 	}
 }
