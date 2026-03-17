@@ -7,9 +7,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/genai"
 
+	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/model/provider/base"
 	"github.com/docker/docker-agent/pkg/model/provider/options"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 func TestBuildConfig_Gemini25_ThinkingBudget(t *testing.T) {
@@ -408,6 +410,92 @@ func TestBuildConfig_ThinkingExplicitlyEnabled(t *testing.T) {
 	require.NotNil(t, config.ThinkingConfig, "ThinkingConfig should be set")
 	assert.True(t, config.ThinkingConfig.IncludeThoughts, "IncludeThoughts should be true when thinking is enabled")
 	assert.Equal(t, genai.ThinkingLevelMedium, config.ThinkingConfig.ThinkingLevel, "ThinkingLevel should be set from ThinkingBudget")
+}
+
+func TestConvertMessagesToGemini_ThoughtSignature(t *testing.T) {
+	t.Parallel()
+
+	defaultSig := thoughtSignatureOrDefault(nil) // the well-known skip sentinel
+	realSig := []byte("real-thought-signature-from-gemini")
+
+	tests := []struct {
+		name      string
+		message   chat.Message
+		wantParts int
+		wantSig   []byte
+	}{
+		{
+			name: "preserves existing signature",
+			message: chat.Message{
+				Role:             chat.MessageRoleAssistant,
+				ThoughtSignature: realSig,
+				ToolCalls: []tools.ToolCall{{
+					ID:       "call-1",
+					Function: tools.FunctionCall{Name: "my_tool", Arguments: `{"key":"value"}`},
+				}},
+			},
+			wantParts: 1,
+			wantSig:   realSig,
+		},
+		{
+			name: "uses default when signature is nil (cross-model)",
+			message: chat.Message{
+				Role: chat.MessageRoleAssistant,
+				ToolCalls: []tools.ToolCall{{
+					ID:       "call-1",
+					Function: tools.FunctionCall{Name: "my_tool", Arguments: `{"key":"value"}`},
+				}},
+			},
+			wantParts: 1,
+			wantSig:   defaultSig,
+		},
+		{
+			name: "uses default when signature is empty (non-nil)",
+			message: chat.Message{
+				Role:             chat.MessageRoleAssistant,
+				ThoughtSignature: []byte{},
+				ToolCalls: []tools.ToolCall{{
+					ID:       "call-1",
+					Function: tools.FunctionCall{Name: "my_tool", Arguments: `{"key":"value"}`},
+				}},
+			},
+			wantParts: 1,
+			wantSig:   defaultSig,
+		},
+		{
+			name: "applies to text and all function call parts",
+			message: chat.Message{
+				Role:    chat.MessageRoleAssistant,
+				Content: "calling tools",
+				ToolCalls: []tools.ToolCall{
+					{ID: "call-1", Function: tools.FunctionCall{Name: "tool_a", Arguments: `{}`}},
+					{ID: "call-2", Function: tools.FunctionCall{Name: "tool_b", Arguments: `{"x":1}`}},
+				},
+			},
+			wantParts: 3, // text + 2 function calls
+			wantSig:   defaultSig,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			contents := convertMessagesToGemini([]chat.Message{
+				{Role: chat.MessageRoleUser, Content: "go"},
+				tt.message,
+			})
+
+			require.Len(t, contents, 2)
+			assistant := contents[1]
+			assert.Equal(t, genai.RoleModel, assistant.Role)
+			require.Len(t, assistant.Parts, tt.wantParts)
+
+			for i, p := range assistant.Parts {
+				assert.Equal(t, tt.wantSig, p.ThoughtSignature, "part %d", i)
+			}
+		})
+	}
 }
 
 func TestBuildConfig_ThinkingNotSet(t *testing.T) {
