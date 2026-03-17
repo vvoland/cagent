@@ -77,8 +77,6 @@ type SubSessionConfig struct {
 	Title string
 	// ToolsApproved overrides whether tools are pre-approved in the child session.
 	ToolsApproved bool
-	// Thinking propagates the parent's thinking-mode flag.
-	Thinking bool
 	// PinAgent, when true, pins the child session to AgentName via
 	// session.WithAgentName. This is required for concurrent background
 	// tasks that must not share the runtime's mutable currentAgent field.
@@ -110,7 +108,7 @@ func newSubSession(parent *session.Session, cfg SubSessionConfig, childAgent *ag
 		session.WithMaxConsecutiveToolCalls(childAgent.MaxConsecutiveToolCalls()),
 		session.WithTitle(cfg.Title),
 		session.WithToolsApproved(cfg.ToolsApproved),
-		session.WithThinking(cfg.Thinking),
+		session.WithThinking(childAgent.ThinkingConfigured()),
 		session.WithSendUserMessage(false),
 		session.WithParentID(parent.ID),
 	}
@@ -121,8 +119,8 @@ func newSubSession(parent *session.Session, cfg SubSessionConfig, childAgent *ag
 }
 
 // runSubSessionForwarding runs a child session within the parent, forwarding all
-// events to the caller's event channel and propagating session state (tool
-// approvals, thinking) back to the parent when done.
+// events to the caller's event channel and propagating tool approval state
+// back to the parent when done.
 //
 // This is the "interactive" path used by transfer_task where the parent agent
 // loop is blocked while the child executes.
@@ -137,7 +135,6 @@ func (r *LocalRuntime) runSubSessionForwarding(ctx context.Context, parent, chil
 	}
 
 	parent.ToolsApproved = child.ToolsApproved
-	parent.Thinking = child.Thinking
 
 	parent.AddSubSession(child)
 	evts <- SubSessionCompleted(parent.ID, child, callerAgent)
@@ -216,7 +213,6 @@ func (r *LocalRuntime) RunAgent(ctx context.Context, params agenttool.RunParams)
 		AgentName:      params.AgentName,
 		Title:          "Background agent task",
 		ToolsApproved:  true,
-		Thinking:       sess.Thinking,
 		PinAgent:       true,
 	}
 
@@ -252,35 +248,28 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 
 	slog.Debug("Transferring task to agent", "from_agent", a.Name(), "to_agent", params.Agent, "task", params.Task)
 
-	ca := r.CurrentAgentName()
-
 	// Emit agent switching start event
-	evts <- AgentSwitching(true, ca, params.Agent)
+	evts <- AgentSwitching(true, a.Name(), params.Agent)
 
 	r.setCurrentAgent(params.Agent)
 	defer func() {
-		r.setCurrentAgent(ca)
+		r.setCurrentAgent(a.Name())
 
 		// Emit agent switching end event
-		evts <- AgentSwitching(false, params.Agent, ca)
+		evts <- AgentSwitching(false, params.Agent, a.Name())
 
 		// Restore original agent info in sidebar
-		if originalAgent, err := r.team.Agent(ca); err == nil {
-			evts <- AgentInfo(originalAgent.Name(), getAgentModelID(originalAgent), originalAgent.Description(), originalAgent.WelcomeMessage())
-		}
+		evts <- AgentInfo(a.Name(), getAgentModelID(a), a.Description(), a.WelcomeMessage())
 	}()
 
 	// Emit agent info for the new agent
-	if newAgent, err := r.team.Agent(params.Agent); err == nil {
-		evts <- AgentInfo(newAgent.Name(), getAgentModelID(newAgent), newAgent.Description(), newAgent.WelcomeMessage())
-	}
-
-	slog.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved, "thinking", sess.Thinking)
-
 	child, err := r.team.Agent(params.Agent)
 	if err != nil {
 		return nil, err
 	}
+	evts <- AgentInfo(child.Name(), getAgentModelID(child), child.Description(), child.WelcomeMessage())
+
+	slog.Debug("Creating new session with parent session", "parent_session_id", sess.ID, "tools_approved", sess.ToolsApproved)
 
 	cfg := SubSessionConfig{
 		Task:           params.Task,
@@ -288,7 +277,6 @@ func (r *LocalRuntime) handleTaskTransfer(ctx context.Context, sess *session.Ses
 		AgentName:      params.Agent,
 		Title:          "Transferred task",
 		ToolsApproved:  sess.ToolsApproved,
-		Thinking:       sess.Thinking,
 	}
 
 	s := newSubSession(sess, cfg, child)

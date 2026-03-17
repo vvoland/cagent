@@ -74,10 +74,13 @@ func (r *LocalRuntime) handleRunSkill(ctx context.Context, sess *session.Session
 		AgentName:           ca,
 		Title:               "Skill: " + params.Name,
 		ToolsApproved:       sess.ToolsApproved,
-		Thinking:            sess.Thinking,
 	}
 
 	s := newSubSession(sess, cfg, a)
+	// Skills run as the same agent, so they inherit the session's current
+	// thinking state (which may have been toggled by the user via /think)
+	// rather than the agent's static config default.
+	s.Thinking = sess.Thinking
 
 	return r.runSubSessionForwarding(ctx, sess, s, span, evts, ca)
 }
