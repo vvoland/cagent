@@ -264,11 +264,12 @@ func TestEditFileArgs_UnmarshalJSON(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
-		input     string
-		wantPath  string
-		wantEdits []Edit
-		wantErr   bool
+		name       string
+		input      string
+		wantPath   string
+		wantEdits  []Edit
+		wantErr    bool
+		wantErrMsg string
 	}{
 		{
 			name:     "normal array edits",
@@ -296,19 +297,22 @@ func TestEditFileArgs_UnmarshalJSON(t *testing.T) {
 			},
 		},
 		{
-			name:    "invalid JSON",
-			input:   `not json at all`,
-			wantErr: true,
+			name:       "invalid JSON",
+			input:      `not json at all`,
+			wantErr:    true,
+			wantErrMsg: "invalid character",
 		},
 		{
-			name:    "edits is neither array nor string",
-			input:   `{"path": "test.txt", "edits": 42}`,
-			wantErr: true,
+			name:       "edits is neither array nor string",
+			input:      `{"path": "test.txt", "edits": 42}`,
+			wantErr:    true,
+			wantErrMsg: "edits field is neither an array nor a JSON string",
 		},
 		{
-			name:    "double-serialized but inner JSON is invalid",
-			input:   `{"path": "test.txt", "edits": "not valid json"}`,
-			wantErr: true,
+			name:       "double-serialized but inner JSON is invalid",
+			input:      `{"path": "test.txt", "edits": "not valid json"}`,
+			wantErr:    true,
+			wantErrMsg: "failed to parse double-serialized edits string",
 		},
 		{
 			name:     "missing edits field (partial/streaming args)",
@@ -342,7 +346,8 @@ func TestEditFileArgs_UnmarshalJSON(t *testing.T) {
 			var args EditFileArgs
 			err := json.Unmarshal([]byte(tc.input), &args)
 			if tc.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.wantErrMsg)
 				return
 			}
 			require.NoError(t, err)
