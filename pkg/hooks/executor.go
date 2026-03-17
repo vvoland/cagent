@@ -188,6 +188,28 @@ func (e *Executor) ExecuteOnUserInput(ctx context.Context, input *Input) (*Resul
 	return e.executeHooks(ctx, e.config.OnUserInput, input, EventOnUserInput)
 }
 
+// ExecuteStop runs stop hooks when the model finishes responding
+func (e *Executor) ExecuteStop(ctx context.Context, input *Input) (*Result, error) {
+	if e.config == nil || len(e.config.Stop) == 0 {
+		return &Result{Allowed: true}, nil
+	}
+
+	input.HookEventName = EventStop
+
+	return e.executeHooks(ctx, e.config.Stop, input, EventStop)
+}
+
+// ExecuteNotification runs notification hooks when the agent emits a notification
+func (e *Executor) ExecuteNotification(ctx context.Context, input *Input) (*Result, error) {
+	if e.config == nil || len(e.config.Notification) == 0 {
+		return &Result{Allowed: true}, nil
+	}
+
+	input.HookEventName = EventNotification
+
+	return e.executeHooks(ctx, e.config.Notification, input, EventNotification)
+}
+
 // executeHooks runs a list of hooks in parallel and aggregates results
 func (e *Executor) executeHooks(ctx context.Context, hooks []Hook, input *Input, eventType EventType) (*Result, error) {
 	// Deduplicate hooks by command
@@ -373,7 +395,7 @@ func (e *Executor) aggregateResults(results []hookResult, eventType EventType) (
 			}
 		} else if r.stdout != "" {
 			// Plain text stdout is added as context for some events
-			if eventType == EventSessionStart || eventType == EventPostToolUse {
+			if eventType == EventSessionStart || eventType == EventPostToolUse || eventType == EventStop {
 				additionalContexts = append(additionalContexts, strings.TrimSpace(r.stdout))
 			}
 		}
@@ -416,4 +438,14 @@ func (e *Executor) HasSessionEndHooks() bool {
 // HasOnUserInputHooks returns true if there are any on-user-input hooks configured
 func (e *Executor) HasOnUserInputHooks() bool {
 	return e.config != nil && len(e.config.OnUserInput) > 0
+}
+
+// HasStopHooks returns true if there are any stop hooks configured
+func (e *Executor) HasStopHooks() bool {
+	return e.config != nil && len(e.config.Stop) > 0
+}
+
+// HasNotificationHooks returns true if there are any notification hooks configured
+func (e *Executor) HasNotificationHooks() bool {
+	return e.config != nil && len(e.config.Notification) > 0
 }

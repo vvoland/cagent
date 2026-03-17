@@ -71,5 +71,23 @@ func FromConfig(cfg *latest.HooksConfig) *Config {
 		})
 	}
 
+	// Convert Stop
+	for _, h := range cfg.Stop {
+		result.Stop = append(result.Stop, Hook{
+			Type:    HookType(h.Type),
+			Command: h.Command,
+			Timeout: h.Timeout,
+		})
+	}
+
+	// Convert Notification
+	for _, h := range cfg.Notification {
+		result.Notification = append(result.Notification, Hook{
+			Type:    HookType(h.Type),
+			Command: h.Command,
+			Timeout: h.Timeout,
+		})
+	}
+
 	return result
 }

@@ -96,6 +96,20 @@ func TestConfigIsEmpty(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name: "with stop",
+			config: Config{
+				Stop: []Hook{{Type: HookTypeCommand}},
+			},
+			expected: false,
+		},
+		{
+			name: "with notification",
+			config: Config{
+				Notification: []Hook{{Type: HookTypeCommand}},
+			},
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -221,6 +235,8 @@ func TestNewExecutor(t *testing.T) {
 	assert.False(t, exec.HasPostToolUseHooks())
 	assert.False(t, exec.HasSessionStartHooks())
 	assert.False(t, exec.HasSessionEndHooks())
+	assert.False(t, exec.HasStopHooks())
+	assert.False(t, exec.HasNotificationHooks())
 }
 
 func TestExecutorNilConfig(t *testing.T) {
@@ -502,6 +518,90 @@ func TestExecuteOnUserInput(t *testing.T) {
 	}
 
 	result, err := exec.ExecuteOnUserInput(t.Context(), input)
+	require.NoError(t, err)
+	assert.True(t, result.Allowed)
+}
+
+func TestExecuteStop(t *testing.T) {
+	t.Parallel()
+
+	config := &Config{
+		Stop: []Hook{
+			{Type: HookTypeCommand, Command: "echo 'model stopped'", Timeout: 5},
+		},
+	}
+
+	exec := NewExecutor(config, t.TempDir(), nil)
+	input := &Input{
+		SessionID:    "test-session",
+		StopResponse: "Here is the answer to your question.",
+	}
+
+	result, err := exec.ExecuteStop(t.Context(), input)
+	require.NoError(t, err)
+	assert.True(t, result.Allowed)
+	assert.Contains(t, result.AdditionalContext, "model stopped")
+}
+
+func TestExecuteStopReceivesResponseContent(t *testing.T) {
+	t.Parallel()
+
+	config := &Config{
+		Stop: []Hook{
+			{Type: HookTypeCommand, Command: "cat | jq -r '.stop_response'", Timeout: 5},
+		},
+	}
+
+	exec := NewExecutor(config, t.TempDir(), nil)
+	input := &Input{
+		SessionID:    "test-session",
+		StopResponse: "final answer content",
+	}
+
+	result, err := exec.ExecuteStop(t.Context(), input)
+	require.NoError(t, err)
+	assert.True(t, result.Allowed)
+	assert.Contains(t, result.AdditionalContext, "final answer content")
+}
+
+func TestExecuteNotification(t *testing.T) {
+	t.Parallel()
+
+	config := &Config{
+		Notification: []Hook{
+			{Type: HookTypeCommand, Command: "echo 'notification received'", Timeout: 5},
+		},
+	}
+
+	exec := NewExecutor(config, t.TempDir(), nil)
+	input := &Input{
+		SessionID:           "test-session",
+		NotificationLevel:   "error",
+		NotificationMessage: "Something went wrong",
+	}
+
+	result, err := exec.ExecuteNotification(t.Context(), input)
+	require.NoError(t, err)
+	assert.True(t, result.Allowed)
+}
+
+func TestExecuteNotificationReceivesLevel(t *testing.T) {
+	t.Parallel()
+
+	config := &Config{
+		Notification: []Hook{
+			{Type: HookTypeCommand, Command: "cat | jq -r '.notification_level'", Timeout: 5},
+		},
+	}
+
+	exec := NewExecutor(config, t.TempDir(), nil)
+	input := &Input{
+		SessionID:           "test-session",
+		NotificationLevel:   "warning",
+		NotificationMessage: "Watch out",
+	}
+
+	result, err := exec.ExecuteNotification(t.Context(), input)
 	require.NoError(t, err)
 	assert.True(t, result.Allowed)
 }

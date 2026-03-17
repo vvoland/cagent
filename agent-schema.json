@@ -411,6 +411,20 @@
           "items": {
             "$ref": "#/definitions/HookDefinition"
           }
+        },
+        "stop": {
+          "type": "array",
+          "description": "Hooks that run when the model finishes responding and is about to hand control back to the user. Can perform post-response validation or logging.",
+          "items": {
+            "$ref": "#/definitions/HookDefinition"
+          }
+        },
+        "notification": {
+          "type": "array",
+          "description": "Hooks that run when the agent sends a notification (error, warning) to the user. Can send external notifications or log events.",
+          "items": {
+            "$ref": "#/definitions/HookDefinition"
+          }
         }
       },
       "additionalProperties": false

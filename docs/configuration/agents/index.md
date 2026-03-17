@@ -42,6 +42,8 @@ agents:
       session_start: [list]
       session_end: [list]
       on_user_input: [list]
+      stop: [list]
+      notification: [list]
     structured_output: # Optional: constrain output format
       name: string
       schema: object
