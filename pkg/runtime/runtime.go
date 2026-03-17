@@ -675,6 +675,7 @@ func (r *LocalRuntime) executeSessionStartHooks(ctx context.Context, sess *sessi
 	}
 	if result.AdditionalContext != "" {
 		slog.Debug("Session start hook provided additional context", "context", result.AdditionalContext)
+		sess.AddMessage(session.SystemMessage(result.AdditionalContext))
 	}
 }
 
@@ -694,7 +695,7 @@ func (r *LocalRuntime) executeSessionEndHooks(ctx context.Context, sess *session
 
 	_, err := hooksExec.ExecuteSessionEnd(ctx, input)
 	if err != nil {
-		slog.Warn("Session end hook execution failed", "agent", a.Name(), "error", err)
+		slog.Error("Session end hook execution failed", "agent", a.Name(), "error", err)
 	}
 }
 
@@ -729,6 +730,11 @@ func (r *LocalRuntime) executeStopHooks(ctx context.Context, sess *session.Sessi
 // notification itself. Individual hooks are subject to their configured timeout.
 func (r *LocalRuntime) executeNotificationHooks(ctx context.Context, a *agent.Agent, sessionID, level, message string) {
 	if a == nil {
+		return
+	}
+
+	if level != "error" && level != "warning" {
+		slog.Error("Invalid notification level", "level", level, "expected", "error|warning")
 		return
 	}
 
