@@ -113,23 +113,6 @@ func NewRemoteToolset(name, urlString, transport string, headers map[string]stri
 // because there is no live connection to monitor.
 var errServerUnavailable = errors.New("MCP server unavailable")
 
-const (
-	// mcpInitTimeout is the maximum time allowed for the MCP initialization
-	// handshake (connect + initialize). If a remote server accepts the TCP
-	// connection but never responds, this prevents the agent from hanging
-	// indefinitely.
-	mcpInitTimeout = 2 * time.Minute
-
-	// mcpCallToolTimeout is the maximum time allowed for a single tool call.
-	// Tool calls may be long-running (e.g. code execution), so this is
-	// deliberately generous.
-	mcpCallToolTimeout = 10 * time.Minute
-
-	// mcpListTimeout is the maximum time allowed for listing tools, prompts
-	// or fetching a single prompt from the MCP server.
-	mcpListTimeout = 1 * time.Minute
-)
-
 // Describe returns a short, user-visible description of this toolset instance.
 // It never includes secrets.
 func (ts *Toolset) Describe() string {
@@ -193,11 +176,6 @@ func (ts *Toolset) doStart(ctx context.Context) error {
 	// This is critical for OAuth flows where the toolset connection needs to remain alive after the initial HTTP request completes.
 	ctx = context.WithoutCancel(ctx)
 
-	// Apply an initialization timeout so we don't hang forever if the
-	// remote server accepts the connection but never responds.
-	initCtx, cancel := context.WithTimeout(ctx, mcpInitTimeout)
-	defer cancel()
-
 	slog.Debug("Starting MCP toolset", "server", ts.logID)
 
 	// Register notification handlers to invalidate caches when the server
@@ -241,7 +219,7 @@ func (ts *Toolset) doStart(ctx context.Context) error {
 	const maxRetries = 3
 	for attempt := 0; ; attempt++ {
 		var err error
-		result, err = ts.mcpClient.Initialize(initCtx, initRequest)
+		result, err = ts.mcpClient.Initialize(ctx, initRequest)
 		if err == nil {
 			break
 		}
@@ -269,8 +247,8 @@ func (ts *Toolset) doStart(ctx context.Context) error {
 		slog.Debug("MCP initialize failed to send initialized notification; retrying", "id", ts.logID, "attempt", attempt+1, "backoff_ms", backoff.Milliseconds())
 		select {
 		case <-time.After(backoff):
-		case <-initCtx.Done():
-			return fmt.Errorf("failed to initialize MCP client: %w", initCtx.Err())
+		case <-ctx.Done():
+			return fmt.Errorf("failed to initialize MCP client: %w", ctx.Err())
 		}
 	}
 
