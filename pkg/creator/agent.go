@@ -5,18 +5,14 @@ package creator
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/goccy/go-yaml"
 
 	"github.com/docker/docker-agent/pkg/config"
-	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/team"
 	"github.com/docker/docker-agent/pkg/teamloader"
-	"github.com/docker/docker-agent/pkg/tools"
-	"github.com/docker/docker-agent/pkg/tools/builtin"
 )
 
 //go:embed instructions.txt
@@ -46,14 +42,11 @@ func Agent(ctx context.Context, runConfig *config.RuntimeConfig, modelNameOverri
 		return nil, fmt.Errorf("building creator config: %w", err)
 	}
 
-	registry := createToolsetRegistry(runConfig.WorkingDir)
-
 	return teamloader.Load(
 		ctx,
 		config.NewBytesSource("creator", configYAML),
 		runConfig,
 		teamloader.WithModelOverrides([]string{modelNameOverride}),
-		teamloader.WithToolsetRegistry(registry),
 	)
 }
 
@@ -110,65 +103,4 @@ func buildCreatorConfigYAML(instructions string) ([]byte, error) {
 	}
 
 	return yaml.Marshal(fullConfig)
-}
-
-// createToolsetRegistry creates a custom toolset registry that wraps the filesystem
-// toolset to track file paths written by the agent.
-func createToolsetRegistry(workingDir string) *teamloader.ToolsetRegistry {
-	tracker := &fileWriteTracker{
-		ToolSet: builtin.NewFilesystemTool(workingDir),
-	}
-
-	registry := teamloader.NewDefaultToolsetRegistry()
-	registry.Register("filesystem", func(context.Context, latest.Toolset, string, *config.RuntimeConfig, string) (tools.ToolSet, error) {
-		return tracker, nil
-	})
-
-	return registry
-}
-
-// fileWriteTracker wraps a filesystem toolset to track files written by the agent.
-// This allows the creator to know what files were created during the session.
-type fileWriteTracker struct {
-	tools.ToolSet
-	originalWriteFileHandler tools.ToolHandler
-	path                     string
-}
-
-// Tools returns the available tools, wrapping the write_file tool to track paths.
-func (t *fileWriteTracker) Tools(ctx context.Context) ([]tools.Tool, error) {
-	innerTools, err := t.ToolSet.Tools(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	for i, tool := range innerTools {
-		if tool.Name == builtin.ToolNameWriteFile {
-			t.originalWriteFileHandler = tool.Handler
-			innerTools[i].Handler = t.trackWriteFile
-		}
-	}
-
-	return innerTools, nil
-}
-
-// trackWriteFile intercepts write_file calls to track the path being written.
-func (t *fileWriteTracker) trackWriteFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args struct {
-		Path    string `json:"path"`
-		Content string `json:"content"`
-	}
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
-		return nil, fmt.Errorf("failed to parse write_file arguments: %w", err)
-	}
-
-	t.path = args.Path
-
-	return t.originalWriteFileHandler(ctx, toolCall)
-}
-
-// LastWrittenPath returns the path of the last file written by the agent.
-// Returns an empty string if no file has been written yet.
-func (t *fileWriteTracker) LastWrittenPath() string {
-	return t.path
 }
