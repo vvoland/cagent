@@ -1,6 +1,7 @@
 package latest
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/goccy/go-yaml"
@@ -142,6 +143,32 @@ func TestThinkingBudget_IsDisabled(t *testing.T) {
 			require.Equal(t, tt.want, tt.b.IsDisabled())
 		})
 	}
+}
+
+func TestThinkingBudget_UnmarshalYAML_InvalidEffort(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`thinking_budget: adaptative`)
+	var config struct {
+		ThinkingBudget *ThinkingBudget `yaml:"thinking_budget"`
+	}
+
+	err := yaml.Unmarshal(input, &config)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `invalid thinking_budget effort "adaptative"`)
+}
+
+func TestThinkingBudget_UnmarshalJSON_InvalidEffort(t *testing.T) {
+	t.Parallel()
+
+	data := []byte(`{"thinking_budget": "adaptative"}`)
+	var config struct {
+		ThinkingBudget *ThinkingBudget `json:"thinking_budget"`
+	}
+
+	err := json.Unmarshal(data, &config)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `invalid thinking_budget effort "adaptative"`)
 }
 
 func TestThinkingBudget_IsAdaptive(t *testing.T) {
