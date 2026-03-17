@@ -2,10 +2,10 @@ package history
 
 import (
 	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -208,32 +208,53 @@ func (h *History) append(message string) error {
 }
 
 func (h *History) load() error {
-	f, err := os.Open(h.path)
+	data, err := os.ReadFile(h.path)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	var all []string
-	dec := json.NewDecoder(f)
-	for {
-		var message string
-		if err := dec.Decode(&message); err != nil {
-			if err == io.EOF {
-				break
-			}
+	// Count lines to pre-size the slice.
+	n := 0
+	for _, b := range data {
+		if b == '\n' {
+			n++
+		}
+	}
+
+	// Parse all lines. Each line is a JSON-encoded string (e.g. "hello").
+	// strconv.Unquote handles the same escape sequences as JSON and is
+	// much faster than json.Unmarshal for quoted strings.
+	all := make([]string, 0, n)
+	s := string(data)
+	for s != "" {
+		i := strings.IndexByte(s, '\n')
+		var line string
+		if i < 0 {
+			line = s
+			s = ""
+		} else {
+			line = s[:i]
+			s = s[i+1:]
+		}
+		if line == "" {
+			continue
+		}
+
+		message, err := strconv.Unquote(line)
+		if err != nil {
 			continue
 		}
 		all = append(all, message)
 	}
 
-	// Deduplicate keeping the latest occurrence of each message
-	seen := make(map[string]bool)
+	// Deduplicate keeping the latest occurrence of each message.
+	seen := make(map[string]struct{}, len(all))
+	h.Messages = make([]string, 0, len(all))
 	for i := len(all) - 1; i >= 0; i-- {
-		if seen[all[i]] {
+		if _, dup := seen[all[i]]; dup {
 			continue
 		}
-		seen[all[i]] = true
+		seen[all[i]] = struct{}{}
 		h.Messages = append(h.Messages, all[i])
 	}
 	slices.Reverse(h.Messages)
