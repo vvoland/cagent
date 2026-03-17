@@ -168,16 +168,6 @@ type EditFileArgs struct {
 // UnmarshalJSON handles LLM-generated arguments where "edits" may be
 // a JSON string instead of a JSON array (double-serialized).
 func (a *EditFileArgs) UnmarshalJSON(data []byte) error {
-	// First, try standard unmarshaling.
-	type Alias EditFileArgs
-	var std Alias
-	if err := json.Unmarshal(data, &std); err == nil {
-		*a = EditFileArgs(std)
-		return nil
-	}
-
-	// If that failed, the "edits" field may be a JSON string.
-	// Parse it as a raw message and attempt double-deserialization.
 	var raw struct {
 		Path  string          `json:"path"`
 		Edits json.RawMessage `json:"edits"`

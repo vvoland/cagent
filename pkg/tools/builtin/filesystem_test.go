@@ -315,6 +315,16 @@ func TestEditFileArgs_UnmarshalJSON(t *testing.T) {
 			input:   `{"edits": "[{\"oldText\": \"a\", \"newText\": \"b\"}]"}`,
 			wantErr: true,
 		},
+		{
+			name:    "missing path with normal array edits",
+			input:   `{"edits": [{"oldText": "a", "newText": "b"}]}`,
+			wantErr: true,
+		},
+		{
+			name:    "empty path with normal array edits",
+			input:   `{"path": "", "edits": [{"oldText": "a", "newText": "b"}]}`,
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range tests {
