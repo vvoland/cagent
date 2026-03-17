@@ -30,6 +30,11 @@ func addRuntimeConfigFlags(cmd *cobra.Command, runConfig *config.RuntimeConfig) 
 	cmd.PersistentFlags().StringSliceVar(&runConfig.EnvFiles, "env-from-file", nil, "Set environment variables from file")
 	cmd.PersistentFlags().BoolVar(&runConfig.GlobalCodeMode, "code-mode-tools", false, "Provide a single tool to call other tools via Javascript")
 	cmd.PersistentFlags().StringVar(&runConfig.WorkingDir, "working-dir", "", "Set the working directory for the session (applies to tools and relative paths)")
+	cmd.PersistentFlags().StringArrayVar(&runConfig.HookPreToolUse, "hook-pre-tool-use", nil, "Add a pre-tool-use hook command that runs before every tool call (repeatable)")
+	cmd.PersistentFlags().StringArrayVar(&runConfig.HookPostToolUse, "hook-post-tool-use", nil, "Add a post-tool-use hook command that runs after every tool call (repeatable)")
+	cmd.PersistentFlags().StringArrayVar(&runConfig.HookSessionStart, "hook-session-start", nil, "Add a session-start hook command (repeatable)")
+	cmd.PersistentFlags().StringArrayVar(&runConfig.HookSessionEnd, "hook-session-end", nil, "Add a session-end hook command (repeatable)")
+	cmd.PersistentFlags().StringArrayVar(&runConfig.HookOnUserInput, "hook-on-user-input", nil, "Add an on-user-input hook command (repeatable)")
 }
 
 func setupWorkingDirectory(workingDir string) error {

@@ -25,16 +25,21 @@ Launch the interactive TUI with an agent configuration.
 $ docker agent run [config] [message...] [flags]
 ```
 
-| Flag                         | Description                                                                                                                               |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `-a, --agent &lt;name&gt;`   | Run a specific agent from the config                                                                                                      |
-| `--yolo`                     | Auto-approve all tool calls                                                                                                               |
-| `--model &lt;ref&gt;`        | Override model(s). Use `provider/model` for all agents, or `agent=provider/model` for specific agents. Comma-separate multiple overrides. |
-| `--session &lt;id&gt;`       | Resume a previous session. Supports relative refs (`-1` = last, `-2` = second to last)                                                    |
-| `--prompt-file &lt;path&gt;` | Include file contents as additional system context (repeatable)                                                                           |
-| `-d, --debug`                | Enable debug logging                                                                                                                      |
-| `--log-file &lt;path&gt;`    | Custom debug log location                                                                                                                 |
-| `-o, --otel`                 | Enable OpenTelemetry tracing                                                                                                              |
+| Flag                                    | Description                                                                                                                               |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `-a, --agent &lt;name&gt;`              | Run a specific agent from the config                                                                                                      |
+| `--yolo`                                | Auto-approve all tool calls                                                                                                               |
+| `--model &lt;ref&gt;`                   | Override model(s). Use `provider/model` for all agents, or `agent=provider/model` for specific agents. Comma-separate multiple overrides. |
+| `--session &lt;id&gt;`                  | Resume a previous session. Supports relative refs (`-1` = last, `-2` = second to last)                                                    |
+| `--prompt-file &lt;path&gt;`            | Include file contents as additional system context (repeatable)                                                                           |
+| `--hook-pre-tool-use &lt;cmd&gt;`       | Add a pre-tool-use hook command (repeatable). See [Hooks]({{ '/configuration/hooks/' | relative_url }}).                                  |
+| `--hook-post-tool-use &lt;cmd&gt;`      | Add a post-tool-use hook command (repeatable)                                                                                             |
+| `--hook-session-start &lt;cmd&gt;`      | Add a session-start hook command (repeatable)                                                                                             |
+| `--hook-session-end &lt;cmd&gt;`        | Add a session-end hook command (repeatable)                                                                                               |
+| `--hook-on-user-input &lt;cmd&gt;`      | Add an on-user-input hook command (repeatable)                                                                                            |
+| `-d, --debug`                           | Enable debug logging                                                                                                                      |
+| `--log-file &lt;path&gt;`               | Custom debug log location                                                                                                                 |
+| `-o, --otel`                            | Enable OpenTelemetry tracing                                                                                                              |
 
 ```bash
 # Examples
@@ -45,6 +50,10 @@ $ docker agent run agent.yaml --model anthropic/claude-sonnet-4-0
 $ docker agent run agent.yaml --model "dev=openai/gpt-4o,reviewer=anthropic/claude-sonnet-4-0"
 $ docker agent run agent.yaml --session -1  # resume last session
 $ docker agent run agent.yaml --prompt-file ./context.md  # include file as context
+
+# Add hooks from the command line
+$ docker agent run agent.yaml --hook-session-start "./scripts/setup-env.sh"
+$ docker agent run agent.yaml --hook-pre-tool-use "./scripts/validate.sh" --hook-post-tool-use "./scripts/log.sh"
 
 # Queue multiple messages (processed in sequence)
 $ docker agent run agent.yaml "question 1" "question 2" "question 3"

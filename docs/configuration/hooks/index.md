@@ -242,3 +242,38 @@ hooks:
   <p>Hooks run synchronously and can slow down agent execution. Keep hook scripts fast and efficient. Consider using <code>suppress_output: true</code> for logging hooks to reduce noise.</p>
 
 </div>
+
+## CLI Flags
+
+You can add hooks from the command line without modifying the agent's YAML file. This is useful for one-off debugging, audit logging, or layering hooks onto an existing agent.
+
+| Flag                    | Description                             |
+| ----------------------- | --------------------------------------- |
+| `--hook-pre-tool-use`   | Run a command before every tool call    |
+| `--hook-post-tool-use`  | Run a command after every tool call     |
+| `--hook-session-start`  | Run a command when a session starts     |
+| `--hook-session-end`    | Run a command when a session ends       |
+| `--hook-on-user-input`  | Run a command when waiting for input    |
+
+All flags are repeatable — pass multiple to register multiple hooks.
+
+```bash
+# Add a session-start hook
+$ docker agent run agent.yaml --hook-session-start "./scripts/setup-env.sh"
+
+# Combine multiple hooks
+$ docker agent run agent.yaml \
+  --hook-pre-tool-use "./scripts/validate.sh" \
+  --hook-post-tool-use "./scripts/log.sh"
+
+# Add hooks to an agent from a registry
+$ docker agent run agentcatalog/coder \
+  --hook-pre-tool-use "./audit.sh"
+```
+
+<div class="callout callout-info">
+<div class="callout-title">ℹ️ Merging behavior
+</div>
+  <p>CLI hooks are <strong>appended</strong> to any hooks already defined in the agent's YAML config. They don't replace existing hooks. Pre/post-tool-use hooks added via CLI match all tools (equivalent to <code>matcher: "*"</code>).</p>
+
+</div>
