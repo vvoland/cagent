@@ -311,19 +311,28 @@ func TestEditFileArgs_UnmarshalJSON(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "missing path in double-serialized fallback",
-			input:   `{"edits": "[{\"oldText\": \"a\", \"newText\": \"b\"}]"}`,
-			wantErr: true,
+			name:     "missing edits field (partial/streaming args)",
+			input:    `{"path": "/tmp/test.txt"}`,
+			wantPath: "/tmp/test.txt",
 		},
 		{
-			name:    "missing path with normal array edits",
-			input:   `{"edits": [{"oldText": "a", "newText": "b"}]}`,
-			wantErr: true,
+			name:     "null edits field",
+			input:    `{"path": "test.txt", "edits": null}`,
+			wantPath: "test.txt",
 		},
 		{
-			name:    "empty path with normal array edits",
-			input:   `{"path": "", "edits": [{"oldText": "a", "newText": "b"}]}`,
-			wantErr: true,
+			name:  "missing path with double-serialized edits",
+			input: `{"edits": "[{\"oldText\": \"a\", \"newText\": \"b\"}]"}`,
+			wantEdits: []Edit{
+				{OldText: "a", NewText: "b"},
+			},
+		},
+		{
+			name:  "missing path with normal array edits",
+			input: `{"edits": [{"oldText": "a", "newText": "b"}]}`,
+			wantEdits: []Edit{
+				{OldText: "a", NewText: "b"},
+			},
 		},
 	}
 

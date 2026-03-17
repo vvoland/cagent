@@ -177,8 +177,11 @@ func (a *EditFileArgs) UnmarshalJSON(data []byte) error {
 	}
 
 	a.Path = raw.Path
-	if a.Path == "" {
-		return errors.New("path field is required")
+
+	// When edits is missing or null (e.g. during argument streaming in
+	// the TUI, or partial tool calls), accept the partial result.
+	if len(raw.Edits) == 0 || string(raw.Edits) == "null" {
+		return nil
 	}
 
 	// Try parsing edits as an array first (normal case).
