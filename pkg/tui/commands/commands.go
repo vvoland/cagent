@@ -108,6 +108,26 @@ func builtInSessionCommands() []Item {
 			},
 		},
 		{
+			ID:           "session.quit",
+			Label:        "Quit",
+			SlashCommand: "/quit",
+			Description:  "Quit the application (alias for /exit)",
+			Category:     "Session",
+			Execute: func(string) tea.Cmd {
+				return core.CmdHandler(messages.ExitSessionMsg{})
+			},
+		},
+		{
+			ID:           "session.q",
+			Label:        "Quit (short)",
+			SlashCommand: "/q",
+			Description:  "Quit the application (alias for /exit)",
+			Category:     "Session",
+			Execute: func(string) tea.Cmd {
+				return core.CmdHandler(messages.ExitSessionMsg{})
+			},
+		},
+		{
 			ID:           "session.export",
 			Label:        "Export",
 			SlashCommand: "/export",
