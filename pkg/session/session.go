@@ -222,6 +222,7 @@ type EvalCriteria struct {
 	WorkingDir string   `json:"working_dir,omitempty"` // Subdirectory under evals/working_dirs/
 	Size       string   `json:"size,omitempty"`        // Expected response size: S, M, L, XL
 	Setup      string   `json:"setup,omitempty"`       // Optional sh script to run in the container before docker agent run --exec
+	Image      string   `json:"image,omitempty"`       // Custom Docker image for this eval (overrides --base-image)
 }
 
 // UnmarshalJSON implements custom JSON unmarshaling for EvalCriteria that

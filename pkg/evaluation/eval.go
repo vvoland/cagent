@@ -36,12 +36,11 @@ type Runner struct {
 	judge       *Judge
 	runConfig   *config.RuntimeConfig
 
-	// imageCache caches built Docker images by working directory.
-	// Key is the working directory (empty string for no working dir).
-	imageCache   map[string]string
+	// imageCache caches built Docker images by (workingDir, image) pair.
+	imageCache   map[imageKey]string
 	imageCacheMu sync.Mutex
 
-	// imageBuildGroup deduplicates concurrent image builds for the same working directory.
+	// imageBuildGroup deduplicates concurrent image builds for the same (workingDir, image) pair.
 	imageBuildGroup singleflight.Group
 }
 
@@ -56,7 +55,7 @@ func newRunner(agentSource config.Source, runConfig *config.RuntimeConfig, judge
 		agentSource: agentSource,
 		judge:       judge,
 		runConfig:   runConfig,
-		imageCache:  make(map[string]string),
+		imageCache:  make(map[imageKey]string),
 	}
 }
 
@@ -230,63 +229,68 @@ func (r *Runner) loadEvalSessions(ctx context.Context) ([]InputSession, error) {
 }
 
 // preBuildImages pre-builds all unique Docker images needed for the evaluations.
-// This is done in parallel to avoid serialized builds during evaluation.
+// Concurrent calls for the same (workingDir, image) pair are deduplicated by
+// getOrBuildImage's singleflight, so we simply iterate over all evals.
 func (r *Runner) preBuildImages(ctx context.Context, out io.Writer, evals []InputSession) error {
-	// Collect unique working directories
-	workingDirs := make(map[string]struct{})
-	for _, eval := range evals {
-		if eval.Evals != nil {
-			workingDirs[eval.Evals.WorkingDir] = struct{}{}
-		}
-	}
-
-	if len(workingDirs) == 0 {
+	if len(evals) == 0 {
 		return nil
 	}
 
-	fmt.Fprintf(out, "Pre-building %d Docker image(s)...\n", len(workingDirs))
-
-	// Build images in parallel with limited concurrency
-	type buildResult struct {
-		workingDir string
-		err        error
+	// Count unique images to report an accurate number.
+	unique := make(map[imageKey]struct{})
+	for _, eval := range evals {
+		var key imageKey
+		if eval.Evals != nil {
+			key = imageKey{workingDir: eval.Evals.WorkingDir, image: eval.Evals.Image}
+		}
+		unique[key] = struct{}{}
 	}
 
-	work := make(chan string, len(workingDirs))
-	for wd := range workingDirs {
-		work <- wd
+	fmt.Fprintf(out, "Pre-building %d Docker image(s)...\n", len(unique))
+
+	type buildResult struct {
+		title string
+		err   error
+	}
+
+	work := make(chan InputSession, len(evals))
+	for _, eval := range evals {
+		work <- eval
 	}
 	close(work)
 
-	results := make(chan buildResult, len(workingDirs))
+	results := make(chan buildResult, len(evals))
 
-	// Use same concurrency as evaluation runs for image builds
-	buildWorkers := min(r.Concurrency, len(workingDirs))
+	buildWorkers := min(r.Concurrency, len(evals))
 	var wg sync.WaitGroup
 	for range buildWorkers {
 		wg.Go(func() {
-			for wd := range work {
+			for eval := range work {
 				if ctx.Err() != nil {
-					results <- buildResult{workingDir: wd, err: ctx.Err()}
+					results <- buildResult{title: eval.Title, err: ctx.Err()}
 					continue
 				}
-				_, err := r.getOrBuildImage(ctx, wd)
-				results <- buildResult{workingDir: wd, err: err}
+
+				criteria := eval.Evals
+				if criteria == nil {
+					criteria = &session.EvalCriteria{}
+				}
+
+				_, err := r.getOrBuildImage(ctx, criteria)
+				results <- buildResult{title: eval.Title, err: err}
 			}
 		})
 	}
 
-	// Wait for all builds to complete
 	go func() {
 		wg.Wait()
 		close(results)
 	}()
 
-	// Collect errors
 	var errs []error
 	for result := range results {
 		if result.err != nil {
-			errs = append(errs, fmt.Errorf("building image for %q: %w", result.workingDir, result.err))
+			errs = append(errs, fmt.Errorf("building image for %q: %w", result.title, result.err))
 		}
 	}
 
@@ -323,9 +327,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 		result.ToolCallsExpected = 1.0
 	}
 
-	workingDir := evals.WorkingDir
-
-	imageID, err := r.getOrBuildImage(ctx, workingDir)
+	imageID, err := r.getOrBuildImage(ctx, evals)
 	if err != nil {
 		return result, fmt.Errorf("building eval image: %w", err)
 	}
