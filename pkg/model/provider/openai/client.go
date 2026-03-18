@@ -249,9 +249,9 @@ func (c *Client) CreateChatCompletionStream(
 		}
 	}
 
-	// Apply thinking budget: set reasoning_effort parameter
-	if c.ModelConfig.ThinkingBudget != nil {
-		effort, err := getOpenAIReasoningEffort(&c.ModelConfig)
+	// Apply thinking budget: set reasoning_effort for reasoning models (o-series, gpt-5)
+	if c.ModelConfig.ThinkingBudget != nil && isOpenAIReasoningModel(c.ModelConfig.Model) {
+		effort, err := openAIReasoningEffort(c.ModelConfig.ThinkingBudget)
 		if err != nil {
 			slog.Error("OpenAI request using thinking_budget failed", "error", err)
 			return nil, err
@@ -327,17 +327,6 @@ func (c *Client) CreateResponseStream(
 
 	if maxToken := c.ModelConfig.MaxTokens; maxToken != nil && *maxToken > 0 {
 		maxTokens := *maxToken
-
-		// Reasoning models consume output tokens on internal reasoning even when
-		// thinking is explicitly disabled. Bump a small budget so the model has
-		// headroom for both reasoning and actual text output.
-		thinkingEnabled := c.ModelOptions.Thinking() == nil || *c.ModelOptions.Thinking()
-		if isOpenAIReasoningModel(c.ModelConfig.Model) && !thinkingEnabled && maxTokens < 200 {
-			slog.Debug("Bumping max_output_tokens for reasoning model with thinking disabled",
-				"model", c.ModelConfig.Model, "original", maxTokens, "adjusted", 200)
-			maxTokens = 200
-		}
-
 		params.MaxOutputTokens = param.NewOpt(maxTokens)
 		slog.Debug("OpenAI responses request configured with max output tokens", "max_output_tokens", maxTokens)
 	}
@@ -370,22 +359,15 @@ func (c *Client) CreateResponseStream(
 		}
 	}
 
-	// Configure reasoning for models that support it (o-series, gpt-5)
-	// Request detailed reasoning summary to get thinking traces for reasoning models
-	// Skip reasoning configuration entirely if thinking is explicitly disabled (via /think command)
-	thinkingEnabled := c.ModelOptions.Thinking() == nil || *c.ModelOptions.Thinking()
-	if isOpenAIReasoningModel(c.ModelConfig.Model) && thinkingEnabled {
-		// Only set reasoning.summary for models that support it.
-		// Some reasoning models (e.g. o1-pro) reject this parameter.
-		if supportsReasoningSummary(c.ModelConfig.Model) {
-			params.Reasoning = shared.ReasoningParam{
-				Summary: shared.ReasoningSummaryDetailed,
-			}
-			slog.Debug("OpenAI responses request configured with reasoning summary", "model", c.ModelConfig.Model, "summary", "detailed")
+	// Configure reasoning for models that support it (o-series, gpt-5).
+	// Skip reasoning entirely when NoThinking is set (e.g. title generation)
+	// to avoid wasting output tokens on internal reasoning.
+	if isOpenAIReasoningModel(c.ModelConfig.Model) && !c.ModelOptions.NoThinking() {
+		params.Reasoning = shared.ReasoningParam{
+			Summary: shared.ReasoningSummaryDetailed,
 		}
-		// Apply thinking budget as reasoning effort if configured
 		if c.ModelConfig.ThinkingBudget != nil {
-			effort, err := getOpenAIReasoningEffort(&c.ModelConfig)
+			effort, err := openAIReasoningEffort(c.ModelConfig.ThinkingBudget)
 			if err != nil {
 				slog.Error("OpenAI responses request using thinking_budget failed", "error", err)
 				return nil, err
@@ -919,39 +901,16 @@ func isOpenAIReasoningModel(model string) bool {
 		strings.HasPrefix(m, "gpt-5")
 }
 
-// supportsReasoningSummary returns true for reasoning models that support the
-// reasoning.summary parameter. Some reasoning models (e.g. o1-pro) do not
-// support it and will reject the request if it is set.
-func supportsReasoningSummary(model string) bool {
-	if !isOpenAIReasoningModel(model) {
-		return false
-	}
-	m := strings.ToLower(model)
-	// o1-pro does not support reasoning.summary.
-	if strings.HasPrefix(m, "o1-pro") {
-		return false
-	}
-	return true
-}
-
-// getOpenAIReasoningEffort resolves the reasoning effort value from the
-// model configuration's ThinkingBudget. Returns the effort (minimal|low|medium|high) or an error
-func getOpenAIReasoningEffort(cfg *latest.ModelConfig) (effort string, err error) {
-	if cfg == nil || cfg.ThinkingBudget == nil {
-		return "", nil
-	}
-
-	if !isOpenAIReasoningModel(cfg.Model) {
-		slog.Warn("OpenAI reasoning effort is not supported for this model, ignoring thinking_budget", "model", cfg.Model)
-		return "", nil
-	}
-
-	effort = strings.TrimSpace(strings.ToLower(cfg.ThinkingBudget.Effort))
-	if effort == "minimal" || effort == "low" || effort == "medium" || effort == "high" {
+// openAIReasoningEffort validates a ThinkingBudget effort string for the
+// OpenAI API. Returns the effort (minimal|low|medium|high|xhigh) or an error.
+func openAIReasoningEffort(b *latest.ThinkingBudget) (string, error) {
+	effort := strings.TrimSpace(strings.ToLower(b.Effort))
+	switch effort {
+	case "minimal", "low", "medium", "high", "xhigh":
 		return effort, nil
+	default:
+		return "", fmt.Errorf("OpenAI requests only support 'minimal', 'low', 'medium', 'high', 'xhigh' as values for thinking_budget effort, got effort: '%s', tokens: '%d'", effort, b.Tokens)
 	}
-
-	return "", fmt.Errorf("OpenAI requests only support 'minimal', 'low', 'medium', 'high' as values for thinking_budget effort, got effort: '%s', tokens: '%d'", effort, cfg.ThinkingBudget.Tokens)
 }
 
 // jsonSchema is a helper type that implements json.Marshaler for map[string]any

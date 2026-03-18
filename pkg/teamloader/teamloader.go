@@ -176,7 +176,7 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 			agent.WithHooks(config.MergeHooks(agentConfig.Hooks, cliHooks)),
 		}
 
-		models, thinkingConfigured, err := getModelsForAgent(ctx, cfg, &agentConfig, autoModel, runConfig)
+		models, err := getModelsForAgent(ctx, cfg, &agentConfig, autoModel, runConfig)
 		if err != nil {
 			// Return auto model fallback errors and DMR not installed errors directly
 			// without wrapping to provide cleaner messages
@@ -188,7 +188,6 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 		for _, model := range models {
 			opts = append(opts, agent.WithModel(model))
 		}
-		opts = append(opts, agent.WithThinkingConfigured(thinkingConfigured))
 
 		// Load fallback models if configured
 		fallbackModelRefs := agentConfig.GetFallbackModels()
@@ -284,9 +283,8 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 	}, nil
 }
 
-func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentConfig, autoModelFn func() latest.ModelConfig, runConfig *config.RuntimeConfig) ([]provider.Provider, bool, error) {
+func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentConfig, autoModelFn func() latest.ModelConfig, runConfig *config.RuntimeConfig) ([]provider.Provider, error) {
 	var models []provider.Provider
-	thinkingConfigured := false
 
 	// Obtain the singleton store once, outside the loop.
 	modelsStore, modelsStoreErr := modelsdev.NewStore()
@@ -299,17 +297,10 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 				modelCfg = autoModelFn()
 				isAutoModel = true
 			} else {
-				return nil, false, fmt.Errorf("model '%s' not found in configuration", name)
+				return nil, fmt.Errorf("model '%s' not found in configuration", name)
 			}
 		}
 		modelCfg.Name = name
-
-		// Check if thinking_budget was explicitly configured BEFORE provider defaults are applied.
-		// This is used to initialize session thinking state - thinking is only enabled by default
-		// when the user explicitly configured it in their YAML.
-		if modelCfg.ThinkingBudget != nil && !modelCfg.ThinkingBudget.IsDisabled() {
-			thinkingConfigured = true
-		}
 
 		// Use max_tokens from config if specified, otherwise look up from models.dev
 		maxTokens := &defaultMaxTokens
@@ -341,14 +332,14 @@ func getModelsForAgent(ctx context.Context, cfg *latest.Config, a *latest.AgentC
 		if err != nil {
 			// Return a cleaner error message for auto model selection failures
 			if isAutoModel {
-				return nil, false, &config.AutoModelFallbackError{}
+				return nil, &config.AutoModelFallbackError{}
 			}
-			return nil, false, err
+			return nil, err
 		}
 		models = append(models, model)
 	}
 
-	return models, thinkingConfigured, nil
+	return models, nil
 }
 
 // getFallbackModelsForAgent returns fallback providers for an agent based on its fallback configuration.

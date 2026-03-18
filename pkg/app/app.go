@@ -552,12 +552,11 @@ func (a *App) NewSession() {
 		a.cancel()
 		a.cancel = nil
 	}
-	// Preserve user-controlled session flags (like /think toggle)
+	// Preserve user-controlled session flags
 	// so they don't reset to default on /new
 	var opts []session.Opt
 	if a.session != nil {
 		opts = append(opts,
-			session.WithThinking(a.session.Thinking),
 			session.WithToolsApproved(a.session.ToolsApproved),
 			session.WithHideToolResults(a.session.HideToolResults),
 			session.WithWorkingDir(a.session.WorkingDir),

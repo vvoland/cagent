@@ -16,8 +16,6 @@ import (
 	"github.com/docker/docker-agent/pkg/agent"
 	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/compaction"
-	"github.com/docker/docker-agent/pkg/model/provider"
-	"github.com/docker/docker-agent/pkg/model/provider/options"
 	"github.com/docker/docker-agent/pkg/modelerrors"
 	"github.com/docker/docker-agent/pkg/modelsdev"
 	"github.com/docker/docker-agent/pkg/session"
@@ -240,14 +238,6 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				}
 				toolModelOverride = ""
 			}
-
-			// Apply thinking setting based on session state.
-			// When thinking is disabled: clone with thinking=false to clear any thinking config.
-			// When thinking is enabled: clone with thinking=true to ensure defaults are applied
-			// (this handles models with no thinking config, explicitly disabled thinking, or
-			// models that already have thinking configured).
-			model = provider.CloneWithOptions(ctx, model, options.WithThinking(sess.Thinking))
-			slog.Debug("Cloned provider with thinking setting", "agent", a.Name(), "model", model.ID(), "thinking", sess.Thinking)
 
 			modelID := model.ID()
 

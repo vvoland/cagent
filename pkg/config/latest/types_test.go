@@ -148,14 +148,51 @@ func TestThinkingBudget_IsDisabled(t *testing.T) {
 func TestThinkingBudget_UnmarshalYAML_InvalidEffort(t *testing.T) {
 	t.Parallel()
 
-	input := []byte(`thinking_budget: adaptative`)
-	var config struct {
-		ThinkingBudget *ThinkingBudget `yaml:"thinking_budget"`
+	for _, tt := range []struct {
+		name  string
+		input string
+	}{
+		{"typo", `thinking_budget: adaptative`},
+		{"invalid adaptive effort", `thinking_budget: adaptive/ultra`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var config struct {
+				ThinkingBudget *ThinkingBudget `yaml:"thinking_budget"`
+			}
+			err := yaml.Unmarshal([]byte(tt.input), &config)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "invalid thinking_budget effort")
+		})
 	}
+}
 
-	err := yaml.Unmarshal(input, &config)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), `invalid thinking_budget effort "adaptative"`)
+func TestThinkingBudget_UnmarshalYAML_AdaptiveWithEffort(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name       string
+		input      string
+		wantEffort string
+	}{
+		{"adaptive", `thinking_budget: adaptive`, "adaptive"},
+		{"adaptive/low", `thinking_budget: adaptive/low`, "adaptive/low"},
+		{"adaptive/medium", `thinking_budget: adaptive/medium`, "adaptive/medium"},
+		{"adaptive/high", `thinking_budget: adaptive/high`, "adaptive/high"},
+		{"adaptive/max", `thinking_budget: adaptive/max`, "adaptive/max"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var config struct {
+				ThinkingBudget *ThinkingBudget `yaml:"thinking_budget"`
+			}
+			err := yaml.Unmarshal([]byte(tt.input), &config)
+			require.NoError(t, err)
+			require.NotNil(t, config.ThinkingBudget)
+			require.Equal(t, tt.wantEffort, config.ThinkingBudget.Effort)
+			require.True(t, config.ThinkingBudget.IsAdaptive())
+		})
+	}
 }
 
 func TestThinkingBudget_UnmarshalJSON_InvalidEffort(t *testing.T) {
@@ -181,12 +218,43 @@ func TestThinkingBudget_IsAdaptive(t *testing.T) {
 	}{
 		{"nil", nil, false},
 		{"adaptive", &ThinkingBudget{Effort: "adaptive"}, true},
+		{"adaptive/high", &ThinkingBudget{Effort: "adaptive/high"}, true},
+		{"adaptive/low", &ThinkingBudget{Effort: "adaptive/low"}, true},
+		{"adaptive/medium", &ThinkingBudget{Effort: "adaptive/medium"}, true},
+		{"adaptive/max", &ThinkingBudget{Effort: "adaptive/max"}, true},
 		{"medium", &ThinkingBudget{Effort: "medium"}, false},
 		{"tokens", &ThinkingBudget{Tokens: 8192}, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tt.want, tt.b.IsAdaptive())
+		})
+	}
+}
+
+func TestThinkingBudget_AdaptiveEffort(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name       string
+		b          *ThinkingBudget
+		wantEffort string
+		wantOK     bool
+	}{
+		{"nil", nil, "", false},
+		{"adaptive defaults to high", &ThinkingBudget{Effort: "adaptive"}, "high", true},
+		{"adaptive/low", &ThinkingBudget{Effort: "adaptive/low"}, "low", true},
+		{"adaptive/medium", &ThinkingBudget{Effort: "adaptive/medium"}, "medium", true},
+		{"adaptive/high", &ThinkingBudget{Effort: "adaptive/high"}, "high", true},
+		{"adaptive/max", &ThinkingBudget{Effort: "adaptive/max"}, "max", true},
+		{"not adaptive", &ThinkingBudget{Effort: "medium"}, "", false},
+		{"tokens", &ThinkingBudget{Tokens: 8192}, "", false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			effort, ok := tt.b.AdaptiveEffort()
+			require.Equal(t, tt.wantOK, ok)
+			require.Equal(t, tt.wantEffort, effort)
 		})
 	}
 }

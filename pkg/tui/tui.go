@@ -103,8 +103,6 @@ type appModel struct {
 	wWidth, wHeight int
 	width, height   int
 
-	cancelThinkingCheck context.CancelFunc // cancels the in-flight thinking toggle check
-
 	// Content area height (height minus editor, tab bar, resize handle, status bar)
 	contentHeight int
 
@@ -755,12 +753,6 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.ToggleYoloMsg:
 		return m.handleToggleYolo()
 
-	case messages.ToggleThinkingMsg:
-		return m.handleToggleThinking()
-
-	case messages.ToggleThinkingResultMsg:
-		return m.handleToggleThinkingResult(msg)
-
 	case messages.ToggleHideToolResultsMsg:
 		return m.handleToggleHideToolResults()
 
@@ -1088,10 +1080,7 @@ func (m *appModel) replaceActiveSession(ctx context.Context, sess *session.Sessi
 
 	slog.Debug("Replacing empty session in-place", "tab_id", activeID, "loaded_session", sess.ID)
 
-	// Cleanup old chat page and editor for the active session
-	if cp, ok := m.chatPages[activeID]; ok {
-		cp.Cleanup()
-	}
+	// Cleanup old editor for the active session
 	if ed, ok := m.editors[activeID]; ok {
 		ed.Cleanup()
 	}
@@ -1361,10 +1350,7 @@ func (m *appModel) handleCloseTab(sessionID string) (tea.Model, tea.Cmd) {
 	nextActiveID := m.supervisor.CloseSession(sessionID)
 
 	// Clean up per-session state
-	if cp, ok := m.chatPages[sessionID]; ok {
-		cp.Cleanup()
-		delete(m.chatPages, sessionID)
-	}
+	delete(m.chatPages, sessionID)
 	if ed, ok := m.editors[sessionID]; ok {
 		ed.Cleanup()
 		delete(m.editors, sessionID)
@@ -2058,15 +2044,8 @@ func (m *appModel) windowTitle() string {
 
 // cleanupAll cleans up all sessions, editors, and resources.
 func (m *appModel) cleanupAll() {
-	if m.cancelThinkingCheck != nil {
-		m.cancelThinkingCheck()
-		m.cancelThinkingCheck = nil
-	}
 	m.transcriber.Stop()
 	m.closeTranscriptCh()
-	for _, cp := range m.chatPages {
-		cp.Cleanup()
-	}
 	for _, ed := range m.editors {
 		ed.Cleanup()
 	}

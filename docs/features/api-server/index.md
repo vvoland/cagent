@@ -49,7 +49,6 @@ All endpoints are under the `/api` prefix.
 | `PATCH`  | `/api/sessions/:id/permissions`     | Update session permissions                          |
 | `POST`   | `/api/sessions/:id/resume`          | Resume a paused session (after tool confirmation)   |
 | `POST`   | `/api/sessions/:id/tools/toggle`    | Toggle auto-approve (YOLO) mode                     |
-| `POST`   | `/api/sessions/:id/thinking/toggle` | Toggle thinking/reasoning mode                      |
 | `POST`   | `/api/sessions/:id/elicitation`     | Respond to an MCP tool elicitation request          |
 
 ### Agent Execution

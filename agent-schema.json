@@ -554,20 +554,12 @@
           "description": "Whether to track usage"
         },
         "thinking_budget": {
-          "description": "Controls reasoning effort/budget. Use 'none' or 0 to disable thinking. OpenAI: string levels ('minimal','low','medium','high'). Anthropic: integer token budget (1024-32768), 'adaptive' (lets the model decide), or effort levels ('low','medium','high','max') which use adaptive thinking with the given effort. Amazon Bedrock (Claude): integer token budget or effort levels ('low','medium','high') mapped to token budgets. Google Gemini 2.5: integer token budget (-1 for dynamic, 0 to disable, 24576 max). Google Gemini 3: string levels ('minimal' Flash only,'low','medium','high'). Thinking is only enabled when explicitly configured.",
+          "description": "Controls reasoning effort/budget. Use 'none' or 0 to disable thinking. OpenAI: string levels ('minimal','low','medium','high','xhigh'). Anthropic: integer token budget (1024-32768), 'adaptive' (adaptive thinking with high effort by default), 'adaptive/<effort>' where effort is low/medium/high/max (adaptive thinking with specified effort), or effort levels ('low','medium','high','max') which use adaptive thinking with the given effort. Amazon Bedrock (Claude): integer token budget or effort levels ('low','medium','high') mapped to token budgets. Google Gemini 2.5: integer token budget (-1 for dynamic, 0 to disable, 24576 max). Google Gemini 3: string levels ('minimal' Flash only,'low','medium','high'). Thinking is only enabled when explicitly configured.",
           "oneOf": [
             {
               "type": "string",
-              "enum": [
-                "none",
-                "minimal",
-                "low",
-                "medium",
-                "high",
-                "max",
-                "adaptive"
-              ],
-              "description": "Reasoning effort level. 'adaptive'/'max' are Anthropic-specific. Use 'none' to disable thinking."
+              "pattern": "^(none|minimal|low|medium|high|xhigh|max|adaptive(/low|/medium|/high|/max)?)$",
+              "description": "Reasoning effort level. 'adaptive' uses adaptive thinking with high effort (default). 'adaptive/<effort>' specifies the effort level (low/medium/high/max). Use 'none' to disable thinking."
             },
             {
               "type": "integer",
@@ -583,8 +575,13 @@
             "low",
             "medium",
             "high",
+            "xhigh",
             "max",
             "adaptive",
+            "adaptive/low",
+            "adaptive/medium",
+            "adaptive/high",
+            "adaptive/max",
             -1,
             1024,
             8192,

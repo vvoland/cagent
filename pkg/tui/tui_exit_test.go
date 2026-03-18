@@ -22,16 +22,13 @@ import (
 )
 
 // mockChatPage implements chat.Page for testing.
-type mockChatPage struct {
-	cleanupCalled bool
-}
+type mockChatPage struct{}
 
 func (m *mockChatPage) Init() tea.Cmd                            { return nil }
 func (m *mockChatPage) Update(tea.Msg) (layout.Model, tea.Cmd)   { return m, nil }
 func (m *mockChatPage) View() string                             { return "" }
 func (m *mockChatPage) SetSize(int, int) tea.Cmd                 { return nil }
 func (m *mockChatPage) CompactSession(string) tea.Cmd            { return nil }
-func (m *mockChatPage) Cleanup()                                 { m.cleanupCalled = true }
 func (m *mockChatPage) SetSessionStarred(bool)                   {}
 func (m *mockChatPage) SetTitleRegenerating(bool) tea.Cmd        { return nil }
 func (m *mockChatPage) ScrollToBottom() tea.Cmd                  { return nil }
@@ -126,7 +123,7 @@ func hasMsg[T any](msgs []tea.Msg) bool {
 	return false
 }
 
-func newTestModel() (*appModel, *mockChatPage, *mockEditor) {
+func newTestModel() (*appModel, *mockEditor) {
 	page := &mockChatPage{}
 	ed := &mockEditor{}
 
@@ -143,17 +140,16 @@ func newTestModel() (*appModel, *mockChatPage, *mockEditor) {
 		dialogMgr:               dialog.New(),
 		completions:             completion.New(),
 	}
-	return m, page, ed
+	return m, ed
 }
 
 func TestExitSessionMsg_ExitsImmediately(t *testing.T) {
 	t.Parallel()
 
-	m, page, ed := newTestModel()
+	m, ed := newTestModel()
 
 	_, cmd := m.Update(messages.ExitSessionMsg{})
 
-	assert.True(t, page.cleanupCalled, "Cleanup() should be called on chat page")
 	assert.True(t, ed.cleanupCalled, "Cleanup() should be called on editor")
 	require.NotNil(t, cmd, "cmd should not be nil")
 	msgs := collectMsgs(cmd)
@@ -163,11 +159,10 @@ func TestExitSessionMsg_ExitsImmediately(t *testing.T) {
 func TestExitConfirmedMsg_ExitsImmediately(t *testing.T) {
 	t.Parallel()
 
-	m, page, ed := newTestModel()
+	m, ed := newTestModel()
 
 	_, cmd := m.Update(dialog.ExitConfirmedMsg{})
 
-	assert.True(t, page.cleanupCalled, "Cleanup() should be called on chat page")
 	assert.True(t, ed.cleanupCalled, "Cleanup() should be called on editor")
 	require.NotNil(t, cmd, "cmd should not be nil")
 	msgs := collectMsgs(cmd)
