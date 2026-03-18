@@ -63,19 +63,28 @@ func SessionFromEvents(events []map[string]any, title string, questions []string
 
 	// Add user questions as initial messages.
 	// For multi-turn evals, these are interleaved with agent responses
-	// as they appear in the event stream. The first question is added
-	// upfront; subsequent questions are inserted when a stream_stopped
-	// event indicates the agent finished processing the previous turn.
+	// as they appear in the event stream. User messages are added when
+	// a "user_message" event is encountered (which carries the correct
+	// timestamp), or when a "stream_stopped" event indicates the agent
+	// finished processing the previous turn in a multi-turn eval.
+	// If no "user_message" event is found before the first agent response,
+	// the question is added with the timestamp of that first response.
 	questionIdx := 0
-	addNextQuestion := func() {
+	userMessageAdded := false
+	addNextQuestion := func(timestamp string) {
 		if questionIdx < len(questions) {
-			sess.AddMessage(session.UserMessage(questions[questionIdx]))
+			msg := &session.Message{
+				Message: chat.Message{
+					Role:      chat.MessageRoleUser,
+					Content:   questions[questionIdx],
+					CreatedAt: timestamp,
+				},
+			}
+			sess.AddMessage(msg)
 			questionIdx++
+			userMessageAdded = true
 		}
 	}
-
-	// Add the first question
-	addNextQuestion()
 
 	// Track current assistant message being built
 	var currentContent strings.Builder
@@ -122,7 +131,19 @@ func SessionFromEvents(events []map[string]any, title string, questions []string
 		eventTimestamp := parseEventTimestamp(event)
 
 		switch eventType {
+		case "user_message":
+			// Use the event timestamp for the user message instead of time.Now()
+			if !userMessageAdded {
+				addNextQuestion(eventTimestamp)
+			}
+
 		case "agent_choice":
+			// Ensure a user message has been added before the first agent response.
+			// This handles event streams that lack a "user_message" event.
+			if !userMessageAdded {
+				addNextQuestion(eventTimestamp)
+			}
+
 			// Accumulate agent response content
 			if content, ok := event["content"].(string); ok {
 				currentContent.WriteString(content)
@@ -237,13 +258,21 @@ func SessionFromEvents(events []map[string]any, title string, questions []string
 			// Flush final assistant message
 			flushAssistantMessage()
 
-			// In multi-turn evals, add the next user question after each turn
-			addNextQuestion()
+			// In multi-turn evals, add the next user question after each turn.
+			// Reset the flag so the next user_message event (or agent_choice
+			// fallback) will add the question for the next turn.
+			userMessageAdded = false
 		}
 	}
 
 	// Flush any remaining content
 	flushAssistantMessage()
+
+	// Add any remaining questions that weren't added via user_message or
+	// agent_choice events (e.g. when the event stream is empty).
+	for questionIdx < len(questions) {
+		addNextQuestion(time.Now().Format(time.RFC3339))
+	}
 
 	return sess
 }
