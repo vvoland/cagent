@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/cli/cli-plugins/plugin"
+
 	"github.com/docker/docker-agent/pkg/userconfig"
 )
 
@@ -42,6 +44,7 @@ var (
 func BuildCagentArgs(argv []string) []string {
 	out := make([]string, 0, len(argv))
 	runStripped := false
+	agentStripped := false
 	agentResolved := false
 	hasYolo := false
 	skipNext := false
@@ -65,6 +68,10 @@ func BuildCagentArgs(argv []string) []string {
 		}
 		if !runStripped && a == "run" {
 			runStripped = true
+			continue
+		}
+		if !plugin.RunningStandalone() && !agentStripped && a == "agent" {
+			agentStripped = true
 			continue
 		}
 		// The first positional arg after "run" is the agent reference.

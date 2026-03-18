@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/docker/cli/cli-plugins/metadata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -120,9 +121,22 @@ func TestExisting_HasWorkspace(t *testing.T) {
 func TestBuildCagentArgs(t *testing.T) {
 	tests := []struct {
 		name string
+		env  map[string]string
 		argv []string
 		want []string
 	}{
+		{
+			name: "using cli plugin, strips run and --sandbox and --debug, adds --yolo",
+			env:  map[string]string{metadata.ReexecEnvvar: "docker"}, // env var set by cli plugin execution
+			argv: []string{"docker", "agent", "run", "./agent.yaml", "--sandbox", "--debug"},
+			want: []string{"./agent.yaml", "--yolo"},
+		},
+		{
+			name: "using cli plugin, strips -d shorthand",
+			env:  map[string]string{metadata.ReexecEnvvar: "docker"}, // env var set by cli plugin execution
+			argv: []string{"docker", "agent", "-d", "run", "./agent.yaml"},
+			want: []string{"./agent.yaml", "--yolo"},
+		},
 		{
 			name: "strips run and --sandbox and --debug, adds --yolo",
 			argv: []string{"cagent", "run", "./agent.yaml", "--sandbox", "--debug"},
@@ -204,6 +218,11 @@ func TestBuildCagentArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Use an empty HOME so no real user aliases interfere.
 			t.Setenv("HOME", t.TempDir())
+			if tt.env != nil {
+				for k, v := range tt.env {
+					t.Setenv(k, v)
+				}
+			}
 
 			got := sandbox.BuildCagentArgs(tt.argv)
 			assert.Equal(t, tt.want, got)
