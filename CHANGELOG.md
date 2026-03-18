@@ -3,6 +3,49 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.33.0] - 2026-03-18
+
+This release improves file editing reliability, adds session exit keywords, and fixes several issues with sub-sessions and evaluation handling.
+
+## What's New
+- Adds support for "exit", "quit", and ":q" keywords to quit sessions immediately
+- Adds per-eval Docker image override via evals.image property in evaluation configurations
+- Adds run instructions to creator agent prompt for proper agent execution guidance
+
+## Bug Fixes
+- Fixes handling of double-serialized edits argument in edit_file tool when LLMs send JSON strings instead of arrays
+- Fixes sub-session thinking state being incorrectly derived from parent session instead of child agent
+- Fixes --sandbox flag when running in CLI plugin mode
+- Fixes cross-model Gemini function calls by using dummy thought_signature
+- Fixes event timestamps for user messages in SessionFromEvents to prevent duration calculation issues
+
+## Improvements
+- Displays breakdown of failure types in evaluation summary for better debugging
+- Declines elicitations in run --exec --json mode
+- Validates path field consistently in edit file operations
+
+## Technical Changes
+- Removes unused fileWriteTracker from creator package
+- Simplifies UnmarshalJSON implementation for better path validation
+- Updates evaluation image build cache to handle different images per working directory
+
+### Pull Requests
+
+- [#2144](https://github.com/docker/docker-agent/pull/2144) - fix: handle double-serialized edits argument in edit_file tool
+- [#2146](https://github.com/docker/docker-agent/pull/2146) - Better rendering in tmux and ghostty
+- [#2147](https://github.com/docker/docker-agent/pull/2147) - docs: update CHANGELOG.md for v1.32.5
+- [#2149](https://github.com/docker/docker-agent/pull/2149) - fix: sub-session thinking state derived from child agent, not parent session
+- [#2150](https://github.com/docker/docker-agent/pull/2150) - Display breakdown of types of failures in eval summary
+- [#2151](https://github.com/docker/docker-agent/pull/2151) - Fix --sandbox when running cli plugin mode
+- [#2152](https://github.com/docker/docker-agent/pull/2152) - feat: support "exit" as a keyword to quit the session
+- [#2153](https://github.com/docker/docker-agent/pull/2153) - Add per-eval Docker image override via evals.image property
+- [#2154](https://github.com/docker/docker-agent/pull/2154) - Add run instructions to creator agent prompt
+- [#2155](https://github.com/docker/docker-agent/pull/2155) - fix: use dummy thought_signature for cross-model Gemini function calls
+- [#2156](https://github.com/docker/docker-agent/pull/2156) - Decline elicitations in run --exec --json mode
+- [#2157](https://github.com/docker/docker-agent/pull/2157) - Remove unused fileWriteTracker from creator package
+- [#2158](https://github.com/docker/docker-agent/pull/2158) - fix: use event timestamps for user messages in SessionFromEvents
+
+
 ## [v1.32.5] - 2026-03-17
 
 This release improves agent reliability and performance with better tool loop detection, enhanced MCP handling, and various bug fixes.
@@ -1394,3 +1437,5 @@ This release improves the terminal user interface with better error handling and
 [v1.32.4]: https://github.com/docker/docker-agent/releases/tag/v1.32.4
 
 [v1.32.5]: https://github.com/docker/docker-agent/releases/tag/v1.32.5
+
+[v1.33.0]: https://github.com/docker/docker-agent/releases/tag/v1.33.0
