@@ -164,7 +164,7 @@ func (p *progressBar) render(final bool) {
 
 	// Calculate bar width based on terminal size
 	// Reserve space for: "[" + "]" + " 100% (999/999) " + counts (~20) + running info (~30)
-	barWidth := min(max(termWidth-60, 10), 50)
+	barWidth := min(max(termWidth-80, 10), 10)
 
 	filledWidth := 0
 	if p.total > 0 {
@@ -195,13 +195,13 @@ func (p *progressBar) render(final bool) {
 	if failed > 0 {
 		breakdown := []string{}
 		if relevanceFailed > 0 {
-			breakdown = append(breakdown, "relevance "+p.red(fmt.Sprintf("✗%d", relevanceFailed)))
+			breakdown = append(breakdown, "relv "+p.red(fmt.Sprintf("✗%d", relevanceFailed)))
 		}
 		if sizeFailed > 0 {
 			breakdown = append(breakdown, "size "+p.red(fmt.Sprintf("✗%d", sizeFailed)))
 		}
 		if toolCallsFailed > 0 {
-			breakdown = append(breakdown, "tool calls "+p.red(fmt.Sprintf("✗%d", toolCallsFailed)))
+			breakdown = append(breakdown, "tools "+p.red(fmt.Sprintf("✗%d", toolCallsFailed)))
 		}
 		if len(breakdown) > 0 {
 			counts += fmt.Sprintf(" (%s)", strings.Join(breakdown, ", "))
