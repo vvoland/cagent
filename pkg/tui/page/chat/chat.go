@@ -624,6 +624,12 @@ func (p *chatPage) cancelStream(showCancelMessage bool) tea.Cmd {
 // handleSendMsg handles incoming messages from the editor, either processing
 // them immediately or queuing them if the agent is busy.
 func (p *chatPage) handleSendMsg(msg msgtypes.SendMsg) (layout.Model, tea.Cmd) {
+	// Handle "exit" as a special keyword to quit the session immediately,
+	// equivalent to the /exit slash command.
+	if strings.TrimSpace(strings.ToLower(msg.Content)) == "exit" {
+		return p, core.CmdHandler(msgtypes.ExitSessionMsg{})
+	}
+
 	// Predefined slash commands (e.g., /yolo, /exit, /compact) execute immediately
 	// even while the agent is working - they're UI commands that don't interrupt the stream.
 	// Custom agent commands (defined in config) should still be queued.
