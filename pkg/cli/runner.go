@@ -110,6 +110,8 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 					if !cfg.AutoApprove {
 						rt.Resume(ctx, runtime.ResumeReject(""))
 					}
+				case *runtime.ElicitationRequestEvent:
+					_ = rt.ResumeElicitation(ctx, "decline", nil)
 				case *runtime.MaxIterationsReachedEvent:
 					switch handleMaxIterationsAutoApprove(cfg.AutoApprove, &autoExtensions, e.MaxIterations) {
 					case maxIterContinue:

@@ -21,8 +21,10 @@ import (
 type mockRuntime struct {
 	events []runtime.Event
 
-	mu      sync.Mutex
-	resumes []runtime.ResumeRequest
+	mu                    sync.Mutex
+	resumes               []runtime.ResumeRequest
+	elicitationDeclines   int
+	elicitationLastAction tools.ElicitationAction
 }
 
 func (m *mockRuntime) CurrentAgentName() string { return "test" }
@@ -37,7 +39,11 @@ func (m *mockRuntime) Run(context.Context, *session.Session) ([]session.Message,
 	return nil, nil
 }
 
-func (m *mockRuntime) ResumeElicitation(context.Context, tools.ElicitationAction, map[string]any) error {
+func (m *mockRuntime) ResumeElicitation(_ context.Context, action tools.ElicitationAction, _ map[string]any) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.elicitationDeclines++
+	m.elicitationLastAction = action
 	return nil
 }
 func (m *mockRuntime) SessionStore() session.Store                                             { return nil }
@@ -176,6 +182,33 @@ func TestMaxIterationsRejectInJSONModeWithoutYolo(t *testing.T) {
 	resumes := rt.getResumes()
 	assert.Equal(t, len(resumes), 1)
 	assert.Equal(t, resumes[0].Type, runtime.ResumeTypeReject)
+}
+
+func TestElicitationAutoDeclineInJSONMode(t *testing.T) {
+	t.Parallel()
+
+	rt := &mockRuntime{
+		events: []runtime.Event{
+			&runtime.ElicitationRequestEvent{
+				Type:    "elicitation_request",
+				Message: "Please authorize",
+				Meta:    map[string]any{"cagent/server_url": "https://example.com"},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	out := NewPrinter(&buf)
+	sess := session.New()
+	cfg := Config{OutputJSON: true}
+
+	err := Run(t.Context(), out, cfg, rt, sess, []string{"hello"})
+	assert.NilError(t, err)
+
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	assert.Equal(t, rt.elicitationDeclines, 1)
+	assert.Equal(t, rt.elicitationLastAction, tools.ElicitationAction("decline"))
 }
 
 func TestMaxIterationsSafetyCapJSONMode(t *testing.T) {
