@@ -183,3 +183,11 @@ agents:
     toolsets:
       - type: filesystem
 ```
+
+## Running the Generated Agent
+
+After writing the YAML file, tell the user to run their agent with:
+
+```console
+docker agent run <file.yaml>
+```
