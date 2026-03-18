@@ -117,19 +117,19 @@ func ToolCallConfirmation(toolCall tools.ToolCall, toolDefinition tools.Tool, ag
 
 type ToolCallResponseEvent struct {
 	Type           string                `json:"type"`
-	ToolCall       tools.ToolCall        `json:"tool_call"`
+	ToolCallID     string                `json:"tool_call_id"`
 	ToolDefinition tools.Tool            `json:"tool_definition"`
 	Response       string                `json:"response"`
 	Result         *tools.ToolCallResult `json:"result,omitempty"`
 	AgentContext
 }
 
-func ToolCallResponse(toolCall tools.ToolCall, toolDefinition tools.Tool, result *tools.ToolCallResult, response, agentName string) Event {
+func ToolCallResponse(toolCallID string, toolDefinition tools.Tool, result *tools.ToolCallResult, response, agentName string) Event {
 	return &ToolCallResponseEvent{
 		Type:           "tool_call_response",
-		ToolCall:       toolCall,
 		Response:       response,
 		Result:         result,
+		ToolCallID:     toolCallID,
 		ToolDefinition: toolDefinition,
 		AgentContext:   newAgentContext(agentName),
 	}
