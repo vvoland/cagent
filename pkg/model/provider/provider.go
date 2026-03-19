@@ -124,6 +124,11 @@ var Aliases = map[string]Alias{
 		BaseURL:     "https://api.minimax.io/v1",
 		TokenEnvVar: "MINIMAX_API_KEY",
 	},
+	"github-copilot": {
+		APIType:     "openai",
+		BaseURL:     "https://api.githubcopilot.com",
+		TokenEnvVar: "GITHUB_TOKEN",
+	},
 }
 
 // Provider defines the interface for model providers

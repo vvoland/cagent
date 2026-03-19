@@ -495,7 +495,8 @@
             "openai",
             "anthropic",
             "dmr",
-            "ollama"
+            "ollama",
+            "github-copilot"
           ]
         },
         "model": {
