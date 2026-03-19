@@ -46,7 +46,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.21
 	github.com/modelcontextprotocol/go-sdk v1.4.1
 	github.com/natefinch/atomic v1.0.1
-	github.com/openai/openai-go/v3 v3.28.0
+	github.com/openai/openai-go/v3 v3.29.0
 	github.com/rivo/uniseg v0.4.7
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
 	github.com/spf13/cobra v1.10.2
