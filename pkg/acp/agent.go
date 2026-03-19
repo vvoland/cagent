@@ -154,7 +154,6 @@ func (a *Agent) NewSession(ctx context.Context, params acp.NewSessionRequest) (a
 	sessOpts := []session.Opt{
 		session.WithMaxIterations(rootAgent.MaxIterations()),
 		session.WithMaxConsecutiveToolCalls(rootAgent.MaxConsecutiveToolCalls()),
-		session.WithThinking(rootAgent.ThinkingConfigured()),
 	}
 	if workingDir != "" {
 		sessOpts = append(sessOpts, session.WithWorkingDir(workingDir))

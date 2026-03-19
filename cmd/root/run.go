@@ -404,10 +404,10 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, loadRes
 		slog.Debug("Loaded existing session", "session_id", resolvedID, "session_ref", f.sessionID, "agent", f.agentName)
 	} else {
 		wd, _ := os.Getwd()
-		sess = session.New(f.buildSessionOpts(agent.MaxIterations(), agent.ThinkingConfigured(), wd)...)
+		sess = session.New(f.buildSessionOpts(agent.MaxIterations(), wd)...)
 		// Session is stored lazily on first UpdateSession call (when content is added)
 		// This avoids creating empty sessions in the database
-		slog.Debug("Using local runtime", "agent", f.agentName, "thinking", agent.ThinkingConfigured())
+		slog.Debug("Using local runtime", "agent", f.agentName)
 	}
 
 	return localRt, sess, nil
@@ -494,12 +494,11 @@ func (f *runExecFlags) buildAppOpts(args []string) ([]app.Opt, error) {
 // buildSessionOpts returns the canonical set of session options derived from
 // CLI flags and agent configuration. Both the initial session and spawned
 // sessions use this method so their options never drift apart.
-func (f *runExecFlags) buildSessionOpts(maxIterations int, thinking bool, workingDir string) []session.Opt {
+func (f *runExecFlags) buildSessionOpts(maxIterations int, workingDir string) []session.Opt {
 	return []session.Opt{
 		session.WithMaxIterations(maxIterations),
 		session.WithToolsApproved(f.autoApprove),
 		session.WithHideToolResults(f.hideToolResults),
-		session.WithThinking(thinking),
 		session.WithWorkingDir(workingDir),
 	}
 }
@@ -544,7 +543,7 @@ func (f *runExecFlags) createSessionSpawner(agentSource config.Source, sessStore
 		}
 
 		// Create a new session
-		newSess := session.New(f.buildSessionOpts(agent.MaxIterations(), agent.ThinkingConfigured(), workingDir)...)
+		newSess := session.New(f.buildSessionOpts(agent.MaxIterations(), workingDir)...)
 
 		// Create cleanup function
 		cleanup := func() {

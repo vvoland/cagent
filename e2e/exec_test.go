@@ -22,7 +22,7 @@ func TestExec_OpenAI_V3Config(t *testing.T) {
 }
 
 // TestExec_OpenAI_WithThinkingBudget tests that when thinking_budget is explicitly configured
-// in the YAML, thinking is enabled by default (without needing /think command).
+// in the YAML, thinking is enabled by default.
 func TestExec_OpenAI_WithThinkingBudget(t *testing.T) {
 	out := runCLI(t, "run", "--exec", "testdata/basic_with_thinking.yaml", "What's 2+2?")
 

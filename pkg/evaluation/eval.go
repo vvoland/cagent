@@ -625,7 +625,6 @@ func createJudgeModel(ctx context.Context, judgeModel string, runConfig *config.
 	}
 
 	opts := []options.Opt{
-		options.WithThinking(false),
 		options.WithStructuredOutput(judgeResponseSchema),
 	}
 	if runConfig.ModelsGateway != "" {

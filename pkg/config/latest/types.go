@@ -397,7 +397,7 @@ type ModelConfig struct {
 	ProviderOpts map[string]any `json:"provider_opts,omitempty"`
 	TrackUsage   *bool          `json:"track_usage,omitempty"`
 	// ThinkingBudget controls reasoning effort/budget:
-	// - For OpenAI: accepts string levels "minimal", "low", "medium", "high"
+	// - For OpenAI: accepts string levels "minimal", "low", "medium", "high", "xhigh"
 	// - For Anthropic: accepts integer token budget (1024-32000), "adaptive",
 	//   or string levels "low", "medium", "high", "max" (uses adaptive thinking with effort)
 	// - For Bedrock Claude: accepts integer token budget or string levels
@@ -673,8 +673,9 @@ func (d DeferConfig) MarshalYAML() (any, error) {
 
 // ThinkingBudget represents reasoning budget configuration.
 // It accepts either a string effort level or an integer token budget:
-// - String: "minimal", "low", "medium", "high" (for OpenAI)
-// - String: "adaptive" (for Anthropic models that support adaptive thinking)
+// - String: "minimal", "low", "medium", "high", "xhigh" (for OpenAI)
+// - String: "adaptive" (Anthropic adaptive thinking with high effort by default)
+// - String: "adaptive/<effort>" where effort is low/medium/high/max (Anthropic adaptive with specified effort)
 // - Integer: token count (for Anthropic, range 1024-32768)
 type ThinkingBudget struct {
 	// Effort stores string-based reasoning effort levels
@@ -684,15 +685,25 @@ type ThinkingBudget struct {
 }
 
 // validThinkingEfforts lists all accepted string values for thinking_budget.
-const validThinkingEfforts = "none, minimal, low, medium, high, max, adaptive"
+const validThinkingEfforts = "none, minimal, low, medium, high, xhigh, max, adaptive, adaptive/<effort>"
+
+// validAdaptiveEfforts lists the accepted effort levels for adaptive thinking.
+var validAdaptiveEfforts = map[string]bool{
+	"low": true, "medium": true, "high": true, "max": true,
+}
 
 // isValidThinkingEffort reports whether s (case-insensitive, trimmed) is a
 // recognised thinking_budget effort level.
 func isValidThinkingEffort(s string) bool {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "none", "minimal", "low", "medium", "high", "max", "adaptive":
+	norm := strings.ToLower(strings.TrimSpace(s))
+	switch norm {
+	case "none", "minimal", "low", "medium", "high", "xhigh", "max", "adaptive":
 		return true
 	default:
+		// Support "adaptive/<effort>" format (e.g. "adaptive/high")
+		if after, ok := strings.CutPrefix(norm, "adaptive/"); ok {
+			return validAdaptiveEfforts[after]
+		}
 		return false
 	}
 }
@@ -752,11 +763,28 @@ func (t *ThinkingBudget) IsDisabled() bool {
 
 // IsAdaptive returns true if the thinking budget is set to adaptive mode.
 // Adaptive thinking lets the model decide how much thinking to do.
+// Matches both "adaptive" and "adaptive/<effort>" formats.
 func (t *ThinkingBudget) IsAdaptive() bool {
 	if t == nil {
 		return false
 	}
-	return strings.EqualFold(t.Effort, "adaptive")
+	norm := strings.ToLower(strings.TrimSpace(t.Effort))
+	return norm == "adaptive" || strings.HasPrefix(norm, "adaptive/")
+}
+
+// AdaptiveEffort returns the effort level for adaptive thinking.
+// For "adaptive" it returns the default ("high").
+// For "adaptive/<effort>" it returns the specified effort.
+// Returns ("", false) if the budget is not adaptive.
+func (t *ThinkingBudget) AdaptiveEffort() (string, bool) {
+	if !t.IsAdaptive() {
+		return "", false
+	}
+	norm := strings.ToLower(strings.TrimSpace(t.Effort))
+	if after, ok := strings.CutPrefix(norm, "adaptive/"); ok && after != "" {
+		return after, true
+	}
+	return "high", true
 }
 
 // EffortTokens maps a string effort level to a token budget for providers

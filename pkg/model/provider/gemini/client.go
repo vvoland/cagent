@@ -351,30 +351,14 @@ func (c *Client) buildConfig() *genai.GenerateContentConfig {
 	}
 
 	// Apply thinking configuration for Gemini models.
-	// Per official docs: https://ai.google.dev/gemini-api/docs/thinking
-	//
-	// Gemini 2.5 models use token-based configuration (thinkingBudget):
-	// - Set thinkingBudget to 0 to disable thinking
-	// - Set thinkingBudget to -1 for dynamic thinking (model decides)
-	// - Set to a specific value for a fixed token budget
-	//   (max 24576 for most models, 32768 for Gemini 2.5 Pro)
-	//
-	// Gemini 3 models use level-based configuration (thinkingLevel):
-	// - Gemini 3 Pro: "low", "high"
-	// - Gemini 3 Flash: "minimal", "low", "medium", "high"
-	//
-	// When thinking is explicitly disabled via ModelOptions (e.g., for title generation),
-	// we set ThinkingBudget to 0 to disable thinking completely. This is required for
-	// operations where max_tokens is very low and thinking would cause the request to
-	// hang or fail. IncludeThoughts=false is also set to ensure no thinking content
-	// is returned.
-	if thinking := c.ModelOptions.Thinking(); thinking != nil && !*thinking {
+	// See https://ai.google.dev/gemini-api/docs/thinking
+	if c.ModelOptions.NoThinking() {
+		// NoThinking requested (e.g. title generation). For Gemini 3+ models
+		// that always think, use the lowest level and bump MaxOutputTokens so
+		// internal reasoning doesn't consume the entire budget. Gemini 2.5 and
+		// older can fully disable thinking with ThinkingBudget=0.
 		model := strings.ToLower(c.ModelConfig.Model)
 		if isGemini3PlusModel(model) {
-			// Gemini 3 models require thinking — they reject ThinkingBudget=0.
-			// Use the lowest level instead and bump MaxOutputTokens so that
-			// even a tiny caller budget (e.g. 20 for title generation) leaves
-			// room for the model's internal reasoning.
 			config.ThinkingConfig = &genai.ThinkingConfig{
 				IncludeThoughts: false,
 				ThinkingLevel:   genai.ThinkingLevelLow,
@@ -383,29 +367,19 @@ func (c *Client) buildConfig() *genai.GenerateContentConfig {
 			if config.MaxOutputTokens < minOutputTokens {
 				config.MaxOutputTokens = minOutputTokens
 			}
-			slog.Debug("Gemini 3 thinking reduced to low (cannot be fully disabled)",
-				"model", c.ModelConfig.Model,
-				"max_output_tokens", config.MaxOutputTokens,
-			)
 		} else {
-			// Gemini 2.5 and older: ThinkingBudget=0 disables thinking.
 			config.ThinkingConfig = &genai.ThinkingConfig{
 				IncludeThoughts: false,
 				ThinkingBudget:  new(int32(0)),
 			}
-			slog.Debug("Gemini thinking explicitly disabled via ModelOptions",
-				"model", c.ModelConfig.Model,
-				"max_output_tokens", config.MaxOutputTokens,
-			)
 		}
 	} else if c.ModelConfig.ThinkingBudget != nil {
-		c.applyThinkingConfig(config)
-	} else {
-		slog.Debug("Gemini buildConfig: no thinking configuration applied",
-			"model", c.ModelConfig.Model,
-			"thinking_option", c.ModelOptions.Thinking(),
-			"thinking_budget", c.ModelConfig.ThinkingBudget,
-		)
+		config.ThinkingConfig = &genai.ThinkingConfig{IncludeThoughts: true}
+		if isGemini3PlusModel(strings.ToLower(c.ModelConfig.Model)) {
+			c.applyGemini3ThinkingLevel(config)
+		} else {
+			c.applyGemini25ThinkingBudget(config)
+		}
 	}
 
 	if structuredOutput := c.ModelOptions.StructuredOutput(); structuredOutput != nil {
@@ -416,41 +390,11 @@ func (c *Client) buildConfig() *genai.GenerateContentConfig {
 	return config
 }
 
-// applyThinkingConfig applies the appropriate thinking configuration based on model type.
-func (c *Client) applyThinkingConfig(config *genai.GenerateContentConfig) {
-	if config.ThinkingConfig == nil {
-		config.ThinkingConfig = &genai.ThinkingConfig{}
-	}
-	config.ThinkingConfig.IncludeThoughts = true
-
-	model := strings.ToLower(c.ModelConfig.Model)
-
-	// Gemini 3+ models use ThinkingLevel (effort-based)
-	if isGemini3PlusModel(model) {
-		c.applyGemini3ThinkingLevel(config)
-		return
-	}
-
-	// Gemini 2.5 and other models use ThinkingBudget (token-based)
-	c.applyGemini25ThinkingBudget(config)
-}
-
 // applyGemini3ThinkingLevel applies level-based thinking for Gemini 3 models.
 func (c *Client) applyGemini3ThinkingLevel(config *genai.GenerateContentConfig) {
-	effort := strings.ToLower(c.ModelConfig.ThinkingBudget.Effort)
-
-	var level genai.ThinkingLevel
-	switch effort {
-	case "minimal":
-		level = genai.ThinkingLevelMinimal
-	case "low":
-		level = genai.ThinkingLevelLow
-	case "medium":
-		level = genai.ThinkingLevelMedium
-	case "high":
-		level = genai.ThinkingLevelHigh
-	default:
-		// If effort is not set but tokens are, fall back to token-based config
+	level, ok := gemini3ThinkingLevel(c.ModelConfig.ThinkingBudget.Effort)
+	if !ok {
+		// No recognized effort string — fall back to token-based if tokens are set.
 		if c.ModelConfig.ThinkingBudget.Tokens != 0 {
 			slog.Warn("Gemini 3 models use thinkingLevel, not thinkingBudget tokens; falling back to token-based config",
 				"model", c.ModelConfig.Model,
@@ -459,36 +403,37 @@ func (c *Client) applyGemini3ThinkingLevel(config *genai.GenerateContentConfig) 
 			c.applyGemini25ThinkingBudget(config)
 			return
 		}
-		// Default to high if no valid effort specified
-		level = genai.ThinkingLevelHigh
-		slog.Debug("Gemini 3 using default thinking level",
-			"model", c.ModelConfig.Model,
-			"level", "high",
-		)
-		config.ThinkingConfig.ThinkingLevel = level
-		return
+		level = genai.ThinkingLevelHigh // default
 	}
 
 	config.ThinkingConfig.ThinkingLevel = level
 	slog.Debug("Gemini 3 request using thinkingLevel",
 		"model", c.ModelConfig.Model,
-		"level", effort,
+		"level", level,
 	)
+}
+
+// gemini3ThinkingLevel maps an effort string to a Gemini 3 ThinkingLevel.
+func gemini3ThinkingLevel(effort string) (genai.ThinkingLevel, bool) {
+	switch strings.ToLower(strings.TrimSpace(effort)) {
+	case "minimal":
+		return genai.ThinkingLevelMinimal, true
+	case "low":
+		return genai.ThinkingLevelLow, true
+	case "medium":
+		return genai.ThinkingLevelMedium, true
+	case "high":
+		return genai.ThinkingLevelHigh, true
+	default:
+		return "", false
+	}
 }
 
 // applyGemini25ThinkingBudget applies token-based thinking for Gemini 2.5 and other models.
 func (c *Client) applyGemini25ThinkingBudget(config *genai.GenerateContentConfig) {
 	tokens := c.ModelConfig.ThinkingBudget.Tokens
 	config.ThinkingConfig.ThinkingBudget = new(int32(tokens))
-
-	switch tokens {
-	case 0:
-		slog.Debug("Gemini request with thinking disabled", "budget_tokens", tokens)
-	case -1:
-		slog.Debug("Gemini request with dynamic thinking", "budget_tokens", tokens)
-	default:
-		slog.Debug("Gemini request using thinking_budget", "budget_tokens", tokens)
-	}
+	slog.Debug("Gemini request using thinking_budget", "budget_tokens", tokens)
 }
 
 // convertToolsToGemini converts tools to Gemini format

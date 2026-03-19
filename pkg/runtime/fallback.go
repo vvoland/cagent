@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker-agent/pkg/agent"
 	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/model/provider"
-	"github.com/docker/docker-agent/pkg/model/provider/options"
 	"github.com/docker/docker-agent/pkg/modelerrors"
 	"github.com/docker/docker-agent/pkg/modelsdev"
 	"github.com/docker/docker-agent/pkg/session"
@@ -182,14 +181,7 @@ func (r *LocalRuntime) tryModelWithFallback(
 	m *modelsdev.Model,
 	events chan Event,
 ) (streamResult, provider.Provider, error) {
-	// Clone fallback models with the same thinking override as the primary model.
-	// The primary model was already cloned with options.WithThinking(sess.Thinking)
-	// in the main runtime loop, so we apply the same to fallbacks for consistency.
-	rawFallbacks := a.FallbackModels()
-	fallbackModels := make([]provider.Provider, len(rawFallbacks))
-	for i, fb := range rawFallbacks {
-		fallbackModels[i] = provider.CloneWithOptions(ctx, fb, options.WithThinking(sess.Thinking))
-	}
+	fallbackModels := a.FallbackModels()
 
 	fallbackRetries := getEffectiveRetries(a)
 

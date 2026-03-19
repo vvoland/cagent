@@ -40,7 +40,6 @@ type Agent struct {
 	commands                types.Commands
 	pendingWarnings         []string
 	hooks                   *latest.HooksConfig
-	thinkingConfigured      bool // true if thinking_budget was explicitly set in config
 }
 
 // New creates a new agent
@@ -88,13 +87,6 @@ func (a *Agent) NumHistoryItems() int {
 
 func (a *Agent) AddPromptFiles() []string {
 	return a.addPromptFiles
-}
-
-// ThinkingConfigured returns true if thinking_budget was explicitly set in the agent's config.
-// This is used to initialize session thinking state - thinking is only enabled by default
-// when the user explicitly configured it in their YAML.
-func (a *Agent) ThinkingConfigured() bool {
-	return a.thinkingConfigured
 }
 
 // Description returns the agent's description

@@ -202,7 +202,6 @@ func (s *InMemorySessionStore) UpdateSession(_ context.Context, session *Session
 		Evals:               session.Evals,
 		CreatedAt:           session.CreatedAt,
 		ToolsApproved:       session.ToolsApproved,
-		Thinking:            session.Thinking,
 		HideToolResults:     session.HideToolResults,
 		WorkingDir:          session.WorkingDir,
 		SendUserMessage:     session.SendUserMessage,
@@ -538,7 +537,7 @@ func (s *SQLiteSessionStore) AddSession(ctx context.Context, session *Session) e
 		session.ID, session.ToolsApproved, session.InputTokens, session.OutputTokens, session.Title,
 		session.Cost, session.SendUserMessage, session.MaxIterations, session.WorkingDir,
 		session.CreatedAt.Format(time.RFC3339), permissionsJSON, agentModelOverridesJSON,
-		customModelsUsedJSON, session.Thinking, parentID)
+		customModelsUsedJSON, false, parentID)
 	if err != nil {
 		return err
 	}
@@ -559,7 +558,8 @@ func scanSession(scanner interface {
 	Scan(dest ...any) error
 },
 ) (*Session, error) {
-	var toolsApprovedStr, inputTokensStr, outputTokensStr, titleStr, costStr, sendUserMessageStr, maxIterationsStr, createdAtStr, starredStr, agentModelOverridesJSON, customModelsUsedJSON, thinkingStr string
+	var toolsApprovedStr, inputTokensStr, outputTokensStr, titleStr, costStr, sendUserMessageStr, maxIterationsStr, createdAtStr, starredStr, agentModelOverridesJSON, customModelsUsedJSON string
+	var thinkingStr string // read from DB but not used (kept for backward compatibility)
 	var sessionID string
 	var workingDir sql.NullString
 	var permissionsJSON sql.NullString
@@ -609,10 +609,7 @@ func scanSession(scanner interface {
 		return nil, err
 	}
 
-	thinking, err := strconv.ParseBool(thinkingStr)
-	if err != nil {
-		return nil, err
-	}
+	// thinkingStr is read from the DB but ignored (column kept for backward compatibility).
 
 	// Parse permissions if present
 	var permissions *PermissionsConfig
@@ -644,7 +641,6 @@ func scanSession(scanner interface {
 		Title:               titleStr,
 		Messages:            nil, // Loaded separately from session_items
 		ToolsApproved:       toolsApproved,
-		Thinking:            thinking,
 		InputTokens:         inputTokens,
 		OutputTokens:        outputTokens,
 		Cost:                cost,
@@ -1012,7 +1008,7 @@ func (s *SQLiteSessionStore) UpdateSession(ctx context.Context, session *Session
 		session.ID, session.ToolsApproved, session.InputTokens, session.OutputTokens,
 		session.Title, session.Cost, session.SendUserMessage, session.MaxIterations, session.WorkingDir,
 		session.CreatedAt.Format(time.RFC3339), session.Starred, permissionsJSON, agentModelOverridesJSON,
-		customModelsUsedJSON, session.Thinking, parentID)
+		customModelsUsedJSON, false, parentID)
 	if err != nil {
 		return err
 	}
@@ -1214,7 +1210,7 @@ func (s *SQLiteSessionStore) addSessionTx(ctx context.Context, tx *sql.Tx, sessi
 		session.ID, session.ToolsApproved, session.InputTokens, session.OutputTokens,
 		session.Title, session.Cost, session.SendUserMessage, session.MaxIterations,
 		session.WorkingDir, session.CreatedAt.Format(time.RFC3339), session.Starred,
-		permissionsJSON, agentModelOverridesJSON, customModelsUsedJSON, session.Thinking,
+		permissionsJSON, agentModelOverridesJSON, customModelsUsedJSON, false,
 		parentID)
 	return err
 }

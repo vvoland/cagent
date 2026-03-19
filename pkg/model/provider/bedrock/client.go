@@ -236,23 +236,24 @@ func (c *Client) buildConverseStreamInput(messages []chat.Message, requestTools 
 	// Convert and set messages (excluding system)
 	input.Messages, input.System = convertMessages(messages, enableCaching)
 
-	// Set inference configuration
-	input.InferenceConfig = c.buildInferenceConfig()
+	// Compute thinking fields first — its presence drives the inference config.
+	additionalFields := c.buildAdditionalModelRequestFields()
+	if additionalFields != nil {
+		input.AdditionalModelRequestFields = additionalFields
+	}
+
+	// Set inference configuration (temp/topP are suppressed when thinking is on).
+	input.InferenceConfig = c.buildInferenceConfig(additionalFields != nil)
 
 	// Convert and set tools
 	if len(requestTools) > 0 {
 		input.ToolConfig = convertToolConfig(requestTools, enableCaching)
 	}
 
-	// Set extended thinking configuration for Claude models
-	if additionalFields := c.buildAdditionalModelRequestFields(); additionalFields != nil {
-		input.AdditionalModelRequestFields = additionalFields
-	}
-
 	return input
 }
 
-func (c *Client) buildInferenceConfig() *types.InferenceConfiguration {
+func (c *Client) buildInferenceConfig(thinkingEnabled bool) *types.InferenceConfiguration {
 	cfg := &types.InferenceConfiguration{}
 
 	if c.ModelConfig.MaxTokens != nil && *c.ModelConfig.MaxTokens > 0 {
@@ -261,7 +262,7 @@ func (c *Client) buildInferenceConfig() *types.InferenceConfiguration {
 
 	// Temperature and TopP cannot be set when extended thinking is enabled
 	// (Claude requires temperature=1.0 which is the default when thinking is on)
-	if !c.isThinkingEnabled() {
+	if !thinkingEnabled {
 		if c.ModelConfig.Temperature != nil {
 			cfg.Temperature = aws.Float32(float32(*c.ModelConfig.Temperature))
 		}
@@ -273,35 +274,6 @@ func (c *Client) buildInferenceConfig() *types.InferenceConfiguration {
 	}
 
 	return cfg
-}
-
-// resolveThinkingTokens returns the effective token budget for thinking.
-// It handles both explicit token counts and effort-level strings.
-// Returns 0 if no valid thinking budget is configured.
-func (c *Client) resolveThinkingTokens() int {
-	if c.ModelConfig.ThinkingBudget == nil {
-		return 0
-	}
-	if tokens, ok := c.ModelConfig.ThinkingBudget.EffortTokens(); ok {
-		return tokens
-	}
-	return c.ModelConfig.ThinkingBudget.Tokens
-}
-
-// isThinkingEnabled mirrors the validation in buildAdditionalModelRequestFields
-// to determine if thinking params will affect inference config (temp/topP constraints).
-func (c *Client) isThinkingEnabled() bool {
-	tokens := c.resolveThinkingTokens()
-	if tokens < 1024 {
-		return false
-	}
-
-	// Check against max_tokens
-	if c.ModelConfig.MaxTokens != nil && tokens >= int(*c.ModelConfig.MaxTokens) {
-		return false
-	}
-
-	return true
 }
 
 func (c *Client) interleavedThinkingEnabled() bool {
@@ -317,7 +289,13 @@ func (c *Client) promptCachingEnabled() bool {
 
 // buildAdditionalModelRequestFields configures Claude's extended thinking (reasoning) mode.
 func (c *Client) buildAdditionalModelRequestFields() document.Interface {
-	tokens := c.resolveThinkingTokens()
+	if c.ModelConfig.ThinkingBudget == nil {
+		return nil
+	}
+	tokens := c.ModelConfig.ThinkingBudget.Tokens
+	if t, ok := c.ModelConfig.ThinkingBudget.EffortTokens(); ok {
+		tokens = t
+	}
 	if tokens <= 0 {
 		return nil
 	}

@@ -108,7 +108,6 @@ func newSubSession(parent *session.Session, cfg SubSessionConfig, childAgent *ag
 		session.WithMaxConsecutiveToolCalls(childAgent.MaxConsecutiveToolCalls()),
 		session.WithTitle(cfg.Title),
 		session.WithToolsApproved(cfg.ToolsApproved),
-		session.WithThinking(childAgent.ThinkingConfigured()),
 		session.WithSendUserMessage(false),
 		session.WithParentID(parent.ID),
 	}

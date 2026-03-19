@@ -163,11 +163,3 @@ func WithHooks(hooks *latest.HooksConfig) Opt {
 		a.hooks = hooks
 	}
 }
-
-// WithThinkingConfigured sets whether thinking_budget was explicitly configured in the agent's YAML.
-// When true, the session will initialize with thinking enabled.
-func WithThinkingConfigured(configured bool) Opt {
-	return func(a *Agent) {
-		a.thinkingConfigured = configured
-	}
-}

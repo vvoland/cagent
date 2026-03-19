@@ -460,13 +460,13 @@ func migrateItem(ctx context.Context, db *sql.DB, sessionID string, position int
 			_, execErr := db.ExecContext(ctx,
 				`INSERT INTO sessions (id, messages, tools_approved, input_tokens, output_tokens, title, cost, 
 				 send_user_message, max_iterations, working_dir, created_at, starred, permissions, 
-				 agent_model_overrides, custom_models_used, thinking, parent_id)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				 agent_model_overrides, custom_models_used, parent_id)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				subSessionID, string(subMessagesJSON), item.SubSession.ToolsApproved,
 				item.SubSession.InputTokens, item.SubSession.OutputTokens, item.SubSession.Title,
 				item.SubSession.Cost, item.SubSession.SendUserMessage, item.SubSession.MaxIterations,
 				item.SubSession.WorkingDir, item.SubSession.CreatedAt.Format(time.RFC3339),
-				item.SubSession.Starred, "", "{}", "[]", item.SubSession.Thinking, sessionID)
+				item.SubSession.Starred, "", "{}", "[]", sessionID)
 			if execErr != nil {
 				return fmt.Errorf("inserting sub-session: %w", execErr)
 			}
