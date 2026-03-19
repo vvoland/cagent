@@ -7,7 +7,6 @@ package modelerrors
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"math/rand"
 	"net"
@@ -180,8 +179,7 @@ func ExtractHTTPStatusCode(err error) int {
 	// OpenAI SDK error format: `POST "/v1/...": 429 Too Many Requests {...}`
 	matches := statusCodeRegex.FindStringSubmatch(err.Error())
 	if len(matches) >= 2 {
-		var code int
-		if _, err := fmt.Sscanf(matches[1], "%d", &code); err == nil {
+		if code, err := strconv.Atoi(matches[1]); err == nil {
 			return code
 		}
 	}
