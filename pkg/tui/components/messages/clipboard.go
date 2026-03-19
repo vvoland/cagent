@@ -165,7 +165,7 @@ func (m *model) extractSelectedText() string {
 
 // findClosestRuneIndex finds the rune index for a given visual column,
 // or the closest next rune if the exact column doesn't exist
-func findClosestRuneIndex(visualToRune map[int]int, visualCol int, maxRunes int) int {
+func findClosestRuneIndex(visualToRune map[int]int, visualCol, maxRunes int) int {
 	// Try exact match first
 	if runeIdx, ok := visualToRune[visualCol]; ok {
 		return runeIdx
