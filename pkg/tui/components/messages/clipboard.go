@@ -116,11 +116,9 @@ func (m *model) extractSelectedText() string {
 		// stripped line (without borders) by tracking which runes correspond to
 		// which visual columns
 		visualToRune := make(map[int]int)
-		plainRunes := []rune(plainLine)
 		visualCol := 0
 		lineRuneIdx := 0
-
-		for _, r := range plainRunes {
+		for _, r := range plainLine {
 			if !boxDrawingChars[r] {
 				// This rune is kept in the stripped line
 				visualToRune[visualCol] = lineRuneIdx
