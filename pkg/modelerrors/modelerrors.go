@@ -16,9 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/anthropics/anthropic-sdk-go"
-	"google.golang.org/genai"
 )
 
 // Backoff and retry-after configuration constants.
@@ -161,27 +158,25 @@ func IsContextOverflowError(err error) bool {
 // statusCodeRegex matches HTTP status codes in error messages (e.g., "429", "500", ": 429 ")
 var statusCodeRegex = regexp.MustCompile(`\b([45]\d{2})\b`)
 
-// ExtractHTTPStatusCode attempts to extract an HTTP status code from the error.
-// Checks in order:
-// 1. Known provider SDK error types (Anthropic, Gemini)
-// 2. Regex parsing of error message (fallback for OpenAI and others)
+// ExtractHTTPStatusCode attempts to extract an HTTP status code from the error
+// using regex parsing of the error message. This is a fallback for providers
+// whose errors are not yet wrapped in *StatusError (the preferred path).
+//
+// The regex matches 4xx/5xx codes at word boundaries
+// (e.g., "429 Too Many Requests", "500 Internal Server Error").
 // Returns 0 if no status code found.
 func ExtractHTTPStatusCode(err error) int {
 	if err == nil {
 		return 0
 	}
 
-	// Check Anthropic SDK error type (public)
-	if anthropicErr, ok := errors.AsType[*anthropic.Error](err); ok {
-		return anthropicErr.StatusCode
+	// Check for *StatusError first (preferred structured path).
+	var statusErr *StatusError
+	if errors.As(err, &statusErr) {
+		return statusErr.StatusCode
 	}
 
-	// Check Google Gemini SDK error type (public)
-	if geminiErr, ok := errors.AsType[*genai.APIError](err); ok {
-		return geminiErr.Code
-	}
-
-	// For other providers (OpenAI, etc.), extract from error message using regex
+	// Fallback: extract from error message using regex.
 	// OpenAI SDK error format: `POST "/v1/...": 429 Too Many Requests {...}`
 	matches := statusCodeRegex.FindStringSubmatch(err.Error())
 	if len(matches) >= 2 {
