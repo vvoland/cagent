@@ -219,7 +219,7 @@ func (c *Client) CreateChatCompletionStream(
 	output, err := c.bedrockClient.ConverseStream(ctx, input)
 	if err != nil {
 		slog.Error("Bedrock ConverseStream failed", "error", err)
-		return nil, fmt.Errorf("bedrock converse stream failed: %w", err)
+		return nil, wrapBedrockError(fmt.Errorf("bedrock converse stream failed: %w", err))
 	}
 
 	trackUsage := c.ModelConfig.TrackUsage == nil || *c.ModelConfig.TrackUsage
