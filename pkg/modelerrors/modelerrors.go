@@ -15,15 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/docker/docker-agent/pkg/backoff"
-)
-
-// Backoff and retry-after configuration constants.
-const (
-	// MaxRetryAfterWait caps how long we'll honor a Retry-After header to prevent
-	// a misbehaving server from blocking the agent for an unreasonable amount of time.
-	MaxRetryAfterWait = backoff.MaxRetryAfterWait
 )
 
 // StatusError wraps an HTTP API error with structured metadata for retry decisions.
