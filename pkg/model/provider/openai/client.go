@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/openai/openai-go/v3"
@@ -29,12 +31,16 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
-// Client represents an OpenAI client wrapper
-// It implements the provider.Provider interface
+// Client represents an OpenAI client wrapper.
+// It implements the provider.Provider interface.
 type Client struct {
 	base.Config
 
 	clientFn func(context.Context) (*openai.Client, error)
+
+	// wsPool is lazily initialized when transport=websocket is configured.
+	// It maintains a persistent WebSocket connection across requests.
+	wsPool *wsPool
 }
 
 // NewClient creates a new OpenAI client from the provided configuration
@@ -307,12 +313,6 @@ func (c *Client) CreateResponseStream(
 		return nil, errors.New("at least one message is required")
 	}
 
-	client, err := c.clientFn(ctx)
-	if err != nil {
-		slog.Error("Failed to create OpenAI client", "error", err)
-		return nil, err
-	}
-
 	input := convertMessagesToResponseInput(messages)
 
 	params := responses.ResponseNewParams{
@@ -398,10 +398,88 @@ func (c *Client) CreateResponseStream(
 		slog.Error("Failed to marshal OpenAI responses request to JSON", "error", err)
 	}
 
+	// Choose transport: WebSocket or SSE (default).
+	// WebSocket is disabled when using a Gateway since most gateways don't support it.
+	transport := getTransport(&c.ModelConfig)
+	trackUsage := c.ModelConfig.TrackUsage == nil || *c.ModelConfig.TrackUsage
+
+	if transport == "websocket" && c.ModelOptions.Gateway() == "" {
+		stream, err := c.createWebSocketStream(ctx, params)
+		if err != nil {
+			slog.Error("WebSocket stream failed, falling back to SSE", "error", err)
+			// Fall through to SSE below.
+		} else {
+			slog.Debug("OpenAI responses WebSocket stream created successfully", "model", c.ModelConfig.Model)
+			return newResponseStreamAdapter(stream, trackUsage), nil
+		}
+	} else if transport == "websocket" {
+		slog.Debug("WebSocket transport requested but Gateway is configured, using SSE",
+			"model", c.ModelConfig.Model,
+			"gateway", c.ModelOptions.Gateway())
+	}
+
+	client, err := c.clientFn(ctx)
+	if err != nil {
+		slog.Error("Failed to create OpenAI client", "error", err)
+		return nil, err
+	}
 	stream := client.Responses.NewStreaming(ctx, params)
 
 	slog.Debug("OpenAI responses stream created successfully", "model", c.ModelConfig.Model)
-	return newResponseStreamAdapter(stream, c.ModelConfig.TrackUsage == nil || *c.ModelConfig.TrackUsage), nil
+	return newResponseStreamAdapter(stream, trackUsage), nil
+}
+
+// createWebSocketStream initializes (or reuses) a WebSocket connection and
+// sends the response.create message, returning a responseEventStream.
+func (c *Client) createWebSocketStream(
+	ctx context.Context,
+	params responses.ResponseNewParams,
+) (responseEventStream, error) {
+	if c.wsPool == nil {
+		// Lazy-init the pool on first WebSocket call.
+		baseURL := cmp.Or(c.ModelConfig.BaseURL, "https://api.openai.com/v1")
+		wsURL := httpToWSURL(baseURL)
+
+		headerFn := c.buildWSHeaderFn()
+		c.wsPool = newWSPool(wsURL, headerFn)
+	}
+
+	return c.wsPool.Stream(ctx, params)
+}
+
+// buildWSHeaderFn returns a function that produces the HTTP headers needed
+// for the WebSocket handshake, including the Authorization header.
+func (c *Client) buildWSHeaderFn() func(ctx context.Context) (http.Header, error) {
+	return func(ctx context.Context) (http.Header, error) {
+		h := http.Header{}
+
+		// Resolve the API key using the same logic as the HTTP client.
+		var apiKey string
+		if c.ModelConfig.TokenKey != "" {
+			apiKey, _ = c.Env.Get(ctx, c.ModelConfig.TokenKey)
+		}
+		if apiKey == "" {
+			// Fall back to the standard OPENAI_API_KEY env var.
+			apiKey = os.Getenv("OPENAI_API_KEY")
+		}
+		if apiKey != "" {
+			h.Set("Authorization", "Bearer "+apiKey)
+		}
+
+		return h, nil
+	}
+}
+
+// getTransport returns the streaming transport preference from ProviderOpts.
+// Valid values are "sse" (default) and "websocket".
+func getTransport(cfg *latest.ModelConfig) string {
+	if cfg == nil || cfg.ProviderOpts == nil {
+		return "sse"
+	}
+	if t, ok := cfg.ProviderOpts["transport"].(string); ok {
+		return strings.ToLower(t)
+	}
+	return "sse"
 }
 
 func convertMessagesToResponseInput(messages []chat.Message) []responses.ResponseInputItemUnionParam {
