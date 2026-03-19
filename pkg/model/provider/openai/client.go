@@ -18,6 +18,7 @@ import (
 
 	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/effort"
 	"github.com/docker/docker-agent/pkg/environment"
 	"github.com/docker/docker-agent/pkg/httpclient"
 	"github.com/docker/docker-agent/pkg/model/provider/base"
@@ -251,13 +252,13 @@ func (c *Client) CreateChatCompletionStream(
 
 	// Apply thinking budget: set reasoning_effort for reasoning models (o-series, gpt-5)
 	if c.ModelConfig.ThinkingBudget != nil && isOpenAIReasoningModel(c.ModelConfig.Model) {
-		effort, err := openAIReasoningEffort(c.ModelConfig.ThinkingBudget)
+		effortStr, err := openAIReasoningEffort(c.ModelConfig.ThinkingBudget)
 		if err != nil {
 			slog.Error("OpenAI request using thinking_budget failed", "error", err)
 			return nil, err
 		}
-		params.ReasoningEffort = shared.ReasoningEffort(effort)
-		slog.Debug("OpenAI request using thinking_budget", "reasoning_effort", effort)
+		params.ReasoningEffort = shared.ReasoningEffort(effortStr)
+		slog.Debug("OpenAI request using thinking_budget", "reasoning_effort", effortStr)
 	}
 
 	// Apply structured output configuration
@@ -367,13 +368,13 @@ func (c *Client) CreateResponseStream(
 			Summary: shared.ReasoningSummaryDetailed,
 		}
 		if c.ModelConfig.ThinkingBudget != nil {
-			effort, err := openAIReasoningEffort(c.ModelConfig.ThinkingBudget)
+			effortStr, err := openAIReasoningEffort(c.ModelConfig.ThinkingBudget)
 			if err != nil {
 				slog.Error("OpenAI responses request using thinking_budget failed", "error", err)
 				return nil, err
 			}
-			params.Reasoning.Effort = shared.ReasoningEffort(effort)
-			slog.Debug("OpenAI responses request using thinking_budget", "reasoning_effort", effort)
+			params.Reasoning.Effort = shared.ReasoningEffort(effortStr)
+			slog.Debug("OpenAI responses request using thinking_budget", "reasoning_effort", effortStr)
 		}
 	}
 
@@ -902,15 +903,17 @@ func isOpenAIReasoningModel(model string) bool {
 }
 
 // openAIReasoningEffort validates a ThinkingBudget effort string for the
-// OpenAI API. Returns the effort (minimal|low|medium|high|xhigh) or an error.
+// OpenAI API. Returns the effort string or an error.
 func openAIReasoningEffort(b *latest.ThinkingBudget) (string, error) {
-	effort := strings.TrimSpace(strings.ToLower(b.Effort))
-	switch effort {
-	case "minimal", "low", "medium", "high", "xhigh":
-		return effort, nil
-	default:
-		return "", fmt.Errorf("OpenAI requests only support 'minimal', 'low', 'medium', 'high', 'xhigh' as values for thinking_budget effort, got effort: '%s', tokens: '%d'", effort, b.Tokens)
+	l, ok := b.EffortLevel()
+	if !ok {
+		return "", fmt.Errorf("OpenAI reasoning models require a string thinking_budget (%s), got effort: '%s', tokens: '%d'", effort.ValidNames(), b.Effort, b.Tokens)
 	}
+	s, ok := effort.ForOpenAI(l)
+	if !ok {
+		return "", fmt.Errorf("OpenAI reasoning models require a string thinking_budget (%s), got effort: '%s', tokens: '%d'", effort.ValidNames(), b.Effort, b.Tokens)
+	}
+	return s, nil
 }
 
 // jsonSchema is a helper type that implements json.Marshaler for map[string]any

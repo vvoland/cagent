@@ -16,6 +16,7 @@ import (
 
 	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/effort"
 	"github.com/docker/docker-agent/pkg/environment"
 	"github.com/docker/docker-agent/pkg/httpclient"
 	"github.com/docker/docker-agent/pkg/model/provider/base"
@@ -414,19 +415,16 @@ func (c *Client) applyGemini3ThinkingLevel(config *genai.GenerateContentConfig) 
 }
 
 // gemini3ThinkingLevel maps an effort string to a Gemini 3 ThinkingLevel.
-func gemini3ThinkingLevel(effort string) (genai.ThinkingLevel, bool) {
-	switch strings.ToLower(strings.TrimSpace(effort)) {
-	case "minimal":
-		return genai.ThinkingLevelMinimal, true
-	case "low":
-		return genai.ThinkingLevelLow, true
-	case "medium":
-		return genai.ThinkingLevelMedium, true
-	case "high":
-		return genai.ThinkingLevelHigh, true
-	default:
+func gemini3ThinkingLevel(effortStr string) (genai.ThinkingLevel, bool) {
+	l, ok := effort.Parse(effortStr)
+	if !ok {
 		return "", false
 	}
+	s, ok := effort.ForGemini3(l)
+	if !ok {
+		return "", false
+	}
+	return genai.ThinkingLevel(strings.ToUpper(s)), true
 }
 
 // applyGemini25ThinkingBudget applies token-based thinking for Gemini 2.5 and other models.
