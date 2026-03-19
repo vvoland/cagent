@@ -220,7 +220,8 @@ func IsRetryableStatusCode(statusCode int) bool {
 	}
 }
 
-// IsRetryableModelError determines if an error should trigger a retry of the SAME model.
+// isRetryableModelError determines if an error should trigger a retry of the SAME model.
+// It is used as a fallback by ClassifyModelError when no *StatusError is present.
 //
 // Retryable errors (retry same model with backoff):
 // - Network timeouts
@@ -238,7 +239,7 @@ func IsRetryableStatusCode(statusCode int) bool {
 //
 // The key distinction is: 429 means "you're calling too fast, slow down" which
 // suggests we should try a different model, not keep hammering the same one.
-func IsRetryableModelError(err error) bool {
+func isRetryableModelError(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -404,7 +405,7 @@ func ClassifyModelError(err error) (retryable, rateLimited bool, retryAfter time
 	if statusCode != 0 {
 		return IsRetryableStatusCode(statusCode), false, 0
 	}
-	return IsRetryableModelError(err), false, 0
+	return isRetryableModelError(err), false, 0
 }
 
 // CalculateBackoff returns the backoff duration for a given attempt (0-indexed).

@@ -66,7 +66,7 @@ func TestIsRetryableModelError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.expected, IsRetryableModelError(tt.err), "IsRetryableModelError(%v)", tt.err)
+			assert.Equal(t, tt.expected, isRetryableModelError(tt.err), "isRetryableModelError(%v)", tt.err)
 		})
 	}
 }
@@ -252,7 +252,7 @@ func TestIsRetryableModelError_ContextOverflow(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.False(t, IsRetryableModelError(tt.err), "context overflow errors should not be retryable: %v", tt.err)
+			assert.False(t, isRetryableModelError(tt.err), "context overflow errors should not be retryable: %v", tt.err)
 		})
 	}
 }
