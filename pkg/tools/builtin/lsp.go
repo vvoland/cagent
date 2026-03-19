@@ -2,7 +2,6 @@ package builtin
 
 import (
 	"bufio"
-	"bytes"
 	"cmp"
 	"context"
 	"encoding/json"
@@ -20,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/docker/docker-agent/pkg/concurrent"
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
@@ -492,8 +492,8 @@ func (h *lspHandler) startLocked() error {
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 
-	var stderrBuf bytes.Buffer
-	cmd.Stderr = &stderrBuf
+	stderrBuf := &concurrent.Buffer{}
+	cmd.Stderr = stderrBuf
 
 	if err := cmd.Start(); err != nil {
 		stdin.Close()
@@ -506,7 +506,7 @@ func (h *lspHandler) startLocked() error {
 	h.stdin = stdin
 	h.stdout = bufio.NewReader(stdout)
 
-	go h.readNotifications(processCtx, &stderrBuf)
+	go h.readNotifications(processCtx, stderrBuf)
 
 	slog.Debug("LSP server started successfully")
 	return nil
@@ -1432,7 +1432,7 @@ func (h *lspHandler) readMessageLocked() ([]byte, error) {
 	return body, nil
 }
 
-func (h *lspHandler) readNotifications(ctx context.Context, stderrBuf *bytes.Buffer) {
+func (h *lspHandler) readNotifications(ctx context.Context, stderrBuf *concurrent.Buffer) {
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -1441,9 +1441,8 @@ func (h *lspHandler) readNotifications(ctx context.Context, stderrBuf *bytes.Buf
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if stderrBuf.Len() > 0 {
-				slog.Debug("LSP stderr", "content", stderrBuf.String())
-				stderrBuf.Reset()
+			if content := stderrBuf.Drain(); content != "" {
+				slog.Debug("LSP stderr", "content", content)
 			}
 		}
 	}
