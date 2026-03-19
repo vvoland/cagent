@@ -401,7 +401,7 @@ type ModelConfig struct {
 	// - For Anthropic: accepts integer token budget (1024-32000), "adaptive",
 	//   or string levels "low", "medium", "high", "max" (uses adaptive thinking with effort)
 	// - For Bedrock Claude: accepts integer token budget or string levels
-	//   "minimal", "low", "medium", "high" (mapped to token budgets via EffortTokens)
+	//   "minimal", "low", "medium", "high", "xhigh", "max" (mapped to token budgets via EffortTokens)
 	// - For other providers: may be ignored
 	ThinkingBudget *ThinkingBudget `json:"thinking_budget,omitempty"`
 	// Routing defines rules for routing requests to different models.
@@ -808,6 +808,10 @@ func (t *ThinkingBudget) EffortTokens() (int, bool) {
 		return 8192, true
 	case "high":
 		return 16384, true
+	case "xhigh":
+		return 32768, true
+	case "max":
+		return 32768, true
 	default:
 		return 0, false
 	}
