@@ -60,6 +60,26 @@ type wsStream struct {
 // Compile-time check: wsStream satisfies responseEventStream.
 var _ responseEventStream = (*wsStream)(nil)
 
+// sendResponseCreate marshals params and writes a response.create message
+// on the given WebSocket connection.
+func sendResponseCreate(conn *websocket.Conn, params responses.ResponseNewParams) error {
+	paramsJSON, err := json.Marshal(params)
+	if err != nil {
+		return fmt.Errorf("websocket: marshal params: %w", err)
+	}
+
+	msg := wsCreateMessage{
+		Type:   "response.create",
+		Params: paramsJSON,
+	}
+
+	if err := conn.WriteJSON(msg); err != nil {
+		return fmt.Errorf("websocket: write response.create: %w", err)
+	}
+
+	return nil
+}
+
 // dialWebSocket opens a WebSocket connection, sends the response.create
 // message, and returns a stream that yields server events.
 func dialWebSocket(
@@ -84,22 +104,9 @@ func dialWebSocket(
 		return nil, fmt.Errorf("websocket dial %s: %w", wsURL, err)
 	}
 
-	// Marshal the params using the SDK's MarshalJSON so all field
-	// encodings (omitzero, unions, etc.) are handled correctly.
-	paramsJSON, err := json.Marshal(params)
-	if err != nil {
+	if err := sendResponseCreate(conn, params); err != nil {
 		conn.Close()
-		return nil, fmt.Errorf("websocket: marshal params: %w", err)
-	}
-
-	msg := wsCreateMessage{
-		Type:   "response.create",
-		Params: paramsJSON,
-	}
-
-	if err := conn.WriteJSON(msg); err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("websocket: write response.create: %w", err)
+		return nil, err
 	}
 
 	slog.Debug("WebSocket response.create sent", "url", wsURL)
