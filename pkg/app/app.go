@@ -1038,11 +1038,11 @@ func (a *App) ExportHTML(ctx context.Context, filename string) (string, error) {
 	return export.SessionToFile(a.session, agentInfo.Description, filename)
 }
 
-// UpdateSessionTitle updates the current session's title and persists it.
-// It works with both local and remote runtimes.
 // ErrTitleGenerating is returned when attempting to set a title while generation is in progress.
 var ErrTitleGenerating = errors.New("title generation in progress, please wait")
 
+// UpdateSessionTitle updates the current session's title and persists it.
+// It works with both local and remote runtimes.
 func (a *App) UpdateSessionTitle(ctx context.Context, title string) error {
 	if a.session == nil {
 		return errors.New("no active session")

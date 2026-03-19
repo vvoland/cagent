@@ -15,6 +15,7 @@ import (
 // betaStreamAdapter adapts the Anthropic Beta stream to our interface
 type betaStreamAdapter struct {
 	retryableStream[anthropic.BetaRawMessageStreamEventUnion]
+
 	trackUsage         bool
 	toolCall           bool
 	toolID             string

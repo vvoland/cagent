@@ -15,6 +15,7 @@ import (
 // mockCatalogStore implements ModelStore for testing
 type mockCatalogStore struct {
 	ModelStore
+
 	db *modelsdev.Database
 }
 

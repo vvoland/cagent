@@ -1,4 +1,3 @@
-// Package messages defines all TUI message types organized by domain.
 package messages
 
 import "github.com/docker/docker-agent/pkg/session"

@@ -145,6 +145,7 @@ type PositionArgs struct {
 // ReferencesArgs extends PositionArgs with an include_declaration option.
 type ReferencesArgs struct {
 	PositionArgs
+
 	IncludeDeclaration *bool `json:"include_declaration,omitempty" jsonschema:"Include the declaration in results (default: true)"`
 }
 
@@ -161,6 +162,7 @@ type WorkspaceSymbolsArgs struct {
 // RenameArgs extends PositionArgs with the new name.
 type RenameArgs struct {
 	PositionArgs
+
 	NewName string `json:"new_name" jsonschema:"The new name for the symbol"`
 }
 
@@ -174,12 +176,14 @@ type CodeActionsArgs struct {
 // CallHierarchyArgs for getting call hierarchy.
 type CallHierarchyArgs struct {
 	PositionArgs
+
 	Direction string `json:"direction" jsonschema:"Direction: 'incoming' (who calls this) or 'outgoing' (what this calls)"`
 }
 
 // TypeHierarchyArgs for getting type hierarchy.
 type TypeHierarchyArgs struct {
 	PositionArgs
+
 	Direction string `json:"direction" jsonschema:"Direction: 'supertypes' (parent types) or 'subtypes' (child types)"`
 }
 

@@ -32,6 +32,7 @@ import (
 // Runner runs evaluations against an agent.
 type Runner struct {
 	Config
+
 	agentSource config.Source
 	judge       *Judge
 	runConfig   *config.RuntimeConfig

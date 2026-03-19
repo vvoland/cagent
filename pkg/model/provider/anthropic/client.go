@@ -31,6 +31,7 @@ import (
 // It holds the anthropic client and model config
 type Client struct {
 	base.Config
+
 	clientFn         func(context.Context) (anthropic.Client, error)
 	lastHTTPResponse *http.Response
 	fileManager      *FileManager

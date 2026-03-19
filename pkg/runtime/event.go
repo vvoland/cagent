@@ -37,12 +37,13 @@ func newAgentContext(agentName string) AgentContext {
 
 // UserMessageEvent is sent when a user message is received
 type UserMessageEvent struct {
+	AgentContext
+
 	Type            string             `json:"type"`
 	Message         string             `json:"message"`
 	MultiContent    []chat.MessagePart `json:"multi_content,omitempty"`
 	SessionID       string             `json:"session_id"`
 	SessionPosition int                `json:"session_position"` // Index in session.Messages, -1 if unknown
-	AgentContext
 }
 
 func UserMessage(message, sessionID string, multiContent []chat.MessagePart, sessionPos ...int) Event {
@@ -62,10 +63,11 @@ func UserMessage(message, sessionID string, multiContent []chat.MessagePart, ses
 
 // PartialToolCallEvent is sent when a tool call is first received (partial/complete)
 type PartialToolCallEvent struct {
+	AgentContext
+
 	Type           string         `json:"type"`
 	ToolCall       tools.ToolCall `json:"tool_call"`
 	ToolDefinition *tools.Tool    `json:"tool_definition,omitempty"`
-	AgentContext
 }
 
 func PartialToolCall(toolCall tools.ToolCall, toolDefinition tools.Tool, agentName string) Event {
@@ -84,10 +86,11 @@ func PartialToolCall(toolCall tools.ToolCall, toolDefinition tools.Tool, agentNa
 
 // ToolCallEvent is sent when a tool call is received
 type ToolCallEvent struct {
+	AgentContext
+
 	Type           string         `json:"type"`
 	ToolCall       tools.ToolCall `json:"tool_call"`
 	ToolDefinition tools.Tool     `json:"tool_definition"`
-	AgentContext
 }
 
 func ToolCall(toolCall tools.ToolCall, toolDefinition tools.Tool, agentName string) Event {
@@ -100,10 +103,11 @@ func ToolCall(toolCall tools.ToolCall, toolDefinition tools.Tool, agentName stri
 }
 
 type ToolCallConfirmationEvent struct {
+	AgentContext
+
 	Type           string         `json:"type"`
 	ToolCall       tools.ToolCall `json:"tool_call"`
 	ToolDefinition tools.Tool     `json:"tool_definition"`
-	AgentContext
 }
 
 func ToolCallConfirmation(toolCall tools.ToolCall, toolDefinition tools.Tool, agentName string) Event {
@@ -116,12 +120,13 @@ func ToolCallConfirmation(toolCall tools.ToolCall, toolDefinition tools.Tool, ag
 }
 
 type ToolCallResponseEvent struct {
+	AgentContext
+
 	Type           string                `json:"type"`
 	ToolCallID     string                `json:"tool_call_id"`
 	ToolDefinition tools.Tool            `json:"tool_definition"`
 	Response       string                `json:"response"`
 	Result         *tools.ToolCallResult `json:"result,omitempty"`
-	AgentContext
 }
 
 func ToolCallResponse(toolCallID string, toolDefinition tools.Tool, result *tools.ToolCallResult, response, agentName string) Event {
@@ -136,9 +141,10 @@ func ToolCallResponse(toolCallID string, toolDefinition tools.Tool, result *tool
 }
 
 type StreamStartedEvent struct {
+	AgentContext
+
 	Type      string `json:"type"`
 	SessionID string `json:"session_id,omitempty"`
-	AgentContext
 }
 
 func StreamStarted(sessionID, agentName string) Event {
@@ -150,10 +156,11 @@ func StreamStarted(sessionID, agentName string) Event {
 }
 
 type AgentChoiceEvent struct {
+	AgentContext
+
 	Type      string `json:"type"`
 	Content   string `json:"content"`
 	SessionID string `json:"session_id,omitempty"`
-	AgentContext
 }
 
 func (e *AgentChoiceEvent) GetSessionID() string { return e.SessionID }
@@ -168,10 +175,11 @@ func AgentChoice(agentName, sessionID, content string) Event {
 }
 
 type AgentChoiceReasoningEvent struct {
+	AgentContext
+
 	Type      string `json:"type"`
 	Content   string `json:"content"`
 	SessionID string `json:"session_id,omitempty"`
-	AgentContext
 }
 
 func (e *AgentChoiceReasoningEvent) GetSessionID() string { return e.SessionID }
@@ -186,9 +194,10 @@ func AgentChoiceReasoning(agentName, sessionID, content string) Event {
 }
 
 type ErrorEvent struct {
+	AgentContext
+
 	Type  string `json:"type"`
 	Error string `json:"error"`
-	AgentContext
 }
 
 func Error(msg string) Event {
@@ -199,9 +208,10 @@ func Error(msg string) Event {
 }
 
 type ShellOutputEvent struct {
+	AgentContext
+
 	Type   string `json:"type"`
 	Output string `json:"output"`
-	AgentContext
 }
 
 func ShellOutput(output string) Event {
@@ -213,9 +223,10 @@ func ShellOutput(output string) Event {
 }
 
 type WarningEvent struct {
+	AgentContext
+
 	Type    string `json:"type"`
 	Message string `json:"message"`
-	AgentContext
 }
 
 func Warning(message, agentName string) Event {
@@ -231,13 +242,14 @@ func Warning(message, agentName string) Event {
 // - Retryable errors (5xx, timeouts) after exhausting retries
 // - Non-retryable errors (429, 4xx) which skip retries and move immediately to fallback
 type ModelFallbackEvent struct {
+	AgentContext
+
 	Type          string `json:"type"`
 	FailedModel   string `json:"failed_model"`
 	FallbackModel string `json:"fallback_model"`
 	Reason        string `json:"reason"`
 	Attempt       int    `json:"attempt"`      // Current attempt number (1-indexed)
 	MaxAttempts   int    `json:"max_attempts"` // Total attempts allowed for this model
-	AgentContext
 }
 
 // ModelFallback creates a new ModelFallbackEvent.
@@ -254,10 +266,11 @@ func ModelFallback(agentName, failedModel, fallbackModel, reason string, attempt
 }
 
 type TokenUsageEvent struct {
+	AgentContext
+
 	Type      string `json:"type"`
 	SessionID string `json:"session_id"`
 	Usage     *Usage `json:"usage"`
-	AgentContext
 }
 
 type Usage struct {
@@ -274,6 +287,7 @@ type Usage struct {
 type MessageUsage struct {
 	chat.Usage
 	chat.RateLimit
+
 	Cost  float64
 	Model string
 }
@@ -301,10 +315,11 @@ func SessionUsage(sess *session.Session, contextLimit int64) *Usage {
 }
 
 type SessionTitleEvent struct {
+	AgentContext
+
 	Type      string `json:"type"`
 	SessionID string `json:"session_id"`
 	Title     string `json:"title"`
-	AgentContext
 }
 
 func SessionTitle(sessionID, title string) Event {
@@ -316,10 +331,11 @@ func SessionTitle(sessionID, title string) Event {
 }
 
 type SessionSummaryEvent struct {
+	AgentContext
+
 	Type      string `json:"type"`
 	SessionID string `json:"session_id"`
 	Summary   string `json:"summary"`
-	AgentContext
 }
 
 func SessionSummary(sessionID, summary, agentName string) Event {
@@ -332,10 +348,11 @@ func SessionSummary(sessionID, summary, agentName string) Event {
 }
 
 type SessionCompactionEvent struct {
+	AgentContext
+
 	Type      string `json:"type"`
 	SessionID string `json:"session_id"`
 	Status    string `json:"status"`
-	AgentContext
 }
 
 func SessionCompaction(sessionID, status, agentName string) Event {
@@ -348,9 +365,10 @@ func SessionCompaction(sessionID, status, agentName string) Event {
 }
 
 type StreamStoppedEvent struct {
+	AgentContext
+
 	Type      string `json:"type"`
 	SessionID string `json:"session_id,omitempty"`
-	AgentContext
 }
 
 func StreamStopped(sessionID, agentName string) Event {
@@ -363,6 +381,8 @@ func StreamStopped(sessionID, agentName string) Event {
 
 // ElicitationRequestEvent is sent when an elicitation request is received from an MCP server
 type ElicitationRequestEvent struct {
+	AgentContext
+
 	Type          string         `json:"type"`
 	Message       string         `json:"message"`
 	Mode          string         `json:"mode,omitempty"` // "form" or "url"
@@ -370,7 +390,6 @@ type ElicitationRequestEvent struct {
 	URL           string         `json:"url,omitempty"`
 	ElicitationID string         `json:"elicitation_id,omitempty"`
 	Meta          map[string]any `json:"meta,omitempty"`
-	AgentContext
 }
 
 func ElicitationRequest(message, mode string, schema any, url, elicitationID string, meta map[string]any, agentName string) Event {
@@ -387,9 +406,10 @@ func ElicitationRequest(message, mode string, schema any, url, elicitationID str
 }
 
 type AuthorizationEvent struct {
+	AgentContext
+
 	Type         string                  `json:"type"`
 	Confirmation tools.ElicitationAction `json:"confirmation"`
-	AgentContext
 }
 
 func Authorization(confirmation tools.ElicitationAction, agentName string) Event {
@@ -401,9 +421,10 @@ func Authorization(confirmation tools.ElicitationAction, agentName string) Event
 }
 
 type MaxIterationsReachedEvent struct {
+	AgentContext
+
 	Type          string `json:"type"`
 	MaxIterations int    `json:"max_iterations"`
-	AgentContext
 }
 
 func MaxIterationsReached(maxIterations int) Event {
@@ -415,8 +436,9 @@ func MaxIterationsReached(maxIterations int) Event {
 
 // MCPInitStartedEvent is for MCP initialization lifecycle events
 type MCPInitStartedEvent struct {
-	Type string `json:"type"`
 	AgentContext
+
+	Type string `json:"type"`
 }
 
 func MCPInitStarted(agentName string) Event {
@@ -427,8 +449,9 @@ func MCPInitStarted(agentName string) Event {
 }
 
 type MCPInitFinishedEvent struct {
-	Type string `json:"type"`
 	AgentContext
+
+	Type string `json:"type"`
 }
 
 func MCPInitFinished(agentName string) Event {
@@ -440,12 +463,13 @@ func MCPInitFinished(agentName string) Event {
 
 // AgentInfoEvent is sent when agent information is available or changes
 type AgentInfoEvent struct {
+	AgentContext
+
 	Type           string `json:"type"`
 	AgentName      string `json:"agent_name"`
 	Model          string `json:"model"` // this is in provider/model format (e.g., "openai/gpt-4o")
 	Description    string `json:"description"`
 	WelcomeMessage string `json:"welcome_message,omitempty"`
-	AgentContext
 }
 
 func AgentInfo(agentName, model, description, welcomeMessage string) Event {
@@ -470,10 +494,11 @@ type AgentDetails struct {
 
 // TeamInfoEvent is sent when team information is available
 type TeamInfoEvent struct {
+	AgentContext
+
 	Type            string         `json:"type"`
 	AvailableAgents []AgentDetails `json:"available_agents"`
 	CurrentAgent    string         `json:"current_agent"`
-	AgentContext
 }
 
 func TeamInfo(availableAgents []AgentDetails, currentAgent string) Event {
@@ -487,11 +512,12 @@ func TeamInfo(availableAgents []AgentDetails, currentAgent string) Event {
 
 // AgentSwitchingEvent is sent when agent switching starts or stops
 type AgentSwitchingEvent struct {
+	AgentContext
+
 	Type      string `json:"type"`
 	Switching bool   `json:"switching"`
 	FromAgent string `json:"from_agent,omitempty"`
 	ToAgent   string `json:"to_agent,omitempty"`
-	AgentContext
 }
 
 func AgentSwitching(switching bool, fromAgent, toAgent string) Event {
@@ -507,10 +533,11 @@ func AgentSwitching(switching bool, fromAgent, toAgent string) Event {
 // ToolsetInfoEvent is sent when toolset information is available
 // When Loading is true, more tools may still be loading (e.g., MCP servers starting)
 type ToolsetInfoEvent struct {
+	AgentContext
+
 	Type           string `json:"type"`
 	AvailableTools int    `json:"available_tools"`
 	Loading        bool   `json:"loading"`
-	AgentContext
 }
 
 func ToolsetInfo(availableTools int, loading bool, agentName string) Event {
@@ -524,10 +551,11 @@ func ToolsetInfo(availableTools int, loading bool, agentName string) Event {
 
 // RAGIndexingStartedEvent is for RAG lifecycle events
 type RAGIndexingStartedEvent struct {
+	AgentContext
+
 	Type         string `json:"type"`
 	RAGName      string `json:"rag_name"`
 	StrategyName string `json:"strategy_name"`
-	AgentContext
 }
 
 func RAGIndexingStarted(ragName, strategyName, agentName string) Event {
@@ -540,12 +568,13 @@ func RAGIndexingStarted(ragName, strategyName, agentName string) Event {
 }
 
 type RAGIndexingProgressEvent struct {
+	AgentContext
+
 	Type         string `json:"type"`
 	RAGName      string `json:"rag_name"`
 	StrategyName string `json:"strategy_name"`
 	Current      int    `json:"current"`
 	Total        int    `json:"total"`
-	AgentContext
 }
 
 func RAGIndexingProgress(ragName, strategyName string, current, total int, agentName string) Event {
@@ -560,10 +589,11 @@ func RAGIndexingProgress(ragName, strategyName string, current, total int, agent
 }
 
 type RAGIndexingCompletedEvent struct {
+	AgentContext
+
 	Type         string `json:"type"`
 	RAGName      string `json:"rag_name"`
 	StrategyName string `json:"strategy_name"`
-	AgentContext
 }
 
 func RAGIndexingCompleted(ragName, strategyName, agentName string) Event {
@@ -577,11 +607,12 @@ func RAGIndexingCompleted(ragName, strategyName, agentName string) Event {
 
 // HookBlockedEvent is sent when a pre-tool hook blocks a tool call
 type HookBlockedEvent struct {
+	AgentContext
+
 	Type           string         `json:"type"`
 	ToolCall       tools.ToolCall `json:"tool_call"`
 	ToolDefinition tools.Tool     `json:"tool_definition"`
 	Message        string         `json:"message"`
-	AgentContext
 }
 
 func HookBlocked(toolCall tools.ToolCall, toolDefinition tools.Tool, message, agentName string) Event {
@@ -597,10 +628,11 @@ func HookBlocked(toolCall tools.ToolCall, toolDefinition tools.Tool, message, ag
 // MessageAddedEvent is emitted when a message is added to the session.
 // This event is used by the PersistentRuntime wrapper to persist messages.
 type MessageAddedEvent struct {
+	AgentContext
+
 	Type      string           `json:"type"`
 	SessionID string           `json:"session_id"`
 	Message   *session.Message `json:"-"`
-	AgentContext
 }
 
 func (e *MessageAddedEvent) GetAgentName() string { return e.AgentName }
@@ -618,10 +650,11 @@ func MessageAdded(sessionID string, msg *session.Message, agentName string) Even
 // SubSessionCompletedEvent is emitted when a sub-session completes and is added to parent.
 // This event is used by the PersistentRuntime wrapper to persist sub-sessions.
 type SubSessionCompletedEvent struct {
+	AgentContext
+
 	Type            string `json:"type"`
 	ParentSessionID string `json:"parent_session_id"`
 	SubSession      any    `json:"sub_session"` // *session.Session
-	AgentContext
 }
 
 func (e *SubSessionCompletedEvent) GetAgentName() string { return e.AgentName }

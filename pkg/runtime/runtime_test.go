@@ -681,6 +681,7 @@ func (p *queueProvider) MaxTokens() int { return 0 }
 
 type mockModelStoreWithLimit struct {
 	ModelStore
+
 	limit int
 }
 
