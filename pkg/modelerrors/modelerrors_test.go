@@ -94,7 +94,7 @@ func TestExtractHTTPStatusCode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.expected, ExtractHTTPStatusCode(tt.err), "ExtractHTTPStatusCode(%v)", tt.err)
+			assert.Equal(t, tt.expected, extractHTTPStatusCode(tt.err), "extractHTTPStatusCode(%v)", tt.err)
 		})
 	}
 }
@@ -118,7 +118,7 @@ func TestIsRetryableStatusCode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("status_%d", tt.statusCode), func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.expected, IsRetryableStatusCode(tt.statusCode), "IsRetryableStatusCode(%d)", tt.statusCode)
+			assert.Equal(t, tt.expected, isRetryableStatusCode(tt.statusCode), "isRetryableStatusCode(%d)", tt.statusCode)
 		})
 	}
 }

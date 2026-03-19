@@ -161,14 +161,14 @@ func IsContextOverflowError(err error) bool {
 // statusCodeRegex matches HTTP status codes in error messages (e.g., "429", "500", ": 429 ")
 var statusCodeRegex = regexp.MustCompile(`\b([45]\d{2})\b`)
 
-// ExtractHTTPStatusCode attempts to extract an HTTP status code from the error
+// extractHTTPStatusCode attempts to extract an HTTP status code from the error
 // using regex parsing of the error message. This is a fallback for providers
 // whose errors are not yet wrapped in *StatusError (the preferred path).
 //
 // The regex matches 4xx/5xx codes at word boundaries
 // (e.g., "429 Too Many Requests", "500 Internal Server Error").
 // Returns 0 if no status code found.
-func ExtractHTTPStatusCode(err error) int {
+func extractHTTPStatusCode(err error) int {
 	if err == nil {
 		return 0
 	}
@@ -191,7 +191,7 @@ func ExtractHTTPStatusCode(err error) int {
 	return 0
 }
 
-// IsRetryableStatusCode determines if an HTTP status code is retryable.
+// isRetryableStatusCode determines if an HTTP status code is retryable.
 // Retryable means we should retry the SAME model with exponential backoff.
 //
 // Retryable status codes:
@@ -202,7 +202,7 @@ func ExtractHTTPStatusCode(err error) int {
 // Non-retryable status codes (skip to next model immediately):
 // - 429 (rate limit) - provider is explicitly telling us to back off
 // - 4xx client errors (400, 401, 403, 404) - won't get better with retry
-func IsRetryableStatusCode(statusCode int) bool {
+func isRetryableStatusCode(statusCode int) bool {
 	switch statusCode {
 	case 500, 502, 503, 504: // Server errors
 		return true
@@ -219,7 +219,7 @@ func IsRetryableStatusCode(statusCode int) bool {
 
 // retryablePatterns contains error message substrings that indicate a
 // transient/retryable failure. Numeric status codes (500, 502, etc.) are
-// handled separately by ExtractHTTPStatusCode + IsRetryableStatusCode.
+// handled separately by extractHTTPStatusCode + isRetryableStatusCode.
 var retryablePatterns = []string{
 	"timeout",               // Generic timeout
 	"connection reset",      // Connection reset
@@ -241,7 +241,7 @@ var retryablePatterns = []string{
 
 // nonRetryablePatterns contains error message substrings that indicate a
 // permanent/non-retryable failure. Numeric status codes (429, 401, etc.) are
-// handled separately by ExtractHTTPStatusCode.
+// handled separately by extractHTTPStatusCode.
 var nonRetryablePatterns = []string{
 	"rate limit",        // Rate limit message
 	"too many requests", // Rate limit message
@@ -292,8 +292,8 @@ func isRetryableModelError(err error) bool {
 	}
 
 	// First, try to extract HTTP status code from known SDK error types
-	if statusCode := ExtractHTTPStatusCode(err); statusCode != 0 {
-		retryable := IsRetryableStatusCode(statusCode)
+	if statusCode := extractHTTPStatusCode(err); statusCode != 0 {
+		retryable := isRetryableStatusCode(statusCode)
 		slog.Debug("Classified error by status code",
 			"status_code", statusCode,
 			"retryable", retryable)
@@ -387,17 +387,17 @@ func ClassifyModelError(err error) (retryable, rateLimited bool, retryAfter time
 		if statusErr.StatusCode == http.StatusTooManyRequests {
 			return false, true, statusErr.RetryAfter
 		}
-		return IsRetryableStatusCode(statusErr.StatusCode), false, 0
+		return isRetryableStatusCode(statusErr.StatusCode), false, 0
 	}
 
 	// Fallback: providers that don't yet wrap (e.g. Bedrock), or non-provider
 	// errors (network, pattern matching).
-	statusCode := ExtractHTTPStatusCode(err)
+	statusCode := extractHTTPStatusCode(err)
 	if statusCode == http.StatusTooManyRequests {
 		return false, true, 0 // No Retry-After without StatusError
 	}
 	if statusCode != 0 {
-		return IsRetryableStatusCode(statusCode), false, 0
+		return isRetryableStatusCode(statusCode), false, 0
 	}
 	return isRetryableModelError(err), false, 0
 }
