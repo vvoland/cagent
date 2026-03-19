@@ -185,9 +185,9 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 				if cfg.HideToolCalls {
 					continue
 				}
-				out.PrintToolCallResponse(e.ToolCall, e.Response)
+				out.PrintToolCallResponse(e.ToolDefinition.Name, e.Response)
 				// Clear the confirmed ID after the tool completes
-				if e.ToolCall.ID == lastConfirmedToolCallID {
+				if e.ToolCallID == lastConfirmedToolCallID {
 					lastConfirmedToolCallID = ""
 				}
 			case *runtime.ErrorEvent:

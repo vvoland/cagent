@@ -134,8 +134,8 @@ func (p *Printer) PrintToolCallWithConfirmation(ctx context.Context, toolCall to
 }
 
 // PrintToolCallResponse prints a tool call response
-func (p *Printer) PrintToolCallResponse(toolCall tools.ToolCall, response string) {
-	p.Printf("\n%s response%s\n", bold(toolCall.Function.Name), formatToolCallResponse(response))
+func (p *Printer) PrintToolCallResponse(name, response string) {
+	p.Printf("\n%s response%s\n", bold(name), formatToolCallResponse(response))
 }
 
 // PromptMaxIterationsContinue prompts the user to continue after max iterations
