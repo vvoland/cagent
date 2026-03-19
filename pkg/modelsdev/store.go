@@ -31,7 +31,6 @@ type Store struct {
 	cacheFile string
 	mu        sync.Mutex
 	db        *Database
-	etag      string // ETag from last successful fetch, used for conditional requests
 }
 
 // NewStore returns the process-wide singleton Store.
@@ -72,18 +71,17 @@ func (s *Store) GetDatabase(ctx context.Context) (*Database, error) {
 		return s.db, nil
 	}
 
-	db, etag, err := loadDatabase(ctx, s.cacheFile)
+	db, err := loadDatabase(ctx, s.cacheFile)
 	if err != nil {
 		return nil, err
 	}
 
 	s.db = db
-	s.etag = etag
 	return db, nil
 }
 
-// GetProvider returns a specific provider by ID.
-func (s *Store) GetProvider(ctx context.Context, providerID string) (*Provider, error) {
+// getProvider returns a specific provider by ID.
+func (s *Store) getProvider(ctx context.Context, providerID string) (*Provider, error) {
 	db, err := s.GetDatabase(ctx)
 	if err != nil {
 		return nil, err
@@ -106,30 +104,23 @@ func (s *Store) GetModel(ctx context.Context, id string) (*Model, error) {
 	providerID := parts[0]
 	modelID := parts[1]
 
-	provider, err := s.GetProvider(ctx, providerID)
+	provider, err := s.getProvider(ctx, providerID)
 	if err != nil {
 		return nil, err
 	}
 
 	model, exists := provider.Models[modelID]
-	if !exists {
-		// For amazon-bedrock, try stripping region/inference profile prefixes
-		// Bedrock uses prefixes for cross-region inference profiles,
-		// but models.dev stores models without these prefixes.
-		//
-		// Strip known region prefixes and retry lookup.
-		if providerID == "amazon-bedrock" {
-			if before, after, ok := strings.Cut(modelID, "."); ok {
-				possibleRegionPrefix := before
-				if isBedrockRegionPrefix(possibleRegionPrefix) {
-					normalizedModelID := after
-					model, exists = provider.Models[normalizedModelID]
-					if exists {
-						return &model, nil
-					}
-				}
-			}
+
+	// For amazon-bedrock, try stripping region/inference profile prefixes.
+	// Bedrock uses prefixes for cross-region inference profiles,
+	// but models.dev stores models without these prefixes.
+	if !exists && providerID == "amazon-bedrock" {
+		if prefix, after, ok := strings.Cut(modelID, "."); ok && bedrockRegionPrefixes[prefix] {
+			model, exists = provider.Models[after]
 		}
+	}
+
+	if !exists {
 		return nil, fmt.Errorf("model %q not found in provider %q", modelID, providerID)
 	}
 
@@ -138,12 +129,11 @@ func (s *Store) GetModel(ctx context.Context, id string) (*Model, error) {
 
 // loadDatabase loads the database from the local cache file or
 // falls back to fetching from the models.dev API.
-// It returns the database and the ETag associated with the data.
-func loadDatabase(ctx context.Context, cacheFile string) (*Database, string, error) {
+func loadDatabase(ctx context.Context, cacheFile string) (*Database, error) {
 	// Try to load from cache first
 	cached, err := loadFromCache(cacheFile)
 	if err == nil && time.Since(cached.LastRefresh) < refreshInterval {
-		return &cached.Database, cached.ETag, nil
+		return &cached.Database, nil
 	}
 
 	// Cache is stale or doesn't exist — try a conditional fetch with the ETag.
@@ -157,9 +147,9 @@ func loadDatabase(ctx context.Context, cacheFile string) (*Database, string, err
 		// If API fetch fails but we have cached data, use it regardless of age.
 		if cached != nil {
 			slog.Debug("API fetch failed, using stale cache", "error", fetchErr)
-			return &cached.Database, cached.ETag, nil
+			return &cached.Database, nil
 		}
-		return nil, "", fmt.Errorf("failed to fetch from API and no cached data available: %w", fetchErr)
+		return nil, fmt.Errorf("failed to fetch from API and no cached data available: %w", fetchErr)
 	}
 
 	// database is nil when the server returned 304 Not Modified.
@@ -169,7 +159,7 @@ func loadDatabase(ctx context.Context, cacheFile string) (*Database, string, err
 		if saveErr := saveToCache(cacheFile, &cached.Database, cached.ETag); saveErr != nil {
 			slog.Warn("Failed to update cache timestamp", "error", saveErr)
 		}
-		return &cached.Database, cached.ETag, nil
+		return &cached.Database, nil
 	}
 
 	// Save the fresh data to cache.
@@ -177,7 +167,7 @@ func loadDatabase(ctx context.Context, cacheFile string) (*Database, string, err
 		slog.Warn("Failed to save to cache", "error", saveErr)
 	}
 
-	return database, newETag, nil
+	return database, nil
 }
 
 // fetchFromAPI fetches the models.dev database.
@@ -224,7 +214,6 @@ func fetchFromAPI(ctx context.Context, etag string) (*Database, string, error) {
 
 	return &Database{
 		Providers: providers,
-		UpdatedAt: time.Now(),
 	}, newETag, nil
 }
 
@@ -243,11 +232,9 @@ func loadFromCache(cacheFile string) (*CachedData, error) {
 }
 
 func saveToCache(cacheFile string, database *Database, etag string) error {
-	now := time.Now()
 	cached := CachedData{
 		Database:    *database,
-		CachedAt:    now,
-		LastRefresh: now,
+		LastRefresh: time.Now(),
 		ETag:        etag,
 	}
 
@@ -280,8 +267,7 @@ func (s *Store) ResolveModelAlias(ctx context.Context, providerID, modelName str
 		return modelName
 	}
 
-	// Get the provider from the database
-	provider, err := s.GetProvider(ctx, providerID)
+	provider, err := s.getProvider(ctx, providerID)
 	if err != nil {
 		return modelName
 	}
@@ -313,13 +299,8 @@ func (s *Store) ResolveModelAlias(ctx context.Context, providerID, modelName str
 // stores models without regional prefixes. AWS uses these for cross-region inference profiles.
 // See: https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html
 var bedrockRegionPrefixes = map[string]bool{
-	"us":     true, // US region inference profile
-	"eu":     true, // EU region inference profile
-	"apac":   true, // Asia Pacific region inference profile
-	"global": true, // Global inference profile (routes to any available region)
-}
-
-// isBedrockRegionPrefix returns true if the prefix is a known Bedrock regional/inference profile prefix.
-func isBedrockRegionPrefix(prefix string) bool {
-	return bedrockRegionPrefixes[prefix]
+	"us":     true,
+	"eu":     true,
+	"apac":   true,
+	"global": true,
 }

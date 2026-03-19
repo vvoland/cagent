@@ -5,7 +5,6 @@ import "time"
 // Database represents the complete models.dev database
 type Database struct {
 	Providers map[string]Provider `json:"providers"`
-	UpdatedAt time.Time           `json:"updated_at"`
 }
 
 // Provider represents an AI model provider
@@ -45,7 +44,6 @@ type Modalities struct {
 // CachedData represents the cached models.dev data with metadata
 type CachedData struct {
 	Database    Database  `json:"database"`
-	CachedAt    time.Time `json:"cached_at"`
 	LastRefresh time.Time `json:"last_refresh"`
 	ETag        string    `json:"etag,omitempty"`
 }
