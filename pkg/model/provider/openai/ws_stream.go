@@ -97,6 +97,9 @@ func dialWebSocket(
 	conn, resp, err := dialer.DialContext(ctx, wsURL, headers)
 	if err != nil {
 		if resp != nil {
+			if resp.Body != nil {
+				_ = resp.Body.Close()
+			}
 			slog.Error("WebSocket handshake failed",
 				"status", resp.StatusCode,
 				"error", err)

@@ -37,7 +37,7 @@ type Client struct {
 
 	clientFn func(context.Context) (*openai.Client, error)
 
-	// wsPool is lazily initialized when transport=websocket is configured.
+	// wsPool is initialized in NewClient when transport=websocket is configured.
 	// It maintains a persistent WebSocket connection across requests.
 	wsPool *wsPool
 }
@@ -145,14 +145,24 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 	slog.Debug("OpenAI client created successfully", "model", cfg.Model)
 
-	return &Client{
+	client := &Client{
 		Config: base.Config{
 			ModelConfig:  *cfg,
 			ModelOptions: globalOptions,
 			Env:          env,
 		},
 		clientFn: clientFn,
-	}, nil
+	}
+
+	// Pre-create the WebSocket pool when the transport is configured.
+	// The pool is cheap (no connections opened until the first Stream call)
+	// and eager init avoids a data race on the lazy path.
+	if getTransport(cfg) == "websocket" && globalOptions.Gateway() == "" {
+		baseURL := cmp.Or(cfg.BaseURL, "https://api.openai.com/v1")
+		client.wsPool = newWSPool(httpToWSURL(baseURL), client.buildWSHeaderFn())
+	}
+
+	return client, nil
 }
 
 // Close releases resources held by the client, including any pooled WebSocket
@@ -413,7 +423,7 @@ func (c *Client) CreateResponseStream(
 	if transport == "websocket" && c.ModelOptions.Gateway() == "" {
 		stream, err := c.createWebSocketStream(ctx, params)
 		if err != nil {
-			slog.Error("WebSocket stream failed, falling back to SSE", "error", err)
+			slog.Warn("WebSocket stream failed, falling back to SSE", "error", err)
 			// Fall through to SSE below.
 		} else {
 			slog.Debug("OpenAI responses WebSocket stream created successfully", "model", c.ModelConfig.Model)
@@ -436,19 +446,14 @@ func (c *Client) CreateResponseStream(
 	return newResponseStreamAdapter(stream, trackUsage), nil
 }
 
-// createWebSocketStream initializes (or reuses) a WebSocket connection and
-// sends the response.create message, returning a responseEventStream.
+// createWebSocketStream sends a request over the pre-initialized WebSocket
+// pool, returning a responseEventStream.
 func (c *Client) createWebSocketStream(
 	ctx context.Context,
 	params responses.ResponseNewParams,
 ) (responseEventStream, error) {
 	if c.wsPool == nil {
-		// Lazy-init the pool on first WebSocket call.
-		baseURL := cmp.Or(c.ModelConfig.BaseURL, "https://api.openai.com/v1")
-		wsURL := httpToWSURL(baseURL)
-
-		headerFn := c.buildWSHeaderFn()
-		c.wsPool = newWSPool(wsURL, headerFn)
+		return nil, errors.New("websocket pool not initialized")
 	}
 
 	return c.wsPool.Stream(ctx, params)
