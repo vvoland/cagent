@@ -40,6 +40,11 @@ func TestIsOpenAIReasoningModel(t *testing.T) {
 		{"gpt-5-turbo", "gpt-5-turbo", true},
 		{"GPT-5 uppercase", "GPT-5", true},
 
+		// GPT-5-chat variants are non-reasoning chat models
+		{"gpt-5-chat-latest", "gpt-5-chat-latest", false},
+		{"gpt-5-chat", "gpt-5-chat", false},
+		{"GPT-5-CHAT uppercase", "GPT-5-CHAT-LATEST", false},
+
 		// GPT-4 series models - should NOT support reasoning
 		{"gpt-4", "gpt-4", false},
 		{"gpt-4o", "gpt-4o", false},
@@ -50,6 +55,11 @@ func TestIsOpenAIReasoningModel(t *testing.T) {
 		// GPT-3.5 series models - should NOT support reasoning
 		{"gpt-3.5-turbo", "gpt-3.5-turbo", false},
 		{"gpt-3.5-turbo-16k", "gpt-3.5-turbo-16k", false},
+
+		// O1-pro series models - should support reasoning
+		{"o1-pro", "o1-pro", true},
+		{"o1-pro-2025-03-19", "o1-pro-2025-03-19", true},
+		{"O1-PRO uppercase", "O1-PRO", true},
 
 		// Other models - should NOT support reasoning
 		{"text-davinci-003", "text-davinci-003", false},
@@ -65,6 +75,44 @@ func TestIsOpenAIReasoningModel(t *testing.T) {
 			t.Parallel()
 
 			result := isOpenAIReasoningModel(tt.model)
+			assert.Equal(t, tt.expected, result, "Model %s should return %v", tt.model, tt.expected)
+		})
+	}
+}
+
+func TestSupportsReasoningSummary(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		model    string
+		expected bool
+	}{
+		// Standard reasoning models - should support summary
+		{"o1-preview", "o1-preview", true},
+		{"o1-mini", "o1-mini", true},
+		{"o3-mini", "o3-mini", true},
+		{"o4-preview", "o4-preview", true},
+		{"gpt-5", "gpt-5", true},
+		{"gpt-5-mini", "gpt-5-mini", true},
+
+		// o1-pro models - do NOT support summary
+		{"o1-pro", "o1-pro", false},
+		{"o1-pro-2025-03-19", "o1-pro-2025-03-19", false},
+		{"O1-PRO uppercase", "O1-PRO", false},
+
+		// Non-reasoning models - do NOT support summary
+		{"gpt-4o", "gpt-4o", false},
+		{"gpt-4-turbo", "gpt-4-turbo", false},
+		{"gpt-5-chat-latest", "gpt-5-chat-latest", false},
+		{"empty string", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := supportsReasoningSummary(tt.model)
 			assert.Equal(t, tt.expected, result, "Model %s should return %v", tt.model, tt.expected)
 		})
 	}

@@ -375,8 +375,13 @@ func (c *Client) CreateResponseStream(
 	// Skip reasoning configuration entirely if thinking is explicitly disabled (via /think command)
 	thinkingEnabled := c.ModelOptions.Thinking() == nil || *c.ModelOptions.Thinking()
 	if isOpenAIReasoningModel(c.ModelConfig.Model) && thinkingEnabled {
-		params.Reasoning = shared.ReasoningParam{
-			Summary: shared.ReasoningSummaryDetailed,
+		// Only set reasoning.summary for models that support it.
+		// Some reasoning models (e.g. o1-pro) reject this parameter.
+		if supportsReasoningSummary(c.ModelConfig.Model) {
+			params.Reasoning = shared.ReasoningParam{
+				Summary: shared.ReasoningSummaryDetailed,
+			}
+			slog.Debug("OpenAI responses request configured with reasoning summary", "model", c.ModelConfig.Model, "summary", "detailed")
 		}
 		// Apply thinking budget as reasoning effort if configured
 		if c.ModelConfig.ThinkingBudget != nil {
@@ -388,7 +393,6 @@ func (c *Client) CreateResponseStream(
 			params.Reasoning.Effort = shared.ReasoningEffort(effort)
 			slog.Debug("OpenAI responses request using thinking_budget", "reasoning_effort", effort)
 		}
-		slog.Debug("OpenAI responses request configured with reasoning summary", "model", c.ModelConfig.Model, "summary", "detailed")
 	}
 
 	// Apply structured output configuration
@@ -903,10 +907,31 @@ func isResponsesModel(model string) bool {
 
 func isOpenAIReasoningModel(model string) bool {
 	m := strings.ToLower(model)
+
+	// gpt-5-chat variants are non-reasoning chat models.
+	if strings.HasPrefix(m, "gpt-5-chat") {
+		return false
+	}
+
 	return strings.HasPrefix(m, "o1") ||
 		strings.HasPrefix(m, "o3") ||
 		strings.HasPrefix(m, "o4") ||
 		strings.HasPrefix(m, "gpt-5")
+}
+
+// supportsReasoningSummary returns true for reasoning models that support the
+// reasoning.summary parameter. Some reasoning models (e.g. o1-pro) do not
+// support it and will reject the request if it is set.
+func supportsReasoningSummary(model string) bool {
+	if !isOpenAIReasoningModel(model) {
+		return false
+	}
+	m := strings.ToLower(model)
+	// o1-pro does not support reasoning.summary.
+	if strings.HasPrefix(m, "o1-pro") {
+		return false
+	}
+	return true
 }
 
 // getOpenAIReasoningEffort resolves the reasoning effort value from the
