@@ -112,33 +112,43 @@ func (m *model) extractSelectedText() string {
 		line := stripBorderChars(plainLine)
 		runes := []rune(line)
 
-		// Calculate how many display columns were removed by stripping border chars
-		borderOffset := runewidth.StringWidth(plainLine) - runewidth.StringWidth(line)
+		// Map visual column positions from the plain line (with borders) to the
+		// stripped line (without borders) by tracking which runes correspond to
+		// which visual columns
+		visualToRune := make(map[int]int)
+		plainRunes := []rune(plainLine)
+		visualCol := 0
+		lineRuneIdx := 0
 
-		// Adjust column positions by subtracting the border offset
-		adjustedStartCol := max(0, startCol-borderOffset)
-		adjustedEndCol := max(0, endCol-borderOffset)
+		for _, r := range plainRunes {
+			if !boxDrawingChars[r] {
+				// This rune is kept in the stripped line
+				visualToRune[visualCol] = lineRuneIdx
+				lineRuneIdx++
+			}
+			visualCol += runewidth.RuneWidth(r)
+		}
+
+		// Find the closest rune index for the start and end columns
+		startRuneIdx := findClosestRuneIndex(visualToRune, startCol, len(runes))
+		endRuneIdx := findClosestRuneIndex(visualToRune, endCol, len(runes))
 
 		var lineText string
 		switch i {
 		case startLine:
 			if startLine == endLine {
-				sIdx := displayWidthToRuneIndex(line, adjustedStartCol)
-				eIdx := min(displayWidthToRuneIndex(line, adjustedEndCol), len(runes))
-				if sIdx < len(runes) && sIdx < eIdx {
-					lineText = strings.TrimSpace(string(runes[sIdx:eIdx]))
+				if startRuneIdx < len(runes) && startRuneIdx < endRuneIdx {
+					lineText = strings.TrimSpace(string(runes[startRuneIdx:endRuneIdx]))
 				}
 				break
 			}
 			// First line: from startCol to end
-			sIdx := displayWidthToRuneIndex(line, adjustedStartCol)
-			if sIdx < len(runes) {
-				lineText = strings.TrimSpace(string(runes[sIdx:]))
+			if startRuneIdx < len(runes) {
+				lineText = strings.TrimSpace(string(runes[startRuneIdx:]))
 			}
 		case endLine:
 			// Last line: from start to endCol
-			eIdx := min(displayWidthToRuneIndex(line, adjustedEndCol), len(runes))
-			lineText = strings.TrimSpace(string(runes[:eIdx]))
+			lineText = strings.TrimSpace(string(runes[:endRuneIdx]))
 		default:
 			// Middle lines: entire line
 			lineText = strings.TrimSpace(line)
@@ -151,6 +161,32 @@ func (m *model) extractSelectedText() string {
 	}
 
 	return result.String()
+}
+
+// findClosestRuneIndex finds the rune index for a given visual column,
+// or the closest next rune if the exact column doesn't exist
+func findClosestRuneIndex(visualToRune map[int]int, visualCol int, maxRunes int) int {
+	// Try exact match first
+	if runeIdx, ok := visualToRune[visualCol]; ok {
+		return runeIdx
+	}
+
+	// Find the next available rune index after the visual column
+	for col := visualCol + 1; col <= visualCol+10; col++ {
+		if runeIdx, ok := visualToRune[col]; ok {
+			return runeIdx
+		}
+	}
+
+	// Find the previous available rune index
+	for col := visualCol - 1; col >= 0; col-- {
+		if runeIdx, ok := visualToRune[col]; ok {
+			return runeIdx
+		}
+	}
+
+	// Fallback: return the last rune index
+	return maxRunes
 }
 
 // copySelectionToClipboard copies the currently selected text to clipboard
