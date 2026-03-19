@@ -84,6 +84,13 @@ type ContextOverflowError struct {
 	Underlying error
 }
 
+// NewContextOverflowError creates a ContextOverflowError wrapping the given
+// underlying error. Use this constructor rather than building the struct
+// directly so that future field additions don't break callers.
+func NewContextOverflowError(underlying error) *ContextOverflowError {
+	return &ContextOverflowError{Underlying: underlying}
+}
+
 func (e *ContextOverflowError) Error() string {
 	if e.Underlying == nil {
 		return "context window overflow"

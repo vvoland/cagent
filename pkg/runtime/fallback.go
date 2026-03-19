@@ -326,7 +326,7 @@ func (r *LocalRuntime) tryModelWithFallback(
 	if lastErr != nil {
 		wrapped := fmt.Errorf("all models failed: %w", lastErr)
 		if modelerrors.IsContextOverflowError(lastErr) {
-			return streamResult{}, nil, &modelerrors.ContextOverflowError{Underlying: wrapped}
+			return streamResult{}, nil, modelerrors.NewContextOverflowError(wrapped)
 		}
 		return streamResult{}, nil, wrapped
 	}
