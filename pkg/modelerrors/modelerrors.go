@@ -277,14 +277,12 @@ func IsRetryableModelError(err error) bool {
 	// Fall back to message-pattern matching for errors without structured status codes
 	errMsg := strings.ToLower(err.Error())
 
-	// Retryable patterns (5xx, timeout, network issues)
-	// NOTE: 429 is explicitly NOT in this list - we skip to next model for rate limits
+	// Retryable patterns (timeout, network issues)
+	// NOTE: Numeric status codes (500, 502, etc.) are already handled by
+	// ExtractHTTPStatusCode + IsRetryableStatusCode above; they are not
+	// duplicated here to avoid false positives on arbitrary numbers in
+	// error messages (e.g., "processed 500 items").
 	retryablePatterns := []string{
-		"500",                   // Internal server error
-		"502",                   // Bad gateway
-		"503",                   // Service unavailable
-		"504",                   // Gateway timeout
-		"408",                   // Request timeout
 		"timeout",               // Generic timeout
 		"connection reset",      // Connection reset
 		"connection refused",    // Connection refused
@@ -311,17 +309,14 @@ func IsRetryableModelError(err error) bool {
 	}
 
 	// Non-retryable patterns (skip to next model immediately)
+	// NOTE: Numeric status codes (429, 401, etc.) are already handled by
+	// ExtractHTTPStatusCode above; they are not duplicated here.
 	nonRetryablePatterns := []string{
-		"429",               // Rate limit - skip to next model
 		"rate limit",        // Rate limit message
 		"too many requests", // Rate limit message
 		"throttl",           // Throttling (rate limiting)
 		"quota",             // Quota exceeded
 		"capacity",          // Capacity issues (often rate-limit related)
-		"401",               // Unauthorized
-		"403",               // Forbidden
-		"404",               // Not found
-		"400",               // Bad request
 		"invalid",           // Invalid request
 		"unauthorized",      // Auth error
 		"authentication",    // Auth error
