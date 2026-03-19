@@ -35,7 +35,7 @@ agents:
     commands: # Optional: named prompts
       name: "prompt text"
     welcome_message: string # Optional: message shown at session start
-    handoffs: [list] # Optional: list of A2A handoff agents
+    handoffs: [list] # Optional: agent names this agent can hand off to
     hooks: # Optional: lifecycle hooks
       pre_tool_use: [list]
       post_tool_use: [list]
@@ -77,7 +77,7 @@ agents:
 | `skills`                    | boolean | ✗        | Enable automatic skill discovery from standard directories.                                                                                                                   |
 | `commands`                  | object  | ✗        | Named prompts that can be run with `docker agent run config.yaml /command_name`.                                                                                              |
 | `welcome_message`           | string  | ✗        | Message displayed to the user when a session starts. Useful for providing context or instructions.                                                                            |
-| `handoffs`                  | array   | ✗        | List of A2A agent configurations this agent can delegate to. See [A2A Protocol]({{ '/features/a2a/' | relative_url }}).                                                                              |
+| `handoffs`                  | array   | ✗        | List of agent names this agent can hand off the conversation to. Enables the `handoff` tool. See [Handoffs Routing]({{ '/concepts/multi-agent/#handoffs-routing' | relative_url }}).                  |
 | `hooks`                     | object  | ✗        | Lifecycle hooks for running commands at various points. See [Hooks]({{ '/configuration/hooks/' | relative_url }}).                                                                                   |
 | `structured_output`         | object  | ✗        | Constrain agent output to match a JSON schema. See [Structured Output]({{ '/configuration/structured-output/' | relative_url }}).                                                                    |
 

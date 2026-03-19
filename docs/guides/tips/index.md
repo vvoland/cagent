@@ -259,17 +259,19 @@ Understand the difference between `sub_agents` and `handoffs`:
 <div class="cards">
   <div class="card" style="cursor:default;">
     <h3>sub_agents (transfer_task)</h3>
-    <p>Delegates task to a child, waits for result, then continues. The parent remains in control.</p>
+    <p>Delegates task to a child in a sub-session, waits for result, then continues. Hierarchical — the parent remains in control.</p>
     <pre style="margin-top:12px"><code class="language-yaml">sub_agents: [researcher, writer]</code></pre>
   </div>
   <div class="card" style="cursor:default;">
-    <h3>handoffs (A2A)</h3>
-    <p>Transfers control entirely to another agent (possibly remote). One-way handoff.</p>
+    <h3>handoffs (peer-to-peer)</h3>
+    <p>Hands off the entire conversation to another agent in the same session. The active agent switches and sees the full history. Agents can form cycles.</p>
     <pre style="margin-top:12px"><code class="language-yaml">handoffs:
   - specialist
-  - namespace/remote-agent</code></pre>
+  - summarizer</code></pre>
   </div>
 </div>
+
+See <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-Agent Systems</a> for a detailed comparison.
 
 ### Give Sub-Agents Clear Descriptions
 
