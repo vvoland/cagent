@@ -261,15 +261,15 @@ func TestParseRetryAfterHeader(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := ParseRetryAfterHeader(tt.value)
-			assert.Equal(t, tt.expected, got, "ParseRetryAfterHeader(%q)", tt.value)
+			got := parseRetryAfterHeader(tt.value)
+			assert.Equal(t, tt.expected, got, "parseRetryAfterHeader(%q)", tt.value)
 		})
 	}
 
 	t.Run("HTTP-date in the future", func(t *testing.T) {
 		t.Parallel()
 		future := time.Now().Add(10 * time.Second).UTC().Format(http.TimeFormat)
-		got := ParseRetryAfterHeader(future)
+		got := parseRetryAfterHeader(future)
 		assert.Greater(t, got, 0*time.Second, "should return positive duration for future HTTP-date")
 		assert.LessOrEqual(t, got, 11*time.Second, "should not exceed ~10s for near-future date")
 	})
@@ -277,7 +277,7 @@ func TestParseRetryAfterHeader(t *testing.T) {
 	t.Run("HTTP-date in the past", func(t *testing.T) {
 		t.Parallel()
 		past := time.Now().Add(-10 * time.Second).UTC().Format(http.TimeFormat)
-		got := ParseRetryAfterHeader(past)
+		got := parseRetryAfterHeader(past)
 		assert.Equal(t, 0*time.Second, got, "should return 0 for past HTTP-date")
 	})
 }

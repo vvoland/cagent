@@ -55,7 +55,7 @@ func WrapHTTPError(statusCode int, resp *http.Response, err error) error {
 	}
 	var retryAfter time.Duration
 	if resp != nil {
-		retryAfter = ParseRetryAfterHeader(resp.Header.Get("Retry-After"))
+		retryAfter = parseRetryAfterHeader(resp.Header.Get("Retry-After"))
 	}
 	return &StatusError{
 		StatusCode: statusCode,
@@ -330,10 +330,10 @@ func isRetryableModelError(err error) bool {
 	return false
 }
 
-// ParseRetryAfterHeader parses a Retry-After header value.
+// parseRetryAfterHeader parses a Retry-After header value.
 // Supports both seconds (integer) and HTTP-date formats per RFC 7231 §7.1.3.
 // Returns 0 if the value is empty, invalid, or results in a non-positive duration.
-func ParseRetryAfterHeader(value string) time.Duration {
+func parseRetryAfterHeader(value string) time.Duration {
 	if value == "" {
 		return 0
 	}
