@@ -8,25 +8,21 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"math/rand/v2"
 	"net"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/docker/docker-agent/pkg/backoff"
 )
 
 // Backoff and retry-after configuration constants.
 const (
-	backoffBaseDelay = 200 * time.Millisecond
-	backoffMaxDelay  = 2 * time.Second
-	backoffFactor    = 2.0
-	backoffJitter    = 0.1
-
 	// MaxRetryAfterWait caps how long we'll honor a Retry-After header to prevent
 	// a misbehaving server from blocking the agent for an unreasonable amount of time.
-	MaxRetryAfterWait = 60 * time.Second
+	MaxRetryAfterWait = backoff.MaxRetryAfterWait
 )
 
 // StatusError wraps an HTTP API error with structured metadata for retry decisions.
@@ -400,42 +396,15 @@ func ClassifyModelError(err error) (retryable, rateLimited bool, retryAfter time
 
 // CalculateBackoff returns the backoff duration for a given attempt (0-indexed).
 // Uses exponential backoff with jitter.
-func CalculateBackoff(attempt int) time.Duration {
-	if attempt < 0 {
-		attempt = 0
-	}
-
-	// Calculate exponential delay
-	delay := float64(backoffBaseDelay)
-	for range attempt {
-		delay *= backoffFactor
-	}
-
-	// Cap at max delay
-	if delay > float64(backoffMaxDelay) {
-		delay = float64(backoffMaxDelay)
-	}
-
-	// Add jitter (±10%)
-	jitter := delay * backoffJitter * (2*rand.Float64() - 1)
-	delay += jitter
-
-	return time.Duration(delay)
-}
+//
+// Deprecated: Use [backoff.Calculate] directly.
+var CalculateBackoff = backoff.Calculate
 
 // SleepWithContext sleeps for the specified duration, returning early if context is cancelled.
 // Returns true if the sleep completed, false if it was interrupted by context cancellation.
-func SleepWithContext(ctx context.Context, d time.Duration) bool {
-	timer := time.NewTimer(d)
-	defer timer.Stop()
-
-	select {
-	case <-timer.C:
-		return true
-	case <-ctx.Done():
-		return false
-	}
-}
+//
+// Deprecated: Use [backoff.SleepWithContext] directly.
+var SleepWithContext = backoff.SleepWithContext
 
 // FormatError returns a user-friendly error message for model errors.
 // Context overflow gets a dedicated actionable message; all other errors
