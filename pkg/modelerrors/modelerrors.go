@@ -402,18 +402,6 @@ func ClassifyModelError(err error) (retryable, rateLimited bool, retryAfter time
 	return isRetryableModelError(err), false, 0
 }
 
-// CalculateBackoff returns the backoff duration for a given attempt (0-indexed).
-// Uses exponential backoff with jitter.
-//
-// Deprecated: Use [backoff.Calculate] directly.
-var CalculateBackoff = backoff.Calculate
-
-// SleepWithContext sleeps for the specified duration, returning early if context is cancelled.
-// Returns true if the sleep completed, false if it was interrupted by context cancellation.
-//
-// Deprecated: Use [backoff.SleepWithContext] directly.
-var SleepWithContext = backoff.SleepWithContext
-
 // FormatError returns a user-friendly error message for model errors.
 // Context overflow gets a dedicated actionable message; all other errors
 // pass through their original message.
