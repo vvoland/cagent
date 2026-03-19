@@ -34,9 +34,12 @@ type Store struct {
 	etag      string // ETag from last successful fetch, used for conditional requests
 }
 
-// singleton holds the process-wide Store instance. It is initialised lazily
-// on the first call to NewStore. All subsequent calls return the same value.
-var singleton = sync.OnceValues(func() (*Store, error) {
+// NewStore returns the process-wide singleton Store.
+//
+// The database is loaded lazily on the first call to GetDatabase and
+// then cached in memory so that every caller shares one copy.
+// The first call creates the cache directory if it does not exist.
+var NewStore = sync.OnceValues(func() (*Store, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)
@@ -51,15 +54,6 @@ var singleton = sync.OnceValues(func() (*Store, error) {
 		cacheFile: filepath.Join(cacheDir, CacheFileName),
 	}, nil
 })
-
-// NewStore returns the process-wide singleton Store.
-//
-// The database is loaded lazily on the first call to GetDatabase and
-// then cached in memory so that every caller shares one copy.
-// The first call creates the cache directory if it does not exist.
-func NewStore() (*Store, error) {
-	return singleton()
-}
 
 // NewDatabaseStore creates a Store pre-populated with the given database.
 // The returned store serves data entirely from memory and never fetches
@@ -329,5 +323,3 @@ var bedrockRegionPrefixes = map[string]bool{
 func isBedrockRegionPrefix(prefix string) bool {
 	return bedrockRegionPrefixes[prefix]
 }
-
-
