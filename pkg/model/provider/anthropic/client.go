@@ -19,6 +19,7 @@ import (
 
 	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/config/latest"
+	"github.com/docker/docker-agent/pkg/effort"
 	"github.com/docker/docker-agent/pkg/environment"
 	"github.com/docker/docker-agent/pkg/httpclient"
 	"github.com/docker/docker-agent/pkg/model/provider/base"
@@ -309,12 +310,12 @@ func (c *Client) CreateChatCompletionStream(
 	// Apply thinking budget first, as it affects whether we can set temperature
 	thinkingEnabled := false
 	if budget := c.ModelConfig.ThinkingBudget; budget != nil {
-		if effort, ok := anthropicThinkingEffort(budget); ok {
+		if effortStr, ok := anthropicThinkingEffort(budget); ok {
 			adaptive := anthropic.NewThinkingConfigAdaptiveParam()
 			params.Thinking = anthropic.ThinkingConfigParamUnion{OfAdaptive: &adaptive}
-			params.OutputConfig.Effort = anthropic.OutputConfigEffort(effort)
+			params.OutputConfig.Effort = anthropic.OutputConfigEffort(effortStr)
 			thinkingEnabled = true
-			slog.Debug("Anthropic API using adaptive thinking", "effort", effort)
+			slog.Debug("Anthropic API using adaptive thinking", "effort", effortStr)
 		} else if tokens, ok := validThinkingTokens(int64(budget.Tokens), maxTokens); ok {
 			params.Thinking = anthropic.ThinkingConfigParamOfEnabled(tokens)
 			thinkingEnabled = true
@@ -922,41 +923,20 @@ func validThinkingTokens(tokens, maxTokens int64) (int64, bool) {
 }
 
 // anthropicThinkingEffort returns the Anthropic API effort level for the given
-// ThinkingBudget. It covers both explicit adaptive mode ("adaptive",
-// "adaptive/<effort>") and string effort levels ("low", "medium", "high", "max")
-// that Anthropic maps to adaptive thinking. Returns ("", false) when the
-// budget uses token counts or is nil.
+// ThinkingBudget. It covers both explicit adaptive mode and string effort
+// levels. Returns ("", false) when the budget uses token counts or is nil.
 func anthropicThinkingEffort(b *latest.ThinkingBudget) (string, bool) {
 	if b == nil {
 		return "", false
 	}
-	if effort, ok := b.AdaptiveEffort(); ok {
-		return effort, true
+	if e, ok := b.AdaptiveEffort(); ok {
+		return e, true
 	}
-	return anthropicEffort(b)
-}
-
-// anthropicEffort maps a ThinkingBudget effort string to an Anthropic API
-// effort level ("low", "medium", "high", "max"). Returns ("", false) when
-// the budget uses token counts, adaptive mode, or an unrecognised string.
-func anthropicEffort(b *latest.ThinkingBudget) (string, bool) {
-	if b == nil {
+	l, ok := b.EffortLevel()
+	if !ok {
 		return "", false
 	}
-	switch strings.ToLower(strings.TrimSpace(b.Effort)) {
-	case "low":
-		return "low", true
-	case "minimal": // "minimal" is not in the Anthropic API; map to closest
-		return "low", true
-	case "medium":
-		return "medium", true
-	case "high":
-		return "high", true
-	case "max":
-		return "max", true
-	default:
-		return "", false
-	}
+	return effort.ForAnthropic(l)
 }
 
 // anthropicContextLimit returns a reasonable default context window for Anthropic models.
