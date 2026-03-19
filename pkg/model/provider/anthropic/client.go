@@ -300,7 +300,7 @@ func (c *Client) CreateChatCompletionStream(
 	sys := extractSystemBlocks(messages)
 
 	params := anthropic.MessageNewParams{
-		Model:     anthropic.Model(c.ModelConfig.Model),
+		Model:     c.ModelConfig.Model,
 		MaxTokens: maxTokens,
 		System:    sys,
 		Messages:  converted,
@@ -311,7 +311,7 @@ func (c *Client) CreateChatCompletionStream(
 	thinkingEnabled := false
 	if budget := c.ModelConfig.ThinkingBudget; budget != nil {
 		if effortStr, ok := anthropicThinkingEffort(budget); ok {
-			adaptive := anthropic.NewThinkingConfigAdaptiveParam()
+			adaptive := anthropic.ThinkingConfigAdaptiveParam{}
 			params.Thinking = anthropic.ThinkingConfigParamUnion{OfAdaptive: &adaptive}
 			params.OutputConfig.Effort = anthropic.OutputConfigEffort(effortStr)
 			thinkingEnabled = true
@@ -363,7 +363,7 @@ func (c *Client) CreateChatCompletionStream(
 
 	// Set up single retry for context length errors
 	ad.retryFn = func() *ssestream.Stream[anthropic.MessageStreamEventUnion] {
-		used, err := countAnthropicTokens(ctx, client, anthropic.Model(c.ModelConfig.Model), converted, sys, allTools)
+		used, err := countAnthropicTokens(ctx, client, c.ModelConfig.Model, converted, sys, allTools)
 		if err != nil {
 			slog.Warn("Failed to count tokens for retry, skipping", "error", err)
 			return nil

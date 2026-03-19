@@ -70,7 +70,7 @@ func (c *Client) createBetaStream(
 	}
 
 	params := anthropic.BetaMessageNewParams{
-		Model:     anthropic.Model(c.ModelConfig.Model),
+		Model:     c.ModelConfig.Model,
 		MaxTokens: maxTokens,
 		System:    sys,
 		Messages:  converted,
@@ -96,7 +96,7 @@ func (c *Client) createBetaStream(
 	// which don't require thinking.
 	if budget := c.ModelConfig.ThinkingBudget; budget != nil {
 		if effort, ok := anthropicThinkingEffort(budget); ok {
-			adaptive := anthropic.NewBetaThinkingConfigAdaptiveParam()
+			adaptive := anthropic.BetaThinkingConfigAdaptiveParam{}
 			params.Thinking = anthropic.BetaThinkingConfigParamUnion{OfAdaptive: &adaptive}
 			params.OutputConfig.Effort = anthropic.BetaOutputConfigEffort(effort)
 			slog.Debug("Anthropic Beta API using adaptive thinking", "effort", effort)
@@ -121,7 +121,7 @@ func (c *Client) createBetaStream(
 
 	// Set up single retry for context length errors
 	ad.retryFn = func() *ssestream.Stream[anthropic.BetaRawMessageStreamEventUnion] {
-		used, err := countAnthropicTokensBeta(ctx, client, anthropic.Model(c.ModelConfig.Model), converted, sys, allTools)
+		used, err := countAnthropicTokensBeta(ctx, client, c.ModelConfig.Model, converted, sys, allTools)
 		if err != nil {
 			slog.Warn("Failed to count tokens for retry, skipping", "error", err)
 			return nil
@@ -271,7 +271,7 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 		maxTokens = 8192
 	}
 	params := anthropic.BetaMessageNewParams{
-		Model:     anthropic.Model(c.ModelConfig.Model),
+		Model:     c.ModelConfig.Model,
 		MaxTokens: maxTokens,
 		Messages:  msgs,
 		// Enable structured outputs beta.
@@ -421,7 +421,7 @@ func accumulateBetaStreamResponse(stream *ssestream.Stream[anthropic.BetaRawMess
 		// Initialize the message metadata from the first event
 		if messageID == "" {
 			messageID = event.Message.ID
-			model = string(event.Message.Model)
+			model = event.Message.Model
 			role = string(event.Message.Role)
 			messageType = string(event.Message.Type)
 		}
