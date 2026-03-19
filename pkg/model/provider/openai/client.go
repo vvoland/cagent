@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/openai/openai-go/v3"
@@ -154,6 +153,14 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		},
 		clientFn: clientFn,
 	}, nil
+}
+
+// Close releases resources held by the client, including any pooled WebSocket
+// connections. It is safe to call Close multiple times.
+func (c *Client) Close() {
+	if c.wsPool != nil {
+		c.wsPool.Close()
+	}
 }
 
 // convertMessages converts chat.Message to openai.ChatCompletionMessageParamUnion
@@ -459,8 +466,10 @@ func (c *Client) buildWSHeaderFn() func(ctx context.Context) (http.Header, error
 			apiKey, _ = c.Env.Get(ctx, c.ModelConfig.TokenKey)
 		}
 		if apiKey == "" {
-			// Fall back to the standard OPENAI_API_KEY env var.
-			apiKey = os.Getenv("OPENAI_API_KEY")
+			// Fall back to the standard OPENAI_API_KEY env var via the
+			// environment provider so that secret resolution is
+			// consistent with the HTTP client path.
+			apiKey, _ = c.Env.Get(ctx, "OPENAI_API_KEY")
 		}
 		if apiKey != "" {
 			h.Set("Authorization", "Bearer "+apiKey)

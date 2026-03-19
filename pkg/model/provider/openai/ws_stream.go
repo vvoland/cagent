@@ -119,6 +119,7 @@ func (s *wsStream) Next() bool {
 		if websocket.IsCloseError(err,
 			websocket.CloseNormalClosure,
 			websocket.CloseGoingAway,
+			websocket.CloseNoStatusReceived,
 		) {
 			s.done = true
 			return false

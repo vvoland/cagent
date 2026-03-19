@@ -17,6 +17,11 @@ const (
 	// wsMaxConnectionAge is the maximum lifetime of a WebSocket connection.
 	// OpenAI enforces a 60-minute limit; we reconnect slightly earlier.
 	wsMaxConnectionAge = 55 * time.Minute
+
+	// wsMaxReconnectAttempts is the maximum number of times a broken
+	// connection will be replaced with a fresh one within a single
+	// Stream call before the error is propagated to the caller.
+	wsMaxReconnectAttempts = 1
 )
 
 // wsConnection holds a WebSocket connection together with bookkeeping
@@ -71,10 +76,12 @@ func (p *wsPool) Stream(
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// Close stale connections.
+	// Close stale connections, preserving the last response ID.
+	var prevResponseID string
 	if p.conn != nil && p.conn.isExpired() {
 		slog.Debug("Closing expired WebSocket connection",
 			"age", time.Since(p.conn.createdAt))
+		prevResponseID = p.conn.lastResponseID
 		_ = p.conn.conn.Close()
 		p.conn = nil
 	}
@@ -92,8 +99,9 @@ func (p *wsPool) Stream(
 		}
 
 		p.conn = &wsConnection{
-			conn:      stream.conn,
-			createdAt: time.Now(),
+			conn:           stream.conn,
+			createdAt:      time.Now(),
+			lastResponseID: prevResponseID,
 		}
 
 		return &pooledStream{pool: p, inner: stream}, nil
@@ -103,23 +111,33 @@ func (p *wsPool) Stream(
 	stream, err := sendOnExisting(p.conn.conn, params)
 	if err != nil {
 		// Connection is broken; tear down and retry with a fresh one.
+		// We only attempt wsMaxReconnectAttempts reconnections to avoid
+		// unbounded loops if the server keeps rejecting connections.
 		slog.Warn("Existing WebSocket connection failed, reconnecting", "error", err)
+		prevResponseID := p.conn.lastResponseID
 		_ = p.conn.conn.Close()
 		p.conn = nil
 
-		headers, err2 := p.headerFn(ctx)
-		if err2 != nil {
-			return nil, fmt.Errorf("websocket pool: headers on reconnect: %w", err2)
+		var lastErr error
+		for attempt := range wsMaxReconnectAttempts {
+			headers, err2 := p.headerFn(ctx)
+			if err2 != nil {
+				lastErr = fmt.Errorf("websocket pool: headers on reconnect (attempt %d/%d): %w", attempt+1, wsMaxReconnectAttempts, err2)
+				continue
+			}
+			stream, err2 = dialWebSocket(ctx, p.wsURL, headers, params)
+			if err2 != nil {
+				lastErr = fmt.Errorf("websocket pool: reconnect (attempt %d/%d): %w", attempt+1, wsMaxReconnectAttempts, err2)
+				continue
+			}
+			p.conn = &wsConnection{
+				conn:           stream.conn,
+				createdAt:      time.Now(),
+				lastResponseID: prevResponseID,
+			}
+			return &pooledStream{pool: p, inner: stream}, nil
 		}
-		stream, err2 = dialWebSocket(ctx, p.wsURL, headers, params)
-		if err2 != nil {
-			return nil, fmt.Errorf("websocket pool: reconnect: %w", err2)
-		}
-		p.conn = &wsConnection{
-			conn:      stream.conn,
-			createdAt: time.Now(),
-		}
-		return &pooledStream{pool: p, inner: stream}, nil
+		return nil, lastErr
 	}
 
 	return &pooledStream{pool: p, inner: stream}, nil
@@ -195,10 +213,23 @@ func (s *pooledStream) Err() error {
 	return s.inner.Err()
 }
 
-// Close releases the stream but keeps the underlying connection alive in
-// the pool for reuse.
+// Close releases the stream. If the stream encountered an error, the
+// underlying connection is invalidated so that the pool opens a fresh one
+// on the next request. Otherwise the connection stays in the pool for reuse.
 func (s *pooledStream) Close() error {
 	s.inner.done = true
-	// Do NOT close the WebSocket connection—it stays in the pool.
+
+	if s.inner.Err() != nil {
+		// Connection is likely broken; tear it down so the pool
+		// doesn't hand out a dead socket.
+		s.pool.mu.Lock()
+		if s.pool.conn != nil && s.pool.conn.conn == s.inner.conn {
+			_ = s.pool.conn.conn.Close()
+			s.pool.conn = nil
+		}
+		s.pool.mu.Unlock()
+	}
+
+	// Do NOT close the WebSocket connection when healthy—it stays in the pool.
 	return nil
 }
