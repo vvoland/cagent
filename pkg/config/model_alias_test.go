@@ -16,8 +16,6 @@ func TestResolveModelAliases(t *testing.T) {
 	mockData := &modelsdev.Database{
 		Providers: map[string]modelsdev.Provider{
 			"anthropic": {
-				ID:   "anthropic",
-				Name: "Anthropic",
 				Models: map[string]modelsdev.Model{
 					"claude-sonnet-4-5":          {Name: "Claude Sonnet 4.5 (latest)"},
 					"claude-sonnet-4-5-20250929": {Name: "Claude Sonnet 4.5"},
