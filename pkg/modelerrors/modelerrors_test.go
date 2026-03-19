@@ -265,11 +265,11 @@ func TestParseRetryAfterHeader(t *testing.T) {
 func TestStatusError(t *testing.T) {
 	t.Parallel()
 
-	t.Run("Error() delegates to wrapped error", func(t *testing.T) {
+	t.Run("Error() includes status code and wrapped message", func(t *testing.T) {
 		t.Parallel()
 		underlying := errors.New("rate limit exceeded")
 		se := &StatusError{StatusCode: 429, Err: underlying}
-		assert.Equal(t, underlying.Error(), se.Error())
+		assert.Equal(t, "HTTP 429: rate limit exceeded", se.Error())
 	})
 
 	t.Run("Unwrap() allows errors.Is traversal", func(t *testing.T) {
@@ -315,7 +315,7 @@ func TestWrapHTTPError(t *testing.T) {
 		require.ErrorAs(t, result, &se)
 		assert.Equal(t, 429, se.StatusCode)
 		assert.Equal(t, time.Duration(0), se.RetryAfter)
-		assert.Equal(t, origErr.Error(), se.Error())
+		assert.Equal(t, "HTTP 429: rate limited", se.Error())
 	})
 
 	t.Run("429 with Retry-After header sets RetryAfter", func(t *testing.T) {

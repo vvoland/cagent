@@ -7,6 +7,7 @@ package modelerrors
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -38,7 +39,7 @@ type StatusError struct {
 }
 
 func (e *StatusError) Error() string {
-	return e.Err.Error()
+	return fmt.Sprintf("HTTP %d: %s", e.StatusCode, e.Err.Error())
 }
 
 func (e *StatusError) Unwrap() error {
