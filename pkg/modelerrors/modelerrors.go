@@ -213,6 +213,43 @@ func IsRetryableStatusCode(statusCode int) bool {
 	}
 }
 
+// retryablePatterns contains error message substrings that indicate a
+// transient/retryable failure. Numeric status codes (500, 502, etc.) are
+// handled separately by ExtractHTTPStatusCode + IsRetryableStatusCode.
+var retryablePatterns = []string{
+	"timeout",               // Generic timeout
+	"connection reset",      // Connection reset
+	"connection refused",    // Connection refused
+	"no such host",          // DNS failure
+	"temporary failure",     // Temporary failure
+	"service unavailable",   // Service unavailable
+	"internal server error", // Server error
+	"bad gateway",           // Gateway error
+	"gateway timeout",       // Gateway timeout
+	"overloaded",            // Server overloaded
+	"overloaded_error",      // Server overloaded
+	"other side closed",     // Connection closed by peer
+	"fetch failed",          // Network fetch failure
+	"reset before headers",  // Connection reset before headers received
+	"upstream connect",      // Upstream connection error
+	"internal_error",        // HTTP/2 INTERNAL_ERROR (stream-level)
+}
+
+// nonRetryablePatterns contains error message substrings that indicate a
+// permanent/non-retryable failure. Numeric status codes (429, 401, etc.) are
+// handled separately by ExtractHTTPStatusCode.
+var nonRetryablePatterns = []string{
+	"rate limit",        // Rate limit message
+	"too many requests", // Rate limit message
+	"throttl",           // Throttling (rate limiting)
+	"quota",             // Quota exceeded
+	"capacity",          // Capacity issues (often rate-limit related)
+	"invalid",           // Invalid request
+	"unauthorized",      // Auth error
+	"authentication",    // Auth error
+	"api key",           // API key error
+}
+
 // isRetryableModelError determines if an error should trigger a retry of the SAME model.
 // It is used as a fallback by ClassifyModelError when no *StatusError is present.
 //
@@ -268,53 +305,13 @@ func isRetryableModelError(err error) bool {
 		}
 	}
 
-	// Fall back to message-pattern matching for errors without structured status codes
 	errMsg := strings.ToLower(err.Error())
-
-	// Retryable patterns (timeout, network issues)
-	// NOTE: Numeric status codes (500, 502, etc.) are already handled by
-	// ExtractHTTPStatusCode + IsRetryableStatusCode above; they are not
-	// duplicated here to avoid false positives on arbitrary numbers in
-	// error messages (e.g., "processed 500 items").
-	retryablePatterns := []string{
-		"timeout",               // Generic timeout
-		"connection reset",      // Connection reset
-		"connection refused",    // Connection refused
-		"no such host",          // DNS failure
-		"temporary failure",     // Temporary failure
-		"service unavailable",   // Service unavailable
-		"internal server error", // Server error
-		"bad gateway",           // Gateway error
-		"gateway timeout",       // Gateway timeout
-		"overloaded",            // Server overloaded
-		"overloaded_error",      // Server overloaded
-		"other side closed",     // Connection closed by peer
-		"fetch failed",          // Network fetch failure
-		"reset before headers",  // Connection reset before headers received
-		"upstream connect",      // Upstream connection error
-		"internal_error",        // HTTP/2 INTERNAL_ERROR (stream-level)
-	}
 
 	for _, pattern := range retryablePatterns {
 		if strings.Contains(errMsg, pattern) {
 			slog.Debug("Matched retryable error pattern", "pattern", pattern)
 			return true
 		}
-	}
-
-	// Non-retryable patterns (skip to next model immediately)
-	// NOTE: Numeric status codes (429, 401, etc.) are already handled by
-	// ExtractHTTPStatusCode above; they are not duplicated here.
-	nonRetryablePatterns := []string{
-		"rate limit",        // Rate limit message
-		"too many requests", // Rate limit message
-		"throttl",           // Throttling (rate limiting)
-		"quota",             // Quota exceeded
-		"capacity",          // Capacity issues (often rate-limit related)
-		"invalid",           // Invalid request
-		"unauthorized",      // Auth error
-		"authentication",    // Auth error
-		"api key",           // API key error
 	}
 
 	for _, pattern := range nonRetryablePatterns {
