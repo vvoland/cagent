@@ -122,8 +122,6 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 		defer r.finalizeEventChannel(ctx, sess, prevElicitationCh, events)
 
-		r.registerDefaultTools()
-
 		iteration := 0
 		// Use a runtime copy of maxIterations so we don't modify the session's persistent config
 		runtimeMaxIterations := sess.MaxIterations
