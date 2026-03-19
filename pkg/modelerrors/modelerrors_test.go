@@ -85,6 +85,10 @@ func TestExtractHTTPStatusCode(t *testing.T) {
 		{name: "502 in message", err: errors.New("502 bad gateway"), expected: 502},
 		{name: "401 in message", err: errors.New("401 unauthorized"), expected: 401},
 		{name: "no status code", err: errors.New("connection refused"), expected: 0},
+		// StatusError structural path
+		{name: "StatusError 429", err: &StatusError{StatusCode: 429, Err: errors.New("rate limited")}, expected: 429},
+		{name: "StatusError 500", err: &StatusError{StatusCode: 500, Err: errors.New("server error")}, expected: 500},
+		{name: "wrapped StatusError", err: fmt.Errorf("outer: %w", &StatusError{StatusCode: 503, Err: errors.New("unavailable")}), expected: 503},
 	}
 
 	for _, tt := range tests {
@@ -159,20 +163,28 @@ func TestContextOverflowError(t *testing.T) {
 	t.Run("wraps underlying error", func(t *testing.T) {
 		t.Parallel()
 		underlying := errors.New("prompt is too long: 226360 tokens > 200000 maximum")
-		ctxErr := &ContextOverflowError{Underlying: underlying}
+		ctxErr := NewContextOverflowError(underlying)
 
 		assert.Contains(t, ctxErr.Error(), "context window overflow")
 		assert.Contains(t, ctxErr.Error(), "prompt is too long")
 		assert.ErrorIs(t, ctxErr, underlying)
 	})
 
-	t.Run("errors.As works", func(t *testing.T) {
+	t.Run("nil underlying returns fallback message", func(t *testing.T) {
+		t.Parallel()
+		ctxErr := NewContextOverflowError(nil)
+		assert.Equal(t, "context window overflow", ctxErr.Error())
+		assert.NoError(t, ctxErr.Unwrap())
+	})
+
+	t.Run("errors.As works through wrapping", func(t *testing.T) {
 		t.Parallel()
 		underlying := errors.New("test error")
-		wrapped := fmt.Errorf("all models failed: %w", &ContextOverflowError{Underlying: underlying})
+		wrapped := fmt.Errorf("all models failed: %w", NewContextOverflowError(underlying))
 
 		var ctxErr *ContextOverflowError
-		assert.ErrorAs(t, wrapped, &ctxErr)
+		require.ErrorAs(t, wrapped, &ctxErr)
+		assert.Equal(t, underlying, ctxErr.Underlying)
 	})
 }
 
@@ -207,11 +219,19 @@ func TestFormatError(t *testing.T) {
 
 	t.Run("context overflow shows user-friendly message", func(t *testing.T) {
 		t.Parallel()
-		err := &ContextOverflowError{Underlying: errors.New("prompt is too long")}
+		err := NewContextOverflowError(errors.New("prompt is too long"))
 		msg := FormatError(err)
 		assert.Contains(t, msg, "context window")
 		assert.Contains(t, msg, "/compact")
 		assert.NotContains(t, msg, "prompt is too long")
+	})
+
+	t.Run("wrapped context overflow shows user-friendly message", func(t *testing.T) {
+		t.Parallel()
+		err := fmt.Errorf("outer: %w", NewContextOverflowError(errors.New("prompt is too long")))
+		msg := FormatError(err)
+		assert.Contains(t, msg, "context window")
+		assert.Contains(t, msg, "/compact")
 	})
 
 	t.Run("generic error preserves message", func(t *testing.T) {
@@ -403,5 +423,16 @@ func TestClassifyModelError(t *testing.T) {
 		assert.False(t, retryable)
 		assert.True(t, rateLimited)
 		assert.Equal(t, 15*time.Second, retryAfterOut)
+	})
+
+	t.Run("ContextOverflowError wrapping a StatusError is not retryable", func(t *testing.T) {
+		t.Parallel()
+		// A 400 StatusError whose message also triggers context overflow detection
+		statusErr := &StatusError{StatusCode: 400, Err: errors.New("prompt is too long")}
+		ctxErr := NewContextOverflowError(statusErr)
+		retryable, rateLimited, retryAfter := ClassifyModelError(ctxErr)
+		assert.False(t, retryable, "context overflow should never be retryable")
+		assert.False(t, rateLimited)
+		assert.Equal(t, time.Duration(0), retryAfter)
 	})
 }
