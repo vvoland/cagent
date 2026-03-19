@@ -3,6 +3,37 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.34.0] - 2026-03-19
+
+This release improves tool call handling and evaluation functionality with several technical fixes and optimizations.
+
+## Improvements
+
+- Optimizes partial tool call streaming by sending only delta arguments instead of accumulated arguments
+- Reduces evaluation summary display width for better terminal formatting
+- Includes tool definition only on the first partial tool call to reduce redundancy
+
+## Bug Fixes
+
+- Fixes schema conversion for OpenAI Responses API strict mode, resolving issues with gpt-4.1-nano
+- Removes duplicate tool call data from tool call response events to reduce payload size
+
+## Technical Changes
+
+- Updates evaluation system to not provide all API keys when using models gateway
+- Removes redundant tool call information from response events while preserving tool call IDs for client reference
+
+### Pull Requests
+
+- [#2105](https://github.com/docker/docker-agent/pull/2105) - Only send the delta on the partial tool call
+- [#2159](https://github.com/docker/docker-agent/pull/2159) - docs: update CHANGELOG.md for v1.33.0
+- [#2160](https://github.com/docker/docker-agent/pull/2160) - Fix (reduce) evals summary width
+- [#2162](https://github.com/docker/docker-agent/pull/2162) - Evals: don't provide all API keys when using models gateway
+- [#2163](https://github.com/docker/docker-agent/pull/2163) - Remove the tool call from the tool call response event
+- [#2164](https://github.com/docker/docker-agent/pull/2164) - build(deps): bump google.golang.org/grpc from 1.79.2 to 1.79.3 in the go_modules group across 1 directory
+- [#2168](https://github.com/docker/docker-agent/pull/2168) - Fix schema conversion for OpenAI Responses API strict mode - Fixes tool calls with gpt-4.1-nano
+
+
 ## [v1.33.0] - 2026-03-18
 
 This release improves file editing reliability, adds session exit keywords, and fixes several issues with sub-sessions and evaluation handling.
@@ -1439,3 +1470,5 @@ This release improves the terminal user interface with better error handling and
 [v1.32.5]: https://github.com/docker/docker-agent/releases/tag/v1.32.5
 
 [v1.33.0]: https://github.com/docker/docker-agent/releases/tag/v1.33.0
+
+[v1.34.0]: https://github.com/docker/docker-agent/releases/tag/v1.34.0
