@@ -25,6 +25,10 @@ type (
 	// NewSessionMsg requests creation of a new session.
 	NewSessionMsg struct{}
 
+	// ClearSessionMsg resets the current tab and starts a new session
+	// in the same working directory.
+	ClearSessionMsg struct{}
+
 	// ExitSessionMsg requests exiting the current session.
 	ExitSessionMsg struct{}
 
