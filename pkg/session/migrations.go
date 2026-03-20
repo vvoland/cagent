@@ -344,6 +344,12 @@ func getAllMigrations() []Migration {
 				ALTER TABLE sessions DROP COLUMN split_diff_view;
 			`,
 		},
+		{
+			ID:          20,
+			Name:        "020_drop_messages_column",
+			Description: "Drop the legacy messages JSON column now that all data lives in session_items",
+			UpSQL:       `ALTER TABLE sessions DROP COLUMN messages`,
+		},
 	}
 }
 
