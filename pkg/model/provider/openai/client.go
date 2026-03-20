@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -29,12 +30,16 @@ import (
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
-// Client represents an OpenAI client wrapper
-// It implements the provider.Provider interface
+// Client represents an OpenAI client wrapper.
+// It implements the provider.Provider interface.
 type Client struct {
 	base.Config
 
 	clientFn func(context.Context) (*openai.Client, error)
+
+	// wsPool is initialized in NewClient when transport=websocket is configured.
+	// It maintains a persistent WebSocket connection across requests.
+	wsPool *wsPool
 }
 
 // NewClient creates a new OpenAI client from the provided configuration
@@ -140,14 +145,32 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 
 	slog.Debug("OpenAI client created successfully", "model", cfg.Model)
 
-	return &Client{
+	client := &Client{
 		Config: base.Config{
 			ModelConfig:  *cfg,
 			ModelOptions: globalOptions,
 			Env:          env,
 		},
 		clientFn: clientFn,
-	}, nil
+	}
+
+	// Pre-create the WebSocket pool when the transport is configured.
+	// The pool is cheap (no connections opened until the first Stream call)
+	// and eager init avoids a data race on the lazy path.
+	if getTransport(cfg) == "websocket" && globalOptions.Gateway() == "" {
+		baseURL := cmp.Or(cfg.BaseURL, "https://api.openai.com/v1")
+		client.wsPool = newWSPool(httpToWSURL(baseURL), client.buildWSHeaderFn())
+	}
+
+	return client, nil
+}
+
+// Close releases resources held by the client, including any pooled WebSocket
+// connections. It is safe to call Close multiple times.
+func (c *Client) Close() {
+	if c.wsPool != nil {
+		c.wsPool.Close()
+	}
 }
 
 // convertMessages converts chat.Message to openai.ChatCompletionMessageParamUnion
@@ -307,12 +330,6 @@ func (c *Client) CreateResponseStream(
 		return nil, errors.New("at least one message is required")
 	}
 
-	client, err := c.clientFn(ctx)
-	if err != nil {
-		slog.Error("Failed to create OpenAI client", "error", err)
-		return nil, err
-	}
-
 	input := convertMessagesToResponseInput(messages)
 
 	params := responses.ResponseNewParams{
@@ -398,10 +415,85 @@ func (c *Client) CreateResponseStream(
 		slog.Error("Failed to marshal OpenAI responses request to JSON", "error", err)
 	}
 
+	// Choose transport: WebSocket or SSE (default).
+	// WebSocket is disabled when using a Gateway since most gateways don't support it.
+	transport := getTransport(&c.ModelConfig)
+	trackUsage := c.ModelConfig.TrackUsage == nil || *c.ModelConfig.TrackUsage
+
+	if transport == "websocket" && c.ModelOptions.Gateway() == "" {
+		stream, err := c.createWebSocketStream(ctx, params)
+		if err != nil {
+			slog.Warn("WebSocket stream failed, falling back to SSE", "error", err)
+			// Fall through to SSE below.
+		} else {
+			slog.Debug("OpenAI responses WebSocket stream created successfully", "model", c.ModelConfig.Model)
+			return newResponseStreamAdapter(stream, trackUsage), nil
+		}
+	} else if transport == "websocket" {
+		slog.Debug("WebSocket transport requested but Gateway is configured, using SSE",
+			"model", c.ModelConfig.Model,
+			"gateway", c.ModelOptions.Gateway())
+	}
+
+	client, err := c.clientFn(ctx)
+	if err != nil {
+		slog.Error("Failed to create OpenAI client", "error", err)
+		return nil, err
+	}
 	stream := client.Responses.NewStreaming(ctx, params)
 
 	slog.Debug("OpenAI responses stream created successfully", "model", c.ModelConfig.Model)
-	return newResponseStreamAdapter(stream, c.ModelConfig.TrackUsage == nil || *c.ModelConfig.TrackUsage), nil
+	return newResponseStreamAdapter(stream, trackUsage), nil
+}
+
+// createWebSocketStream sends a request over the pre-initialized WebSocket
+// pool, returning a responseEventStream.
+func (c *Client) createWebSocketStream(
+	ctx context.Context,
+	params responses.ResponseNewParams,
+) (responseEventStream, error) {
+	if c.wsPool == nil {
+		return nil, errors.New("websocket pool not initialized")
+	}
+
+	return c.wsPool.Stream(ctx, params)
+}
+
+// buildWSHeaderFn returns a function that produces the HTTP headers needed
+// for the WebSocket handshake, including the Authorization header.
+func (c *Client) buildWSHeaderFn() func(ctx context.Context) (http.Header, error) {
+	return func(ctx context.Context) (http.Header, error) {
+		h := http.Header{}
+
+		// Resolve the API key using the same logic as the HTTP client.
+		var apiKey string
+		if c.ModelConfig.TokenKey != "" {
+			apiKey, _ = c.Env.Get(ctx, c.ModelConfig.TokenKey)
+		}
+		if apiKey == "" {
+			// Fall back to the standard OPENAI_API_KEY env var via the
+			// environment provider so that secret resolution is
+			// consistent with the HTTP client path.
+			apiKey, _ = c.Env.Get(ctx, "OPENAI_API_KEY")
+		}
+		if apiKey != "" {
+			h.Set("Authorization", "Bearer "+apiKey)
+		}
+
+		return h, nil
+	}
+}
+
+// getTransport returns the streaming transport preference from ProviderOpts.
+// Valid values are "sse" (default) and "websocket".
+func getTransport(cfg *latest.ModelConfig) string {
+	if cfg == nil || cfg.ProviderOpts == nil {
+		return "sse"
+	}
+	if t, ok := cfg.ProviderOpts["transport"].(string); ok {
+		return strings.ToLower(t)
+	}
+	return "sse"
 }
 
 func convertMessagesToResponseInput(messages []chat.Message) []responses.ResponseInputItemUnionParam {
