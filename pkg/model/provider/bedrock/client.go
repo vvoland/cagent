@@ -27,6 +27,7 @@ import (
 // Client represents a Bedrock client wrapper implementing provider.Provider
 type Client struct {
 	base.Config
+
 	bedrockClient    *bedrockruntime.Client
 	cachingSupported bool // Cached at init time for efficiency
 }

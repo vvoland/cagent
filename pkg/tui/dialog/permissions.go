@@ -15,6 +15,7 @@ import (
 // permissionsDialog displays the configured tool permissions (allow/deny patterns).
 type permissionsDialog struct {
 	BaseDialog
+
 	permissions *runtime.PermissionsInfo
 	yoloEnabled bool
 	closeKey    key.Binding

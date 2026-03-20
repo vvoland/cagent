@@ -33,6 +33,7 @@ import (
 // It implements the provider.Provider interface
 type Client struct {
 	base.Config
+
 	clientFn func(context.Context) (*openai.Client, error)
 }
 

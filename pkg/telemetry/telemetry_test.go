@@ -19,6 +19,7 @@ import (
 // MockHTTPClient captures HTTP requests for testing
 type MockHTTPClient struct {
 	*http.Client
+
 	mu       sync.Mutex
 	requests []*http.Request
 	bodies   [][]byte

@@ -19,6 +19,7 @@ import (
 // streamAdapter adapts the Anthropic stream to our interface
 type streamAdapter struct {
 	retryableStream[anthropic.MessageStreamEventUnion]
+
 	trackUsage         bool
 	toolCall           bool
 	toolID             string

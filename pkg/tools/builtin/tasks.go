@@ -80,6 +80,7 @@ type Task struct {
 
 type taskWithEffective struct {
 	Task
+
 	EffectiveStatus TaskStatus `json:"effectiveStatus"`
 }
 
