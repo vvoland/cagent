@@ -211,7 +211,7 @@ toolsets:
 - **Keep agents focused** — Each agent should have a clear, narrow role
 - **Write clear descriptions** — The coordinator uses descriptions to decide who to delegate to
 - **Give minimal tools** — Only give each agent the tools it needs for its specific role
-- **Use the think tool** — Give coordinators the think tool so they reason about delegation
+- **Use the think tool when needed** — For models without native reasoning, give coordinators the think tool so they reason about delegation. Models with built-in thinking (e.g., via `thinking_budget`) don't need it
 - **Use the right model** — Use capable models for complex reasoning, cheap models for simple tasks
 
 <div class="callout callout-info">

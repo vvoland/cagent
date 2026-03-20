@@ -169,16 +169,16 @@ agents:
 - Order by preference (best first)
 - Include a cheaper/faster model as last resort
 
-### Use Think Tool for Complex Tasks
+### Use Think Tool for Non-Reasoning Models
 
-The `think` tool dramatically improves reasoning quality with minimal overhead:
+The `think` tool provides a reasoning scratchpad for models that lack built-in thinking capabilities:
 
 ```yaml
 toolsets:
-  - type: think # Always include for complex agents
+  - type: think # Useful for models without native reasoning
 ```
 
-The agent uses it as a scratchpad for planning and decision-making.
+The agent uses it as a scratchpad for planning and decision-making. If your model already supports a [thinking budget]({{ '/configuration/models/#thinking-budget' | relative_url }}) (e.g., Claude with extended thinking, OpenAI o-series, Gemini with thinking enabled), you don't need this tool — the model can reason internally.
 
 ## Security Tips
 
