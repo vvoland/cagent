@@ -187,6 +187,11 @@
           "description": "Maximum consecutive identical tool calls before the agent is terminated. Prevents degenerate loops. 0 uses the default of 5.",
           "minimum": 0
         },
+        "max_old_tool_call_tokens": {
+          "type": "integer",
+          "description": "Maximum number of tokens to keep from old tool call arguments and results. Older tool calls beyond this budget will have their content replaced with a placeholder. Tokens are approximated as len/4. Set to -1 to disable truncation (unlimited tool content). Default: 40000.",
+          "minimum": -1
+        },
         "num_history_items": {
           "type": "integer",
           "description": "Number of history items to keep",

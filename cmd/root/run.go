@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel"
 
+	"github.com/docker/docker-agent/pkg/agent"
 	"github.com/docker/docker-agent/pkg/app"
 	"github.com/docker/docker-agent/pkg/cli"
 	"github.com/docker/docker-agent/pkg/config"
@@ -339,7 +340,7 @@ func (f *runExecFlags) createRemoteRuntimeAndSession(ctx context.Context, origin
 func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, loadResult *teamloader.LoadResult) (runtime.Runtime, *session.Session, error) {
 	t := loadResult.Team
 
-	agent, err := t.Agent(f.agentName)
+	agt, err := t.Agent(f.agentName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -404,7 +405,7 @@ func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, loadRes
 		slog.Debug("Loaded existing session", "session_id", resolvedID, "session_ref", f.sessionID, "agent", f.agentName)
 	} else {
 		wd, _ := os.Getwd()
-		sess = session.New(f.buildSessionOpts(agent.MaxIterations(), wd)...)
+		sess = session.New(f.buildSessionOpts(agt, wd)...)
 		// Session is stored lazily on first UpdateSession call (when content is added)
 		// This avoids creating empty sessions in the database
 		slog.Debug("Using local runtime", "agent", f.agentName)
@@ -494,9 +495,11 @@ func (f *runExecFlags) buildAppOpts(args []string) ([]app.Opt, error) {
 // buildSessionOpts returns the canonical set of session options derived from
 // CLI flags and agent configuration. Both the initial session and spawned
 // sessions use this method so their options never drift apart.
-func (f *runExecFlags) buildSessionOpts(maxIterations int, workingDir string) []session.Opt {
+func (f *runExecFlags) buildSessionOpts(agt *agent.Agent, workingDir string) []session.Opt {
 	return []session.Opt{
-		session.WithMaxIterations(maxIterations),
+		session.WithMaxIterations(agt.MaxIterations()),
+		session.WithMaxConsecutiveToolCalls(agt.MaxConsecutiveToolCalls()),
+		session.WithMaxOldToolCallTokens(agt.MaxOldToolCallTokens()),
 		session.WithToolsApproved(f.autoApprove),
 		session.WithHideToolResults(f.hideToolResults),
 		session.WithWorkingDir(workingDir),
@@ -517,7 +520,7 @@ func (f *runExecFlags) createSessionSpawner(agentSource config.Source, sessStore
 		}
 
 		team := loadResult.Team
-		agent, err := team.Agent(f.agentName)
+		agt, err := team.Agent(f.agentName)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -543,7 +546,7 @@ func (f *runExecFlags) createSessionSpawner(agentSource config.Source, sessStore
 		}
 
 		// Create a new session
-		newSess := session.New(f.buildSessionOpts(agent.MaxIterations(), workingDir)...)
+		newSess := session.New(f.buildSessionOpts(agt, workingDir)...)
 
 		// Create cleanup function
 		cleanup := func() {
