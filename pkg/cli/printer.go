@@ -30,12 +30,18 @@ const (
 var bold = color.New(color.Bold).SprintfFunc()
 
 type Printer struct {
-	out io.Writer
+	out      io.Writer
+	isTTYOut bool
 }
 
 func NewPrinter(out io.Writer) *Printer {
+	isTTY := false
+	if f, ok := out.(*os.File); ok {
+		isTTY = isatty.IsTerminal(f.Fd())
+	}
 	return &Printer{
-		out: out,
+		out:      out,
+		isTTYOut: isTTY,
 	}
 }
 
@@ -63,6 +69,9 @@ func (p *Printer) PrintError(err error) {
 
 // PrintAgentName prints the agent name header
 func (p *Printer) PrintAgentName(agentName string) {
+	if !p.isTTYOut {
+		return
+	}
 	p.Printf("\n--- Agent: %s ---\n", bold(agentName))
 }
 
