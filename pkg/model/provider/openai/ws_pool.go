@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/openai/openai-go/v3/packages/param"
 	"github.com/openai/openai-go/v3/responses"
 )
 
@@ -70,6 +71,13 @@ func (p *wsPool) Stream(
 ) (responseEventStream, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	// Inject previous_response_id for server-side context caching when the
+	// caller hasn't already set one and we have a response from an earlier
+	// exchange on this pool.
+	if p.lastResponseID != "" && !params.PreviousResponseID.Valid() {
+		params.PreviousResponseID = param.NewOpt(p.lastResponseID)
+	}
 
 	// Close stale connections.
 	if p.conn != nil && p.conn.isExpired() {
