@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mattn/go-isatty"
+
 	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/input"
 	"github.com/docker/docker-agent/pkg/runtime"
@@ -266,6 +268,16 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 			if err := oneLoop(msg, os.Stdin); err != nil {
 				return err
 			}
+		}
+	case !isatty.IsTerminal(os.Stdin.Fd()):
+		// Stdin is not a terminal: read all input from stdin
+		buf, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("failed to read from stdin: %w", err)
+		}
+
+		if err := oneLoop(string(buf), os.Stdin); err != nil {
+			return err
 		}
 	default:
 		// No messages: interactive prompt loop
