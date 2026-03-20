@@ -252,6 +252,7 @@ type AgentConfig struct {
 	AddDescriptionParameter bool              `json:"add_description_parameter,omitempty"`
 	MaxIterations           int               `json:"max_iterations,omitempty"`
 	MaxConsecutiveToolCalls int               `json:"max_consecutive_tool_calls,omitempty"`
+	MaxOldToolCallTokens    int               `json:"max_old_tool_call_tokens,omitempty"`
 	NumHistoryItems         int               `json:"num_history_items,omitempty"`
 	AddPromptFiles          []string          `json:"add_prompt_files,omitempty" yaml:"add_prompt_files,omitempty"`
 	Commands                types.Commands    `json:"commands,omitempty"`

@@ -171,6 +171,7 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 			agent.WithAddPromptFiles(promptFiles),
 			agent.WithMaxIterations(agentConfig.MaxIterations),
 			agent.WithMaxConsecutiveToolCalls(agentConfig.MaxConsecutiveToolCalls),
+			agent.WithMaxOldToolCallTokens(agentConfig.MaxOldToolCallTokens),
 			agent.WithNumHistoryItems(agentConfig.NumHistoryItems),
 			agent.WithCommands(expander.ExpandCommands(ctx, agentConfig.Commands)),
 			agent.WithHooks(config.MergeHooks(agentConfig.Hooks, cliHooks)),

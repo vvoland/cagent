@@ -77,6 +77,7 @@ func (sm *SessionManager) CreateSession(ctx context.Context, sessionTemplate *se
 	opts = append(opts,
 		session.WithMaxIterations(sessionTemplate.MaxIterations),
 		session.WithMaxConsecutiveToolCalls(sessionTemplate.MaxConsecutiveToolCalls),
+		session.WithMaxOldToolCallTokens(sessionTemplate.MaxOldToolCallTokens),
 		session.WithToolsApproved(sessionTemplate.ToolsApproved),
 	)
 
@@ -347,6 +348,7 @@ func (sm *SessionManager) runtimeForSession(ctx context.Context, sess *session.S
 	}
 	sess.MaxIterations = agent.MaxIterations()
 	sess.MaxConsecutiveToolCalls = agent.MaxConsecutiveToolCalls()
+	sess.MaxOldToolCallTokens = agent.MaxOldToolCallTokens()
 
 	opts := []runtime.Opt{
 		runtime.WithCurrentAgent(currentAgent),
