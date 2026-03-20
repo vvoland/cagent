@@ -10,8 +10,8 @@ import (
 	socket "github.com/docker/docker-agent/pkg/desktop/socket"
 )
 
-// newTransport returns an HTTP transport that uses Docker Desktop proxy if available.
-func newTransport(ctx context.Context) http.RoundTripper {
+// NewTransport returns an HTTP transport that uses Docker Desktop proxy if available.
+func NewTransport(ctx context.Context) http.RoundTripper {
 	t, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
 		return http.DefaultTransport
@@ -26,7 +26,7 @@ func newTransport(ctx context.Context) http.RoundTripper {
 		})
 		// Override the dialer to connect to the Unix socket for the proxy
 		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return socket.DialUnix(desktop.Paths().ProxySocket)
+			return socket.DialUnix(ctx, desktop.Paths().ProxySocket)
 		}
 	}
 

@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"net"
 	"net/http"
 	"net/url"
 	"runtime"
 
-	"github.com/docker/docker-agent/pkg/desktop"
-	socket "github.com/docker/docker-agent/pkg/desktop/socket"
+	"github.com/docker/docker-agent/pkg/remote"
 	"github.com/docker/docker-agent/pkg/version"
 )
 
@@ -21,7 +19,7 @@ type HTTPOptions struct {
 
 type Opt func(*HTTPOptions)
 
-func NewHTTPClient(opts ...Opt) *http.Client {
+func NewHTTPClient(ctx context.Context, opts ...Opt) *http.Client {
 	httpOptions := HTTPOptions{
 		Header: make(http.Header),
 	}
@@ -36,7 +34,7 @@ func NewHTTPClient(opts ...Opt) *http.Client {
 	// Disable automatic gzip: Go's default transport transparently compresses
 	// and decompresses responses, which is incompatible with SSE streaming.
 	// See https://github.com/docker/docker-agent/issues/1956
-	rt := newTransport()
+	rt := newTransport(ctx)
 
 	return &http.Client{
 		Transport: &userAgentTransport{
@@ -100,26 +98,17 @@ func WithQuery(query url.Values) Opt {
 }
 
 // newTransport returns an HTTP transport with automatic gzip compression disabled and using Docker Desktop proxy if available.
-func newTransport() http.RoundTripper {
-	t, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		return http.DefaultTransport
-	}
-	transport := t.Clone()
+func newTransport(ctx context.Context) http.RoundTripper {
+	// Get the base transport with Desktop proxy support from remote package
+	rt := remote.NewTransport(ctx)
 
-	if desktop.IsDockerDesktopRunning(context.Background()) {
-		// Route all traffic through Docker Desktop's HTTP proxy socket
-		// Set a dummy proxy URL - the actual connection happens via DialContext
-		transport.Proxy = http.ProxyURL(&url.URL{
-			Scheme: "http",
-		})
-		// Override the dialer to connect to the Unix socket for the proxy
-		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return socket.DialUnix(desktop.Paths().ProxySocket)
-		}
+	// If it's an http.Transport, disable compression for SSE streaming compatibility
+	if transport, ok := rt.(*http.Transport); ok {
+		transport.DisableCompression = true
+		return transport
 	}
-	transport.DisableCompression = true
-	return transport
+
+	return rt
 }
 
 type userAgentTransport struct {

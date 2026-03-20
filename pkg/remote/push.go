@@ -46,7 +46,7 @@ func Push(ctx context.Context, reference string) error {
 		return fmt.Errorf("parsing registry reference %s: %w", reference, err)
 	}
 
-	if err := crane.Push(img, ref.String(), crane.WithContext(ctx), crane.WithTransport(newTransport(ctx))); err != nil {
+	if err := crane.Push(img, ref.String(), crane.WithContext(ctx), crane.WithTransport(NewTransport(ctx))); err != nil {
 		return fmt.Errorf("pushing image to registry %s: %w", reference, err)
 	}
 

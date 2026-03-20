@@ -17,7 +17,7 @@ func TestNewTransport_UsesDesktopProxyWhenAvailable(t *testing.T) {
 	ctx := t.Context()
 
 	// Create a transport
-	transport := newTransport(ctx)
+	transport := NewTransport(ctx)
 	require.NotNil(t, transport)
 
 	// Verify that it's an http.Transport
@@ -43,7 +43,7 @@ func TestNewTransport_WorksWithoutDesktopProxy(t *testing.T) {
 	ctx := t.Context()
 
 	// Create a transport (should work whether Desktop is running or not)
-	transport := newTransport(ctx)
+	transport := NewTransport(ctx)
 	require.NotNil(t, transport)
 
 	// Make a simple HTTP request to verify the transport works

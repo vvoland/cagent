@@ -229,7 +229,7 @@ func (a urlSource) Read(ctx context.Context) ([]byte, error) {
 	// Add GitHub token authorization for GitHub URLs
 	a.addGitHubAuth(ctx, req)
 
-	resp, err := httpclient.NewHTTPClient().Do(req)
+	resp, err := httpclient.NewHTTPClient(ctx).Do(req)
 	if err != nil {
 		// Network error - try to use cached version
 		if cachedData, cacheErr := os.ReadFile(cachePath); cacheErr == nil {

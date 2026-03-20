@@ -163,7 +163,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 		slog.Debug("Anthropic API key found, creating client")
 		requestOptions := []option.RequestOption{
 			option.WithAPIKey(authToken),
-			option.WithHTTPClient(httpclient.NewHTTPClient()),
+			option.WithHTTPClient(httpclient.NewHTTPClient(ctx)),
 		}
 		if cfg.BaseURL != "" {
 			requestOptions = append(requestOptions, option.WithBaseURL(cfg.BaseURL))
@@ -210,7 +210,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 				option.WithAuthToken(authToken),
 				option.WithAPIKey(authToken),
 				option.WithBaseURL(baseURL),
-				option.WithHTTPClient(httpclient.NewHTTPClient(httpOptions...)),
+				option.WithHTTPClient(httpclient.NewHTTPClient(ctx, httpOptions...)),
 			)
 
 			return client, nil
