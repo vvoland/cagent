@@ -1,12 +1,16 @@
 package httpclient
 
 import (
+	"context"
 	"fmt"
 	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"runtime"
 
+	"github.com/docker/docker-agent/pkg/desktop"
+	socket "github.com/docker/docker-agent/pkg/desktop/socket"
 	"github.com/docker/docker-agent/pkg/version"
 )
 
@@ -95,13 +99,25 @@ func WithQuery(query url.Values) Opt {
 	}
 }
 
-// newTransport returns an HTTP transport with automatic gzip compression disabled.
+// newTransport returns an HTTP transport with automatic gzip compression disabled and using Docker Desktop proxy if available.
 func newTransport() http.RoundTripper {
 	t, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
 		return http.DefaultTransport
 	}
 	transport := t.Clone()
+
+	if desktop.IsDockerDesktopRunning(context.Background()) {
+		// Route all traffic through Docker Desktop's HTTP proxy socket
+		// Set a dummy proxy URL - the actual connection happens via DialContext
+		transport.Proxy = http.ProxyURL(&url.URL{
+			Scheme: "http",
+		})
+		// Override the dialer to connect to the Unix socket for the proxy
+		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return socket.DialUnix(desktop.Paths().ProxySocket)
+		}
+	}
 	transport.DisableCompression = true
 	return transport
 }

@@ -12,6 +12,7 @@ func getDockerDesktopPaths() (DockerDesktopPaths, error) {
 		// Inside LinuxKit
 		return DockerDesktopPaths{
 			BackendSocket: "/run/host-services/backend.sock",
+			ProxySocket:   "/run/host-services/httpproxy.sock",
 		}, nil
 	}
 
