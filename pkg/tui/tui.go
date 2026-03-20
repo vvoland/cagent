@@ -702,6 +702,10 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// /new spawns a new tab when a session spawner is configured.
 		return m.handleSpawnSession("")
 
+	case messages.ClearSessionMsg:
+		// /clear resets the current tab with a fresh session in the same working dir.
+		return m.handleClearSession()
+
 	// --- Exit ---
 
 	case messages.ExitSessionMsg:
@@ -1114,6 +1118,46 @@ func (m *appModel) replaceActiveSession(ctx context.Context, sess *session.Sessi
 
 	cmd := m.initAndFocusComponents()
 	return m, cmd
+}
+
+// handleClearSession resets the current tab by creating a fresh session
+// in the same working directory.
+func (m *appModel) handleClearSession() (tea.Model, tea.Cmd) {
+	activeID := m.supervisor.ActiveID()
+
+	// Cleanup old editor for the active session.
+	if ed, ok := m.editors[activeID]; ok {
+		ed.Cleanup()
+	}
+
+	// Create a fresh session in the same app, preserving the working dir.
+	m.application.NewSession()
+	newSess := m.application.Session()
+
+	// Rebuild all per-session UI components.
+	m.initSessionComponents(activeID, m.application, newSess)
+	m.dialogMgr = dialog.New()
+	m.supervisor.SetRunnerTitle(activeID, "")
+	m.sessionState.SetSessionTitle("")
+	m.sessionState.SetPreviousMessage(nil)
+
+	// Update persisted tab to point to the new session.
+	if m.tuiStore != nil {
+		ctx := context.Background()
+		oldPersistedID := m.persistedSessionID(activeID)
+		if err := m.tuiStore.UpdateTabSessionID(ctx, oldPersistedID, newSess.ID); err != nil {
+			slog.Warn("Failed to update tab session ID after clear", "error", err)
+		}
+	}
+	m.persistActiveTab(newSess.ID)
+
+	m.reapplyKeyboardEnhancements()
+
+	return m, tea.Sequence(
+		m.chatPage.Init(),
+		m.resizeAll(),
+		m.editor.Focus(),
+	)
 }
 
 // handleSpawnSession spawns a new session.

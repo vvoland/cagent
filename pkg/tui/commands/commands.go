@@ -38,6 +38,16 @@ type Item struct {
 func builtInSessionCommands() []Item {
 	cmds := []Item{
 		{
+			ID:           "session.clear",
+			Label:        "Clear",
+			SlashCommand: "/clear",
+			Description:  "Clear the current tab and start a new session",
+			Category:     "Session",
+			Execute: func(string) tea.Cmd {
+				return core.CmdHandler(messages.ClearSessionMsg{})
+			},
+		},
+		{
 			ID:           "session.attach",
 			Label:        "Attach",
 			SlashCommand: "/attach",
