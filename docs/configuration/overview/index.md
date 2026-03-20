@@ -164,7 +164,7 @@ API keys and secrets are read from environment variables — never stored in con
 
 docker-agent validates your configuration at startup:
 
-- All `sub_agents` must reference agents defined in the config
+- Local `sub_agents` must reference agents defined in the config (external OCI references like `agentcatalog/pirate` are pulled from registries automatically)
 - Named model references must exist in the `models` section
 - Provider names must be valid (`openai`, `anthropic`, `google`, `dmr`, etc.)
 - Required environment variables (API keys) must be set

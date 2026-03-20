@@ -183,6 +183,42 @@ list_background_agents()
 view_background_agent(task_id="agent_task_abc123")
 ```
 
+## External Sub-Agents from Registries
+
+Sub-agents don't have to be defined locally — you can reference agents from OCI registries (such as the [Docker Agent Catalog](https://hub.docker.com/u/agentcatalog)) directly in your `sub_agents` list. This lets you compose teams using pre-built, shared agents without duplicating their configuration.
+
+```yaml
+agents:
+  root:
+    model: openai/gpt-4o
+    description: Coordinator that delegates to local and catalog sub-agents
+    instruction: |
+      Delegate tasks to the most appropriate sub-agent.
+    sub_agents:
+      - local_helper
+      - agentcatalog/pirate # pulled from registry automatically
+
+  local_helper:
+    model: openai/gpt-4o
+    description: A local helper agent for simple tasks
+    instruction: You are a helpful assistant.
+```
+
+External sub-agents are automatically named after their last path segment — for example, `agentcatalog/pirate` becomes `pirate`. You can also give them an explicit name using the `name:reference` syntax:
+
+```yaml
+    sub_agents:
+      - my_pirate:agentcatalog/pirate  # available as "my_pirate"
+      - reviewer:docker.io/myorg/review-agent:latest
+```
+
+<div class="callout callout-tip">
+<div class="callout-title">💡 Tip
+</div>
+  <p>External sub-agents work with any OCI-compatible registry, not just the Docker Agent Catalog. See <a href="{{ '/concepts/distribution/' | relative_url }}">Agent Distribution</a> for more on registry references.</p>
+
+</div>
+
 ## Example: Development Team
 
 ```yaml
