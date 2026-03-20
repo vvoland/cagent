@@ -68,7 +68,7 @@ func TestPullIntegration(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, retrievedImg)
 
-	err = Push("invalid:reference:with:too:many:colons")
+	err = Push(t.Context(), "invalid:reference:with:too:many:colons")
 	require.Error(t, err)
 }
 

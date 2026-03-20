@@ -51,7 +51,7 @@ func runPushCommand(cmd *cobra.Command, args []string) error {
 
 	out.Printf("Pushing agent %s to %s\n", agentFilename, tag)
 
-	err = remote.Push(tag)
+	err = remote.Push(ctx, tag)
 	if err != nil {
 		return fmt.Errorf("failed to push artifact: %w", err)
 	}
