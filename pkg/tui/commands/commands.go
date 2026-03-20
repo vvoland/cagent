@@ -32,6 +32,7 @@ type Item struct {
 	Category     string
 	SlashCommand string
 	Execute      ExecuteFunc
+	Hidden       bool // Hidden commands work as slash commands but don't appear in the palette
 }
 
 func builtInSessionCommands() []Item {
@@ -118,8 +119,9 @@ func builtInSessionCommands() []Item {
 		},
 		{
 			ID:           "session.q",
-			Label:        "Quit (short)",
+			Label:        "Quit",
 			SlashCommand: "/q",
+			Hidden:       true,
 			Description:  "Quit the application (alias for /exit)",
 			Category:     "Session",
 			Execute: func(string) tea.Cmd {
@@ -281,6 +283,17 @@ func builtInFeedbackCommands() []Item {
 	}
 }
 
+// visibleOnly returns items that are not hidden.
+func visibleOnly(items []Item) []Item {
+	visible := make([]Item, 0, len(items))
+	for _, item := range items {
+		if !item.Hidden {
+			visible = append(visible, item)
+		}
+	}
+	return visible
+}
+
 // sortByLabel returns items sorted alphabetically by label.
 func sortByLabel(items []Item) []Item {
 	slices.SortFunc(items, func(a, b Item) int {
@@ -330,7 +343,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 
 		categories = append(categories, Category{
 			Name:     "Agent Commands",
-			Commands: sortByLabel(commands),
+			Commands: commands,
 		})
 	}
 
@@ -402,7 +415,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 
 		categories = append(categories, Category{
 			Name:     "MCP Prompts",
-			Commands: sortByLabel(mcpCommands),
+			Commands: mcpCommands,
 		})
 	}
 
@@ -432,7 +445,7 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 
 		categories = append(categories, Category{
 			Name:     "Skills",
-			Commands: sortByLabel(skillCommands),
+			Commands: skillCommands,
 		})
 	}
 
@@ -447,6 +460,11 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 			Commands: builtInFeedbackCommands(),
 		},
 	)
+
+	// Filter out hidden commands and sort by label in all categories.
+	for i := range categories {
+		categories[i].Commands = sortByLabel(visibleOnly(categories[i].Commands))
+	}
 
 	return categories
 }
