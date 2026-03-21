@@ -68,14 +68,14 @@ func (d *toolsDialog) renderLines(contentWidth, _ int) []string {
 		}
 
 		name := lipgloss.NewStyle().Foreground(styles.Highlight).Render("  " + t.DisplayName())
-		if t.Description != "" {
+		if desc, _, _ := strings.Cut(t.Description, "\n"); desc != "" {
 			separator := " • "
 			separatorWidth := lipgloss.Width(separator)
 			nameWidth := lipgloss.Width(name)
 			availableWidth := contentWidth - nameWidth - separatorWidth
 			if availableWidth > 0 {
-				desc := toolcommon.TruncateText(t.Description, availableWidth)
-				name += styles.MutedStyle.Render(separator + desc)
+				truncated := toolcommon.TruncateText(desc, availableWidth)
+				name += styles.MutedStyle.Render(separator + truncated)
 			}
 		}
 		lines = append(lines, name)
