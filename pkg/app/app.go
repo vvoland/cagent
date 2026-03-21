@@ -572,6 +572,30 @@ func (a *App) NewSession() {
 	// Clear first message so it won't be re-sent on re-init
 	a.firstMessage = nil
 	a.firstMessageAttach = ""
+
+	// Re-emit startup info so the sidebar shows agent/tools info in the new session
+	a.reEmitStartupInfo(context.Background())
+}
+
+// reEmitStartupInfo resets and re-emits startup info (agent, team, tools)
+// through the events channel so the sidebar updates.
+func (a *App) reEmitStartupInfo(ctx context.Context) {
+	a.runtime.ResetStartupInfo()
+	go func() {
+		startupEvents := make(chan runtime.Event, 10)
+		go func() {
+			defer close(startupEvents)
+			a.runtime.EmitStartupInfo(ctx, a.session, startupEvents)
+		}()
+		for event := range startupEvents {
+			select {
+			case a.events <- event:
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+	}()
 }
 
 func (a *App) Session() *session.Session {
@@ -672,21 +696,7 @@ func (a *App) SetCurrentAgentModel(ctx context.Context, modelRef string) error {
 	}
 
 	// Re-emit startup info so the sidebar updates with the new model
-	a.runtime.ResetStartupInfo()
-	go func() {
-		startupEvents := make(chan runtime.Event, 10)
-		go func() {
-			defer close(startupEvents)
-			a.runtime.EmitStartupInfo(ctx, a.session, startupEvents)
-		}()
-		for event := range startupEvents {
-			select {
-			case a.events <- event:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
+	a.reEmitStartupInfo(ctx)
 
 	return nil
 }
@@ -846,21 +856,7 @@ func (a *App) ReplaceSession(ctx context.Context, sess *session.Session) {
 	a.applySessionModelOverrides(ctx, sess)
 
 	// Reset and re-emit startup info so the sidebar shows agent/tools info
-	a.runtime.ResetStartupInfo()
-	go func() {
-		startupEvents := make(chan runtime.Event, 10)
-		go func() {
-			defer close(startupEvents)
-			a.runtime.EmitStartupInfo(ctx, a.session, startupEvents)
-		}()
-		for event := range startupEvents {
-			select {
-			case a.events <- event:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
+	a.reEmitStartupInfo(ctx)
 }
 
 // applySessionModelOverrides applies any stored model overrides from a loaded session.
