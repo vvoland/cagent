@@ -558,12 +558,12 @@ type RAGIndexingStartedEvent struct {
 	StrategyName string `json:"strategy_name"`
 }
 
-func RAGIndexingStarted(ragName, strategyName, agentName string) Event {
+func RAGIndexingStarted(ragName, strategyName string) Event {
 	return &RAGIndexingStartedEvent{
 		Type:         "rag_indexing_started",
 		RAGName:      ragName,
 		StrategyName: strategyName,
-		AgentContext: newAgentContext(agentName),
+		AgentContext: newAgentContext(""),
 	}
 }
 
@@ -596,12 +596,12 @@ type RAGIndexingCompletedEvent struct {
 	StrategyName string `json:"strategy_name"`
 }
 
-func RAGIndexingCompleted(ragName, strategyName, agentName string) Event {
+func RAGIndexingCompleted(ragName, strategyName string) Event {
 	return &RAGIndexingCompletedEvent{
 		Type:         "rag_indexing_completed",
 		RAGName:      ragName,
 		StrategyName: strategyName,
-		AgentContext: newAgentContext(agentName),
+		AgentContext: newAgentContext(""),
 	}
 }
 

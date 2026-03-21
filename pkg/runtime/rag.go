@@ -50,13 +50,13 @@ func (r *LocalRuntime) forwardRAGEvents(ctx context.Context, ragManagers []*rag.
 
 					switch ragEvent.Type {
 					case types.EventTypeIndexingStarted:
-						sendEvent(RAGIndexingStarted(ragName, ragEvent.StrategyName, agentName))
+						sendEvent(RAGIndexingStarted(ragName, ragEvent.StrategyName))
 					case types.EventTypeIndexingProgress:
 						if ragEvent.Progress != nil {
 							sendEvent(RAGIndexingProgress(ragName, ragEvent.StrategyName, ragEvent.Progress.Current, ragEvent.Progress.Total, agentName))
 						}
 					case types.EventTypeIndexingComplete:
-						sendEvent(RAGIndexingCompleted(ragName, ragEvent.StrategyName, agentName))
+						sendEvent(RAGIndexingCompleted(ragName, ragEvent.StrategyName))
 					case types.EventTypeUsage:
 						// Convert RAG usage to TokenUsageEvent so TUI displays it
 						sendEvent(NewTokenUsageEvent("", agentName, &Usage{
