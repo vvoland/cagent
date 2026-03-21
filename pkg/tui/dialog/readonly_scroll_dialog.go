@@ -1,6 +1,8 @@
 package dialog
 
 import (
+	"strings"
+
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -35,6 +37,12 @@ type readOnlyScrollDialog struct {
 	render     contentRenderer
 	helpKeys   []string // pairs of [key, description] for the footer
 }
+
+// Dialog chrome: border (top+bottom=2) + padding (top+bottom=2).
+const dialogChrome = 4
+
+// Fixed lines outside the scrollable region: header (title + separator + space) + footer (space + help).
+const fixedLines = 5
 
 // newReadOnlyScrollDialog creates a new read-only scrollable dialog.
 func newReadOnlyScrollDialog(
@@ -75,37 +83,68 @@ func (d *readOnlyScrollDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	return d, nil
 }
 
-func (d *readOnlyScrollDialog) dialogSize() (dialogWidth, maxHeight, contentWidth int) {
+func (d *readOnlyScrollDialog) dialogWidth() (dialogWidth, contentWidth int) {
 	s := d.size
 	dialogWidth = d.ComputeDialogWidth(s.widthPercent, s.minWidth, s.maxWidth)
-	maxHeight = min(d.Height()*s.heightPercent/100, s.heightMax)
 	contentWidth = d.ContentWidth(dialogWidth, 2) - d.scrollview.ReservedCols()
-	return dialogWidth, maxHeight, contentWidth
+	return dialogWidth, contentWidth
+}
+
+// maxViewport returns the maximum number of scrollable lines that fit.
+func (d *readOnlyScrollDialog) maxViewport() int {
+	s := d.size
+	maxHeight := min(d.Height()*s.heightPercent/100, s.heightMax)
+	return max(1, maxHeight-fixedLines-dialogChrome)
+}
+
+// dialogHeight computes the actual dialog height based on content and viewport.
+func (d *readOnlyScrollDialog) dialogHeight(contentLineCount int) int {
+	s := d.size
+	maxHeight := min(d.Height()*s.heightPercent/100, s.heightMax)
+	needed := contentLineCount + fixedLines + dialogChrome
+	return min(needed, maxHeight)
 }
 
 func (d *readOnlyScrollDialog) Position() (row, col int) {
-	dialogWidth, maxHeight, _ := d.dialogSize()
-	return CenterPosition(d.Width(), d.Height(), dialogWidth, maxHeight)
+	dw, _ := d.dialogWidth()
+	// Use max possible height for stable centering.
+	s := d.size
+	maxHeight := min(d.Height()*s.heightPercent/100, s.heightMax)
+	return CenterPosition(d.Width(), d.Height(), dw, maxHeight)
 }
 
 func (d *readOnlyScrollDialog) View() string {
-	dialogWidth, maxHeight, contentWidth := d.dialogSize()
-	allLines := d.render(contentWidth, maxHeight)
+	dialogWidth, contentWidth := d.dialogWidth()
+	maxViewport := d.maxViewport()
+	allLines := d.render(contentWidth, maxViewport)
 
 	const headerLines = 3 // title + separator + space
 	contentLines := allLines[headerLines:]
 
+	// Viewport: show all content if it fits, otherwise cap at maxViewport.
+	viewport := min(len(contentLines), maxViewport)
+
 	regionWidth := contentWidth + d.scrollview.ReservedCols()
-	visibleLines := max(1, maxHeight-headerLines-2-4) // 2 = footer (space + help), 4 = dialog chrome
-	d.scrollview.SetSize(regionWidth, visibleLines)
+	d.scrollview.SetSize(regionWidth, viewport)
 
 	dialogRow, dialogCol := d.Position()
 	d.scrollview.SetPosition(dialogCol+3, dialogRow+2+headerLines)
 	d.scrollview.SetContent(contentLines, len(contentLines))
 
-	parts := append(allLines[:headerLines], d.scrollview.View())
+	// Use ViewWithLines to guarantee exactly `viewport` lines of output.
+	scrollOut := d.scrollview.View()
+	scrollOutLines := strings.Split(scrollOut, "\n")
+	for len(scrollOutLines) < viewport {
+		scrollOutLines = append(scrollOutLines, "")
+	}
+	scrollOutLines = scrollOutLines[:viewport]
+
+	parts := make([]string, 0, headerLines+viewport+2)
+	parts = append(parts, allLines[:headerLines]...)
+	parts = append(parts, scrollOutLines...)
 	parts = append(parts, "", RenderHelpKeys(regionWidth, d.helpKeys...))
 
+	height := d.dialogHeight(len(contentLines))
 	content := lipgloss.JoinVertical(lipgloss.Left, parts...)
-	return styles.DialogStyle.Padding(1, 2).Width(dialogWidth).Render(content)
+	return styles.DialogStyle.Padding(1, 2).Width(dialogWidth).Height(height).MaxHeight(height).Render(content)
 }
