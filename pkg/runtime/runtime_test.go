@@ -550,12 +550,8 @@ func TestStartBackgroundRAGInit_StopsForwardingAfterContextCancel(t *testing.T) 
 		_ = mgr.Close()
 	}()
 
-	tm := team.New(team.WithRAGManagers(map[string]*rag.Manager{
-		"default": mgr,
-	}))
-
 	rt := &LocalRuntime{
-		team:         tm,
+		team:         team.New(team.WithRAGManagers([]*rag.Manager{mgr})),
 		currentAgent: "root",
 	}
 
