@@ -210,6 +210,16 @@ func builtInSessionCommands() []Item {
 		},
 
 		{
+			ID:           "session.tools",
+			Label:        "Tools",
+			SlashCommand: "/tools",
+			Description:  "Show all tools available to the current agent",
+			Category:     "Session",
+			Execute: func(string) tea.Cmd {
+				return core.CmdHandler(messages.ShowToolsDialogMsg{})
+			},
+		},
+		{
 			ID:           "session.title",
 			Label:        "Title",
 			SlashCommand: "/title",

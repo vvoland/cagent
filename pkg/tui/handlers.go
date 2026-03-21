@@ -311,6 +311,16 @@ func (m *appModel) handleShowPermissionsDialog() (tea.Model, tea.Cmd) {
 	})
 }
 
+func (m *appModel) handleShowToolsDialog() (tea.Model, tea.Cmd) {
+	agentTools, err := m.application.CurrentAgentTools(context.Background())
+	if err != nil {
+		return m, notification.ErrorCmd(fmt.Sprintf("Failed to load tools: %v", err))
+	}
+	return m, core.CmdHandler(dialog.OpenDialogMsg{
+		Model: dialog.NewToolsDialog(agentTools),
+	})
+}
+
 // --- MCP prompts ---
 
 func (m *appModel) handleShowMCPPromptInput(promptName string, promptInfo any) (tea.Model, tea.Cmd) {

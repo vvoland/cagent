@@ -21,4 +21,7 @@ type (
 
 	// ShowPermissionsDialogMsg shows the permissions dialog.
 	ShowPermissionsDialogMsg struct{}
+
+	// ShowToolsDialogMsg shows the tools dialog.
+	ShowToolsDialogMsg struct{}
 )
