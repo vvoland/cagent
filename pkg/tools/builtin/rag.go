@@ -23,6 +23,7 @@ type RAGTool struct {
 var (
 	_ tools.ToolSet      = (*RAGTool)(nil)
 	_ tools.Instructable = (*RAGTool)(nil)
+	_ tools.Startable    = (*RAGTool)(nil)
 )
 
 // NewRAGTool creates a new RAG tool for a single RAG manager
@@ -43,6 +44,32 @@ type QueryResult struct {
 	Content    string  `json:"content" jsonschema:"Relevant document chunk content"`
 	Similarity float64 `json:"similarity" jsonschema:"Similarity score (0-1)"`
 	ChunkIndex int     `json:"chunk_index" jsonschema:"Index of the chunk within the source document"`
+}
+
+// Start initializes the RAG manager (indexes documents).
+func (t *RAGTool) Start(ctx context.Context) error {
+	if t.manager == nil {
+		return nil
+	}
+	slog.Debug("Starting RAG tool initialization", "tool", t.toolName)
+	if err := t.manager.Initialize(ctx); err != nil {
+		return fmt.Errorf("failed to initialize RAG manager %q: %w", t.toolName, err)
+	}
+	// Start file watcher in background
+	go func() {
+		if err := t.manager.StartFileWatcher(ctx); err != nil {
+			slog.Error("Failed to start RAG file watcher", "tool", t.toolName, "error", err)
+		}
+	}()
+	return nil
+}
+
+// Stop closes the RAG manager and releases resources.
+func (t *RAGTool) Stop(_ context.Context) error {
+	if t.manager == nil {
+		return nil
+	}
+	return t.manager.Close()
 }
 
 func (t *RAGTool) Instructions() string {

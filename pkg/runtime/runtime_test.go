@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,10 +18,6 @@ import (
 	"github.com/docker/docker-agent/pkg/model/provider/base"
 	"github.com/docker/docker-agent/pkg/modelsdev"
 	"github.com/docker/docker-agent/pkg/permissions"
-	"github.com/docker/docker-agent/pkg/rag"
-	"github.com/docker/docker-agent/pkg/rag/database"
-	"github.com/docker/docker-agent/pkg/rag/strategy"
-	ragtypes "github.com/docker/docker-agent/pkg/rag/types"
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/team"
 	"github.com/docker/docker-agent/pkg/tools"
@@ -499,101 +494,6 @@ func TestContextCancellation(t *testing.T) {
 	require.IsType(t, &UserMessageEvent{}, events[2])
 	require.IsType(t, &StreamStartedEvent{}, events[3])
 	require.IsType(t, &StreamStoppedEvent{}, events[len(events)-1])
-}
-
-// stubRAGStrategy is a minimal implementation of strategy.Strategy for testing RAG initialization.
-type stubRAGStrategy struct{}
-
-func (s *stubRAGStrategy) Initialize(_ context.Context, _ []string, _ strategy.ChunkingConfig) error {
-	return nil
-}
-
-func (s *stubRAGStrategy) Query(_ context.Context, _ string, _ int, _ float64) ([]database.SearchResult, error) {
-	return nil, nil
-}
-
-func (s *stubRAGStrategy) CheckAndReindexChangedFiles(_ context.Context, _ []string, _ strategy.ChunkingConfig) error {
-	return nil
-}
-
-func (s *stubRAGStrategy) StartFileWatcher(_ context.Context, _ []string, _ strategy.ChunkingConfig) error {
-	return nil
-}
-
-func (s *stubRAGStrategy) Close() error { return nil }
-
-func TestStartBackgroundRAGInit_StopsForwardingAfterContextCancel(t *testing.T) {
-	t.Parallel()
-
-	baseCtx := t.Context()
-	ctx, cancel := context.WithCancel(baseCtx)
-	defer cancel()
-
-	// Build a RAG manager with a stub strategy and a controllable event channel.
-	strategyEvents := make(chan ragtypes.Event, 10)
-	mgr, err := rag.New(
-		ctx,
-		"test-rag",
-		rag.Config{
-			StrategyConfigs: []strategy.Config{
-				{
-					Name:     "stub",
-					Strategy: &stubRAGStrategy{},
-					Docs:     nil,
-				},
-			},
-		},
-		strategyEvents,
-	)
-	require.NoError(t, err)
-	defer func() {
-		_ = mgr.Close()
-	}()
-
-	rt := &LocalRuntime{
-		team:         team.New(team.WithRAGManagers([]*rag.Manager{mgr})),
-		currentAgent: "root",
-	}
-
-	eventsCh := make(chan Event, 10)
-
-	// Start background RAG init with event forwarding.
-	rt.StartBackgroundRAGInit(ctx, func(ev Event) {
-		eventsCh <- ev
-	})
-
-	// Emit an "indexing_completed" event and ensure it is forwarded.
-	strategyEvents <- ragtypes.Event{
-		Type:         ragtypes.EventTypeIndexingComplete,
-		StrategyName: "stub",
-	}
-
-	select {
-	case <-eventsCh:
-		// ok: at least one event forwarded
-	case <-time.After(100 * time.Millisecond):
-		t.Fatalf("expected RAG event to be forwarded before cancellation")
-	}
-
-	// Cancel the context and ensure no further events are forwarded.
-	cancel()
-
-	// Brief yield to allow the forwarder goroutine to observe cancellation.
-	// This is a timing-based negative test: we verify no event is forwarded.
-	time.Sleep(10 * time.Millisecond)
-
-	// Emit another event; it should NOT be forwarded.
-	strategyEvents <- ragtypes.Event{
-		Type:         ragtypes.EventTypeIndexingComplete,
-		StrategyName: "stub",
-	}
-
-	select {
-	case ev := <-eventsCh:
-		t.Fatalf("expected no events after cancellation, got %T", ev)
-	case <-time.After(20 * time.Millisecond):
-		// success: no events forwarded
-	}
 }
 
 func TestToolCallVariations(t *testing.T) {

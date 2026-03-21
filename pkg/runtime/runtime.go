@@ -8,7 +8,6 @@ import (
 	"maps"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -184,7 +183,6 @@ type LocalRuntime struct {
 	elicitationRequestCh        chan ElicitationResult // Channel for receiving elicitation responses
 	elicitationEventsChannel    chan Event             // Current events channel for sending elicitation requests
 	elicitationEventsChannelMux sync.RWMutex           // Protects elicitationEventsChannel
-	ragInitialized              atomic.Bool
 	sessionStore                session.Store
 	workingDir                  string   // Working directory for hooks execution
 	env                         []string // Environment variables for hooks execution

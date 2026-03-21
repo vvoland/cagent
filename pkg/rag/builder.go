@@ -25,6 +25,8 @@ type ManagersBuildConfig struct {
 }
 
 // NewManagers constructs all RAG managers defined in the config.
+//
+// Deprecated: Use NewManager for per-toolset creation instead.
 func NewManagers(ctx context.Context, cfg *latest.Config, buildCfg ManagersBuildConfig) ([]*Manager, error) {
 	if len(cfg.RAG) == 0 {
 		return nil, nil
@@ -32,52 +34,72 @@ func NewManagers(ctx context.Context, cfg *latest.Config, buildCfg ManagersBuild
 
 	var managers []*Manager
 
-	for ragName, ragCfg := range cfg.RAG {
-		// Validate that we have at least one strategy
-		if len(ragCfg.Strategies) == 0 {
-			return nil, fmt.Errorf("no strategies configured for RAG %q", ragName)
+	for ragName, ragToolset := range cfg.RAG {
+		if ragToolset.RAGConfig == nil {
+			continue
 		}
-
-		// Build context for strategy builders
-		strategyBuildCtx := strategy.BuildContext{
-			RAGName:       ragName,
-			ParentDir:     buildCfg.ParentDir,
-			SharedDocs:    GetAbsolutePaths(buildCfg.ParentDir, ragCfg.Docs),
-			Models:        buildCfg.Models,
-			Env:           buildCfg.Env,
-			ModelsGateway: buildCfg.ModelsGateway,
-			RespectVCS:    ragCfg.GetRespectVCS(),
-		}
-
-		strategyConfigs, strategyEvents, err := buildStrategyConfigs(ctx, ragCfg, strategyBuildCtx, ragName)
+		mgr, err := NewManager(ctx, ragName, ragToolset.RAGConfig, buildCfg)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build strategy configs for RAG %q: %w", ragName, err)
+			return nil, err
 		}
-
-		managerCfg, err := buildManagerConfig(ctx, ragCfg, buildCfg, strategyConfigs)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build manager config for RAG %q: %w", ragName, err)
-		}
-
-		// The strategyEvents channel is so the manager can convert strategy events to RAG events.
-		manager, err := New(ctx, ragName, managerCfg, strategyEvents)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create RAG manager %q: %w", ragName, err)
-		}
-
-		managers = append(managers, manager)
-
-		strategyNames := make([]string, len(strategyConfigs))
-		for i, sc := range strategyConfigs {
-			strategyNames[i] = sc.Name
-		}
-		slog.Debug("Created RAG manager",
-			"name", ragName,
-			"strategies", strategyNames,
-			"docs", len(managerCfg.Docs))
+		managers = append(managers, mgr)
 	}
 
 	return managers, nil
+}
+
+// NewManager constructs a single RAG manager from a RAGConfig.
+func NewManager(
+	ctx context.Context,
+	ragName string,
+	ragCfg *latest.RAGConfig,
+	buildCfg ManagersBuildConfig,
+) (*Manager, error) {
+	if ragCfg == nil {
+		return nil, fmt.Errorf("nil RAG config for %q", ragName)
+	}
+
+	// Validate that we have at least one strategy
+	if len(ragCfg.Strategies) == 0 {
+		return nil, fmt.Errorf("no strategies configured for RAG %q", ragName)
+	}
+
+	// Build context for strategy builders
+	strategyBuildCtx := strategy.BuildContext{
+		RAGName:       ragName,
+		ParentDir:     buildCfg.ParentDir,
+		SharedDocs:    GetAbsolutePaths(buildCfg.ParentDir, ragCfg.Docs),
+		Models:        buildCfg.Models,
+		Env:           buildCfg.Env,
+		ModelsGateway: buildCfg.ModelsGateway,
+		RespectVCS:    ragCfg.GetRespectVCS(),
+	}
+
+	strategyConfigs, strategyEvents, err := buildStrategyConfigs(ctx, *ragCfg, strategyBuildCtx, ragName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build strategy configs for RAG %q: %w", ragName, err)
+	}
+
+	managerCfg, err := buildManagerConfig(ctx, *ragCfg, buildCfg, strategyConfigs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build manager config for RAG %q: %w", ragName, err)
+	}
+
+	manager, err := New(ctx, ragName, managerCfg, strategyEvents)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create RAG manager %q: %w", ragName, err)
+	}
+
+	strategyNames := make([]string, len(strategyConfigs))
+	for i, sc := range strategyConfigs {
+		strategyNames[i] = sc.Name
+	}
+	slog.Debug("Created RAG manager",
+		"name", ragName,
+		"strategies", strategyNames,
+		"docs", len(managerCfg.Docs))
+
+	return manager, nil
 }
 
 // buildManagerConfig constructs a rag.Manager Config from the configuration and strategies.

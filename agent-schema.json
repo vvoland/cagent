@@ -59,9 +59,9 @@
     },
     "rag": {
       "type": "object",
-      "description": "Map of RAG (Retrieval-Augmented Generation) configurations",
+      "description": "Map of reusable RAG source definitions. Define RAG sources here and reference them by name from agent toolsets to avoid duplication.",
       "additionalProperties": {
-        "$ref": "#/definitions/RAGConfig"
+        "$ref": "#/definitions/RAGToolset"
       }
     },
     "metadata": {
@@ -298,13 +298,6 @@
             "schema"
           ],
           "additionalProperties": false
-        },
-        "rag": {
-          "type": "array",
-          "description": "List of RAG sources to use for this agent",
-          "items": {
-            "type": "string"
-          }
         },
         "add_description_parameter": {
           "type": "boolean",
@@ -807,6 +800,51 @@
       ],
       "additionalProperties": false
     },
+    "RAGToolset": {
+      "type": "object",
+      "description": "Reusable RAG source definition. Define once at the top level and reference by name from agent toolsets. RAG config fields (tool, docs, strategies, results, respect_vcs) are specified directly alongside toolset fields.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/RAGConfig"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "instruction": {
+              "type": "string",
+              "description": "Custom instruction for this RAG source"
+            },
+            "tools": {
+              "type": "array",
+              "description": "Optional list of tools to expose",
+              "items": {
+                "type": "string"
+              }
+            },
+            "name": {
+              "type": "string",
+              "description": "Optional display name override for the RAG tool"
+            },
+            "defer": {
+              "description": "Deferred loading configuration",
+              "oneOf": [
+                {
+                  "type": "boolean",
+                  "description": "Set to true to defer all tools"
+                },
+                {
+                  "type": "array",
+                  "description": "Array of tool names to defer",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
     "Toolset": {
       "type": "object",
       "description": "Tool configuration",
@@ -830,7 +868,8 @@
             "user_prompt",
             "openapi",
             "model_picker",
-            "background_agents"
+            "background_agents",
+            "rag"
           ]
         },
         "instruction": {
@@ -909,6 +948,10 @@
         "api_config": {
           "$ref": "#/definitions/ApiConfig",
           "description": "API tool configuration"
+        },
+        "rag_config": {
+          "$ref": "#/definitions/RAGConfig",
+          "description": "RAG configuration for type: rag toolsets"
         },
         "ignore_vcs": {
           "type": "boolean",
@@ -1117,6 +1160,13 @@
           "properties": {
             "type": {
               "const": "background_agents"
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "const": "rag"
             }
           }
         }
