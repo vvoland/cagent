@@ -3,6 +3,44 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.36.0] - 2026-03-20
+
+This release adds WebSocket transport support for OpenAI streaming, introduces configurable tool call token limits, and improves the command-line interface with new session management capabilities.
+
+## What's New
+
+- Adds WebSocket transport option for OpenAI Responses API streaming as an alternative to SSE
+- Adds `/clear` command to reset current tab with a new session
+- Adds configurable `max_old_tool_call_tokens` setting in agent YAML to control historical tool call content retention
+
+## Improvements
+
+- Hides agent name header when stdout is not a TTY for cleaner piped output
+- Sorts all slash commands by label and hides `/q` alias from dialogs, showing only `/exit` and `/quit`
+- Injects `lastResponseID` as `previous_response_id` in WebSocket requests for better continuity
+
+## Bug Fixes
+
+- Fixes data race on WebSocket pool lazy initialization
+- Fixes panic in WebSocket handling
+
+## Technical Changes
+
+- Removes legacy `syncMessagesColumn` and messages JSON column from database schema
+- Simplifies WebSocket pool code structure
+- Documents external OCI registry agents usage as sub-agents
+
+### Pull Requests
+
+- [#2186](https://github.com/docker/docker-agent/pull/2186) - Add WebSocket transport for OpenAI Responses API streaming
+- [#2192](https://github.com/docker/docker-agent/pull/2192) - feat: make maxOldToolCallTokens configurable in agent YAML
+- [#2195](https://github.com/docker/docker-agent/pull/2195) - docs: document external OCI registry agents as sub-agents
+- [#2196](https://github.com/docker/docker-agent/pull/2196) - Remove syncMessagesColumn and legacy messages JSON column
+- [#2197](https://github.com/docker/docker-agent/pull/2197) - Support `echo "hello" | docker agent | cat`
+- [#2199](https://github.com/docker/docker-agent/pull/2199) - Add /clear command to reset current tab with a new session
+- [#2200](https://github.com/docker/docker-agent/pull/2200) - Hide /q from dialogs and sort all commands by label
+
+
 ## [v1.34.0] - 2026-03-19
 
 This release improves tool call handling and evaluation functionality with several technical fixes and optimizations.
@@ -1472,3 +1510,5 @@ This release improves the terminal user interface with better error handling and
 [v1.33.0]: https://github.com/docker/docker-agent/releases/tag/v1.33.0
 
 [v1.34.0]: https://github.com/docker/docker-agent/releases/tag/v1.34.0
+
+[v1.36.0]: https://github.com/docker/docker-agent/releases/tag/v1.36.0
