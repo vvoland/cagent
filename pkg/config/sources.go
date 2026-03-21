@@ -121,16 +121,24 @@ func (a ociSource) Read(ctx context.Context) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create content store: %w", err)
 	}
 
+	// Normalize the reference so that equivalent forms (e.g.
+	// "agentcatalog/review-pr" and "index.docker.io/agentcatalog/review-pr:latest")
+	// resolve to the same store key that remote.Pull uses.
+	storeKey, err := remote.NormalizeReference(a.reference)
+	if err != nil {
+		return nil, fmt.Errorf("normalizing OCI reference %s: %w", a.reference, err)
+	}
+
 	tryLoad := func() ([]byte, error) {
-		af, err := store.GetArtifact(a.reference)
+		af, err := store.GetArtifact(storeKey)
 		if err != nil {
 			return nil, err
 		}
 		return []byte(af), nil
 	}
 
-	// Check if we have any local metadata (same as before)
-	_, metaErr := store.GetArtifactMetadata(a.reference)
+	// Check if we have any local metadata
+	_, metaErr := store.GetArtifactMetadata(storeKey)
 	hasLocal := metaErr == nil
 
 	// Always try normal pull first (preserves pull-interval behavior)
