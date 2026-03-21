@@ -22,6 +22,17 @@ func NormalizeReference(registryRef string) (string, error) {
 	return ref.Context().RepositoryStr() + separator(ref) + ref.Identifier(), nil
 }
 
+// IsDigestReference reports whether the given reference pins a specific
+// image digest (e.g. "repo@sha256:abc...").
+func IsDigestReference(registryRef string) bool {
+	ref, err := name.ParseReference(registryRef)
+	if err != nil {
+		return false
+	}
+	_, ok := ref.(name.Digest)
+	return ok
+}
+
 // Pull pulls an artifact from a registry and stores it in the content store
 func Pull(ctx context.Context, registryRef string, force bool, opts ...crane.Option) (string, error) {
 	opts = append(opts, crane.WithContext(ctx))

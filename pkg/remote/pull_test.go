@@ -124,6 +124,29 @@ func TestNormalizeReference_InvalidReference(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestIsDigestReference(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		ref      string
+		expected bool
+	}{
+		{"tag reference", "agentcatalog/review-pr:latest", false},
+		{"implicit tag", "agentcatalog/review-pr", false},
+		{"digest reference", "agentcatalog/review-pr@sha256:0000000000000000000000000000000000000000000000000000000000000000", true},
+		{"fully qualified digest", "index.docker.io/agentcatalog/review-pr@sha256:0000000000000000000000000000000000000000000000000000000000000000", true},
+		{"invalid reference", ":::invalid", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, IsDigestReference(tt.ref))
+		})
+	}
+}
+
 func TestSeparator(t *testing.T) {
 	t.Parallel()
 
