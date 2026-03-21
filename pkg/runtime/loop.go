@@ -175,6 +175,24 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				r.executeNotificationHooks(ctx, a, sess.ID, "warning", maxIterMsg)
 				r.executeOnUserInputHooks(ctx, sess.ID, "max iterations reached")
 
+				// In non-interactive mode (e.g. MCP server), auto-stop instead of
+				// blocking forever waiting for user input.
+				if sess.ToolsApproved {
+					slog.Debug("Auto-stopping after max iterations (non-interactive)", "agent", a.Name())
+
+					assistantMessage := chat.Message{
+						Role: chat.MessageRoleAssistant,
+						Content: fmt.Sprintf(
+							"Execution stopped after reaching the configured max_iterations limit (%d).",
+							runtimeMaxIterations,
+						),
+						CreatedAt: time.Now().Format(time.RFC3339),
+					}
+
+					addAgentMessage(sess, a, &assistantMessage, events)
+					return
+				}
+
 				// Wait for user decision (resume / reject)
 				select {
 				case req := <-r.resumeChan:
