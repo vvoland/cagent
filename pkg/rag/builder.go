@@ -25,16 +25,12 @@ type ManagersBuildConfig struct {
 }
 
 // NewManagers constructs all RAG managers defined in the config.
-func NewManagers(
-	ctx context.Context,
-	cfg *latest.Config,
-	buildCfg ManagersBuildConfig,
-) (map[string]*Manager, error) {
-	managers := make(map[string]*Manager)
-
+func NewManagers(ctx context.Context, cfg *latest.Config, buildCfg ManagersBuildConfig) ([]*Manager, error) {
 	if len(cfg.RAG) == 0 {
-		return managers, nil
+		return nil, nil
 	}
+
+	var managers []*Manager
 
 	for ragName, ragCfg := range cfg.RAG {
 		// Validate that we have at least one strategy
@@ -69,7 +65,7 @@ func NewManagers(
 			return nil, fmt.Errorf("failed to create RAG manager %q: %w", ragName, err)
 		}
 
-		managers[ragName] = manager
+		managers = append(managers, manager)
 
 		strategyNames := make([]string, len(strategyConfigs))
 		for i, sc := range strategyConfigs {

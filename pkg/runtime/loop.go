@@ -97,7 +97,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		events <- TeamInfo(r.agentDetailsFromTeam(), a.Name())
 
 		// Initialize RAG and forward events
-		r.InitializeRAG(ctx, events)
+		r.StartBackgroundRAGInit(ctx, func(event Event) {
+			events <- event
+		})
 
 		r.emitAgentWarnings(a, chanSend(events))
 		r.configureToolsetHandlers(a, events)

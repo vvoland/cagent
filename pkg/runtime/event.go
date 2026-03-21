@@ -558,12 +558,12 @@ type RAGIndexingStartedEvent struct {
 	StrategyName string `json:"strategy_name"`
 }
 
-func RAGIndexingStarted(ragName, strategyName, agentName string) Event {
+func RAGIndexingStarted(ragName, strategyName string) Event {
 	return &RAGIndexingStartedEvent{
 		Type:         "rag_indexing_started",
 		RAGName:      ragName,
 		StrategyName: strategyName,
-		AgentContext: newAgentContext(agentName),
+		AgentContext: newAgentContext(""),
 	}
 }
 
@@ -596,12 +596,12 @@ type RAGIndexingCompletedEvent struct {
 	StrategyName string `json:"strategy_name"`
 }
 
-func RAGIndexingCompleted(ragName, strategyName, agentName string) Event {
+func RAGIndexingCompleted(ragName, strategyName string) Event {
 	return &RAGIndexingCompletedEvent{
 		Type:         "rag_indexing_completed",
 		RAGName:      ragName,
 		StrategyName: strategyName,
-		AgentContext: newAgentContext(agentName),
+		AgentContext: newAgentContext(""),
 	}
 }
 
@@ -635,7 +635,6 @@ type MessageAddedEvent struct {
 	Message   *session.Message `json:"-"`
 }
 
-func (e *MessageAddedEvent) GetAgentName() string { return e.AgentName }
 func (e *MessageAddedEvent) GetSessionID() string { return e.SessionID }
 
 func MessageAdded(sessionID string, msg *session.Message, agentName string) Event {
@@ -656,8 +655,6 @@ type SubSessionCompletedEvent struct {
 	ParentSessionID string `json:"parent_session_id"`
 	SubSession      any    `json:"sub_session"` // *session.Session
 }
-
-func (e *SubSessionCompletedEvent) GetAgentName() string { return e.AgentName }
 
 func SubSessionCompleted(parentSessionID string, subSession any, agentName string) Event {
 	return &SubSessionCompletedEvent{

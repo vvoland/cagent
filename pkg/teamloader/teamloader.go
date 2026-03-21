@@ -604,7 +604,7 @@ func contextWithExternalDepth(ctx context.Context, depth int) context.Context {
 }
 
 // createRAGToolsForAgent creates RAG tools for an agent, one for each referenced RAG source
-func createRAGToolsForAgent(agentConfig *latest.AgentConfig, allManagers map[string]*rag.Manager) []tools.ToolSet {
+func createRAGToolsForAgent(agentConfig *latest.AgentConfig, ragManagers []*rag.Manager) []tools.ToolSet {
 	if len(agentConfig.RAG) == 0 {
 		return nil
 	}
@@ -612,11 +612,15 @@ func createRAGToolsForAgent(agentConfig *latest.AgentConfig, allManagers map[str
 	var ragTools []tools.ToolSet
 
 	for _, ragName := range agentConfig.RAG {
-		mgr, exists := allManagers[ragName]
-		if !exists {
+		idx := slices.IndexFunc(ragManagers, func(m *rag.Manager) bool {
+			return m.Name() == ragName
+		})
+		if idx == -1 {
 			slog.Error("RAG source not found", "rag_source", ragName)
 			continue
 		}
+
+		mgr := ragManagers[idx]
 
 		// Use custom tool name if configured, otherwise use the RAG source name
 		toolName := cmp.Or(mgr.ToolName(), ragName)
