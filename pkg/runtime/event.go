@@ -635,7 +635,6 @@ type MessageAddedEvent struct {
 	Message   *session.Message `json:"-"`
 }
 
-func (e *MessageAddedEvent) GetAgentName() string { return e.AgentName }
 func (e *MessageAddedEvent) GetSessionID() string { return e.SessionID }
 
 func MessageAdded(sessionID string, msg *session.Message, agentName string) Event {
@@ -656,8 +655,6 @@ type SubSessionCompletedEvent struct {
 	ParentSessionID string `json:"parent_session_id"`
 	SubSession      any    `json:"sub_session"` // *session.Session
 }
-
-func (e *SubSessionCompletedEvent) GetAgentName() string { return e.AgentName }
 
 func SubSessionCompleted(parentSessionID string, subSession any, agentName string) Event {
 	return &SubSessionCompletedEvent{
