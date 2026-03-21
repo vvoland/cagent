@@ -133,6 +133,7 @@ var Aliases = map[string]Alias{
 	},
 	"chatgpt": {
 		APIType:     "openai_responses",
+		BaseURL:     "https://chatgpt.com/backend-api/codex",
 		TokenEnvVar: chatgpt.TokenEnvVar,
 	},
 }
@@ -390,6 +391,16 @@ func applyProviderDefaults(cfg *latest.ModelConfig, customProviders map[string]l
 		// Set default token key if not already specified
 		if enhancedCfg.TokenKey == "" && alias.TokenEnvVar != "" {
 			enhancedCfg.TokenKey = alias.TokenEnvVar
+		}
+
+		// Propagate api_type so downstream provider picks the correct schema.
+		if alias.APIType != "" {
+			if enhancedCfg.ProviderOpts == nil {
+				enhancedCfg.ProviderOpts = make(map[string]any)
+			}
+			if _, has := enhancedCfg.ProviderOpts["api_type"]; !has {
+				enhancedCfg.ProviderOpts["api_type"] = alias.APIType
+			}
 		}
 	}
 

@@ -18,6 +18,7 @@ import (
 	"github.com/openai/openai-go/v3/shared"
 
 	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/chatgpt"
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/effort"
 	"github.com/docker/docker-agent/pkg/environment"
@@ -28,6 +29,7 @@ import (
 	"github.com/docker/docker-agent/pkg/rag/prompts"
 	"github.com/docker/docker-agent/pkg/rag/types"
 	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/useragent"
 )
 
 // Client represents an OpenAI client wrapper.
@@ -66,6 +68,12 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			}
 			clientOptions = append(clientOptions, option.WithAPIKey(authToken))
 		} else if isCustomProvider(cfg) {
+			if cfg.Provider == "chatgpt" {
+				clientOptions = append(clientOptions, option.WithMiddleware(chatgptHeaderMiddleware(env)))
+			}
+			if cfg.Provider == "chatgpt" {
+				clientOptions = append(clientOptions, option.WithMiddleware(chatgptHeaderMiddleware(env)))
+			}
 			// Custom provider (has api_type in ProviderOpts) without token_key - no auth
 			slog.Debug("Custom provider with no token_key, sending requests without authentication",
 				"provider", cfg.Provider, "base_url", cfg.BaseURL)
@@ -349,17 +357,24 @@ func (c *Client) CreateResponseStream(
 ) (chat.MessageStream, error) {
 	slog.Debug("Creating OpenAI responses stream", "model", c.ModelConfig.Model)
 
+	isChatGPT := c.ModelConfig.Provider == "chatgpt"
 	if len(messages) == 0 {
 		slog.Error("OpenAI responses stream creation failed", "error", "at least one message is required")
 		return nil, errors.New("at least one message is required")
 	}
 
-	input := convertMessagesToResponseInput(messages)
+	input := convertMessagesToResponseInput(messages, isChatGPT)
 
 	params := responses.ResponseNewParams{
 		Model: c.ModelConfig.Model,
 	}
 	params.Input.OfInputItemList = input
+
+	if isChatGPT {
+		instructions := extractSystemInstructions(messages)
+		params.Instructions = param.NewOpt(instructions)
+		params.Store = param.NewOpt(false)
+	}
 
 	if c.ModelConfig.Temperature != nil {
 		params.Temperature = param.NewOpt(*c.ModelConfig.Temperature)
@@ -539,9 +554,13 @@ func getTransport(cfg *latest.ModelConfig) string {
 	return "sse"
 }
 
-func convertMessagesToResponseInput(messages []chat.Message) []responses.ResponseInputItemUnionParam {
+func convertMessagesToResponseInput(messages []chat.Message, skipSystem bool) []responses.ResponseInputItemUnionParam {
 	var input []responses.ResponseInputItemUnionParam
 	for _, msg := range messages {
+		if skipSystem && msg.Role == chat.MessageRoleSystem {
+			continue
+		}
+
 		// Skip invalid messages
 		if msg.Role == chat.MessageRoleAssistant && len(msg.ToolCalls) == 0 && len(msg.MultiContent) == 0 && strings.TrimSpace(msg.Content) == "" {
 			continue
@@ -1102,4 +1121,43 @@ type jsonSchema map[string]any
 
 func (j jsonSchema) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any(j))
+}
+
+// extractSystemInstructions concatenates all system messages into a single
+// instructions string. The ChatGPT backend requires this as a top-level field
+// rather than inline system messages in the input array.
+func extractSystemInstructions(messages []chat.Message) string {
+	var parts []string
+	for _, msg := range messages {
+		if msg.Role != chat.MessageRoleSystem {
+			continue
+		}
+		if len(msg.MultiContent) > 0 {
+			for _, part := range msg.MultiContent {
+				if part.Type == chat.MessagePartTypeText && part.Text != "" {
+					parts = append(parts, part.Text)
+				}
+			}
+			continue
+		}
+		if msg.Content != "" {
+			parts = append(parts, msg.Content)
+		}
+	}
+	if len(parts) == 0 {
+		return "You are a helpful assistant."
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+// chatgptHeaderMiddleware injects headers required by the ChatGPT backend API.
+func chatgptHeaderMiddleware(env environment.Provider) option.Middleware {
+	return func(req *http.Request, next option.MiddlewareNext) (*http.Response, error) {
+		if accountID, ok := env.Get(req.Context(), chatgpt.AccountIDEnvVar); ok {
+			req.Header.Set("ChatGPT-Account-Id", accountID)
+		}
+		req.Header.Set("originator", "cagent")
+		req.Header.Set("User-Agent", useragent.Header)
+		return next(req)
+	}
 }
