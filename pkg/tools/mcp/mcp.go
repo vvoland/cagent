@@ -58,6 +58,11 @@ type Toolset struct {
 	// toolsChangedHandler is called after the tool cache is refreshed
 	// following a ToolListChanged notification from the server.
 	toolsChangedHandler func()
+
+	// restarted is closed and replaced whenever the connection is
+	// successfully restarted by watchConnection, allowing callers
+	// waiting on a reconnect to be unblocked.
+	restarted chan struct{}
 }
 
 // invalidateCache clears the cached tools and prompts and bumps the
@@ -67,6 +72,10 @@ func (ts *Toolset) invalidateCache() {
 	ts.cachedPrompts = nil
 	ts.cacheGen++
 }
+
+// sessionMissingRetryTimeout is the maximum time to wait for watchConnection
+// to restart the MCP server after an ErrSessionMissing error.
+const sessionMissingRetryTimeout = 35 * time.Second
 
 var (
 	_ tools.ToolSet   = (*Toolset)(nil)
@@ -144,6 +153,8 @@ func (ts *Toolset) Start(ctx context.Context) error {
 	if ts.started {
 		return nil
 	}
+
+	ts.restarted = make(chan struct{})
 
 	if err := ts.doStart(ctx); err != nil {
 		if errors.Is(err, errServerUnavailable) {
@@ -307,6 +318,9 @@ func (ts *Toolset) tryRestart(ctx context.Context) bool {
 		}
 
 		ts.started = true
+		// Signal anyone waiting for a reconnect.
+		close(ts.restarted)
+		ts.restarted = make(chan struct{})
 		ts.mu.Unlock()
 
 		slog.Info("MCP server restarted successfully", "server", ts.logID)
@@ -438,6 +452,16 @@ func (ts *Toolset) callTool(ctx context.Context, toolCall tools.ToolCall) (*tool
 	request.Arguments = args
 
 	resp, err := ts.mcpClient.CallTool(ctx, request)
+
+	// If the server lost our session (e.g. it restarted), force a
+	// reconnection and retry the call once.
+	if errors.Is(err, mcp.ErrSessionMissing) {
+		slog.Warn("MCP session missing, forcing reconnect and retrying", "tool", toolCall.Function.Name, "server", ts.logID)
+		if waitErr := ts.forceReconnectAndWait(ctx); waitErr != nil {
+			return nil, fmt.Errorf("failed to reconnect after session loss: %w", waitErr)
+		}
+		resp, err = ts.mcpClient.CallTool(ctx, request)
+	}
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 			slog.Debug("CallTool canceled by context", "tool", toolCall.Function.Name)
@@ -451,6 +475,33 @@ func (ts *Toolset) callTool(ctx context.Context, toolCall tools.ToolCall) (*tool
 	slog.Debug("MCP tool call completed", "tool", toolCall.Function.Name, "output_length", len(result.Output))
 	slog.Debug(result.Output)
 	return result, nil
+}
+
+// forceReconnectAndWait closes the current session to trigger watchConnection's
+// restart logic, then waits for the reconnection to complete.
+func (ts *Toolset) forceReconnectAndWait(ctx context.Context) error {
+	ts.mu.Lock()
+	restartCh := ts.restarted
+	alreadyRestarting := !ts.started
+	ts.mu.Unlock()
+
+	if !alreadyRestarting {
+		// Force-close the session so that Wait() returns and watchConnection
+		// kicks in with its restart loop. Skip this if watchConnection has
+		// already detected the disconnect (started==false) to avoid killing
+		// a connection that tryRestart may be establishing concurrently.
+		_ = ts.mcpClient.Close(context.WithoutCancel(ctx))
+	}
+
+	// Wait for watchConnection to complete a successful restart.
+	select {
+	case <-restartCh:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(sessionMissingRetryTimeout):
+		return errors.New("timed out waiting for MCP server reconnection")
+	}
 }
 
 func (ts *Toolset) Stop(ctx context.Context) error {
