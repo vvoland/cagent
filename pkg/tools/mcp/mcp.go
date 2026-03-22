@@ -374,6 +374,7 @@ func (ts *Toolset) Tools(ctx context.Context) ([]tools.Tool, error) {
 
 		tool := tools.Tool{
 			Name:         name,
+			Category:     "mcp",
 			Description:  t.Description,
 			Parameters:   t.InputSchema,
 			OutputSchema: t.OutputSchema,

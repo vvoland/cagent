@@ -185,6 +185,11 @@ func (a *App) SendFirstMessage() tea.Cmd {
 	return tea.Sequence(cmds...)
 }
 
+// CurrentAgentTools returns the tools available to the current agent.
+func (a *App) CurrentAgentTools(ctx context.Context) ([]tools.Tool, error) {
+	return a.runtime.CurrentAgentTools(ctx)
+}
+
 // CurrentAgentCommands returns the commands for the active agent
 func (a *App) CurrentAgentCommands(ctx context.Context) types.Commands {
 	return a.runtime.CurrentAgentInfo(ctx).Commands

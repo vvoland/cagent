@@ -116,6 +116,7 @@ func (t *ScriptShellTool) Tools(context.Context) ([]tools.Tool, error) {
 
 		toolsList = append(toolsList, tools.Tool{
 			Name:         toolName,
+			Category:     "shell",
 			Description:  description,
 			Parameters:   inputSchema,
 			OutputSchema: tools.MustSchemaFor[string](),
