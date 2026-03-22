@@ -8,8 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	goruntime "runtime"
-	"runtime/pprof"
 	"sync"
 	"time"
 
@@ -22,6 +20,7 @@ import (
 	"github.com/docker/docker-agent/pkg/cli"
 	"github.com/docker/docker-agent/pkg/config"
 	"github.com/docker/docker-agent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/profiling"
 	"github.com/docker/docker-agent/pkg/runtime"
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/sessiontitle"
@@ -145,37 +144,16 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
 func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []string, useTUI bool) error {
 	slog.Debug("Starting agent", "agent", f.agentName)
 
-	// Start CPU profiling if requested
-	if f.cpuProfile != "" {
-		pf, err := os.Create(f.cpuProfile)
-		if err != nil {
-			return fmt.Errorf("failed to create CPU profile: %w", err)
-		}
-		if err := pprof.StartCPUProfile(pf); err != nil {
-			pf.Close()
-			return fmt.Errorf("failed to start CPU profile: %w", err)
-		}
-		defer pprof.StopCPUProfile()
-		defer pf.Close()
-		slog.Info("CPU profiling enabled", "file", f.cpuProfile)
+	// Start profiling if requested
+	stopProfiling, err := profiling.Start(f.cpuProfile, f.memProfile)
+	if err != nil {
+		return err
 	}
-
-	// Write memory profile at exit if requested
-	if f.memProfile != "" {
-		defer func() {
-			mf, err := os.Create(f.memProfile)
-			if err != nil {
-				slog.Error("Failed to create memory profile", "error", err)
-				return
-			}
-			defer mf.Close()
-			goruntime.GC() // Get up-to-date statistics
-			if err := pprof.WriteHeapProfile(mf); err != nil {
-				slog.Error("Failed to write memory profile", "error", err)
-			}
-			slog.Info("Memory profile written", "file", f.memProfile)
-		}()
-	}
+	defer func() {
+		if err := stopProfiling(); err != nil {
+			slog.Error("Profiling cleanup failed", "error", err)
+		}
+	}()
 
 	var agentFileName string
 	if len(args) > 0 {
@@ -271,10 +249,6 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	}
 	defer initialTeamCleanup()
 
-	if useTUI {
-		applyTheme()
-	}
-
 	if f.dryRun {
 		out.Println("Dry run mode enabled. Agent initialized but will not execute.")
 		return nil
@@ -284,19 +258,13 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		return f.handleExecMode(ctx, out, rt, sess, args)
 	}
 
+	applyTheme()
 	opts, err := f.buildAppOpts(args)
 	if err != nil {
 		return err
 	}
 
-	var sessStore session.Store
-	switch typedRt := rt.(type) {
-	case *runtime.LocalRuntime:
-		sessStore = typedRt.SessionStore()
-	case *runtime.PersistentRuntime:
-		sessStore = typedRt.SessionStore()
-	}
-
+	sessStore := rt.SessionStore()
 	return runTUI(ctx, rt, sess, f.createSessionSpawner(agentSource, sessStore), initialTeamCleanup, opts...)
 }
 
