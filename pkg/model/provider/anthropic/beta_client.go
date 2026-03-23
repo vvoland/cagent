@@ -13,6 +13,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
 
 	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/model/provider/providerutil"
 	"github.com/docker/docker-agent/pkg/rag/prompts"
 	"github.com/docker/docker-agent/pkg/rag/types"
 	"github.com/docker/docker-agent/pkg/tools"
@@ -114,6 +115,12 @@ func (c *Client) createBetaStream(
 		"model", params.Model,
 		"max_tokens", maxTokens,
 		"message_count", len(params.Messages))
+
+	// Forward top_k from provider_opts (Anthropic natively supports it)
+	if topK, ok := providerutil.GetProviderOptInt64(c.ModelConfig.ProviderOpts, "top_k"); ok {
+		params.TopK = param.NewOpt(topK)
+		slog.Debug("Anthropic Beta provider_opts: set top_k", "value", topK)
+	}
 
 	stream := client.Beta.Messages.NewStreaming(ctx, params)
 	trackUsage := c.ModelConfig.TrackUsage == nil || *c.ModelConfig.TrackUsage
@@ -291,6 +298,12 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 	}
 	if c.ModelConfig.TopP != nil {
 		params.TopP = param.NewOpt(*c.ModelConfig.TopP)
+	}
+
+	// Forward top_k from provider_opts (Anthropic natively supports it)
+	if topK, ok := providerutil.GetProviderOptInt64(c.ModelConfig.ProviderOpts, "top_k"); ok {
+		params.TopK = param.NewOpt(topK)
+		slog.Debug("Anthropic Beta provider_opts: set top_k", "value", topK)
 	}
 
 	// Use streaming API to avoid timeout errors for operations that may take longer than 10 minutes

@@ -552,7 +552,7 @@
         },
         "provider_opts": {
           "type": "object",
-          "description": "Provider-specific options. dmr: runtime_flags. anthropic/amazon-bedrock (Claude): interleaved_thinking (boolean, default true). openai: transport ('sse' or 'websocket') to choose between SSE and WebSocket streaming for the Responses API. openai/anthropic/google: rerank_prompt (string) to fully override the system prompt used for RAG reranking (advanced - prefer using results.reranking.criteria for domain-specific guidance).",
+          "description": "Provider-specific options. Sampling parameters: top_k (integer, supported by anthropic, google, amazon-bedrock, and custom OpenAI-compatible providers like vLLM/Ollama), repetition_penalty (float, forwarded to custom OpenAI-compatible providers), min_p (float, forwarded to custom providers), seed (integer, forwarded to OpenAI). Infrastructure options: dmr: runtime_flags. anthropic/amazon-bedrock (Claude): interleaved_thinking (boolean, default true). openai: transport ('sse' or 'websocket') to choose between SSE and WebSocket streaming for the Responses API. openai/anthropic/google: rerank_prompt (string) to fully override the system prompt used for RAG reranking (advanced - prefer using results.reranking.criteria for domain-specific guidance).",
           "additionalProperties": true
         },
         "track_usage": {
