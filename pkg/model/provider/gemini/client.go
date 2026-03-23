@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker-agent/pkg/httpclient"
 	"github.com/docker/docker-agent/pkg/model/provider/base"
 	"github.com/docker/docker-agent/pkg/model/provider/options"
+	"github.com/docker/docker-agent/pkg/model/provider/providerutil"
 	"github.com/docker/docker-agent/pkg/rag/prompts"
 	"github.com/docker/docker-agent/pkg/rag/types"
 	"github.com/docker/docker-agent/pkg/tools"
@@ -350,6 +351,12 @@ func (c *Client) buildConfig() *genai.GenerateContentConfig {
 	}
 	if c.ModelConfig.PresencePenalty != nil {
 		config.PresencePenalty = new(float32(*c.ModelConfig.PresencePenalty))
+	}
+
+	// Forward top_k from provider_opts (Gemini natively supports it)
+	if topK, ok := providerutil.GetProviderOptFloat64(c.ModelConfig.ProviderOpts, "top_k"); ok {
+		config.TopK = new(float32(topK))
+		slog.Debug("Gemini provider_opts: set top_k", "value", topK)
 	}
 
 	// Apply thinking configuration for Gemini models.

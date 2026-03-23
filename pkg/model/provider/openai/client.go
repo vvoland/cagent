@@ -312,6 +312,11 @@ func (c *Client) CreateChatCompletionStream(
 		return nil, err
 	}
 
+	// Forward sampling-related provider_opts as extra body fields.
+	// This allows custom/OpenAI-compatible providers (vLLM, Ollama, etc.)
+	// to receive parameters like top_k, repetition_penalty, etc.
+	applySamplingProviderOpts(&params, c.ModelConfig.ProviderOpts)
+
 	stream := client.Chat.Completions.NewStreaming(ctx, params)
 
 	slog.Debug("OpenAI chat completion stream created successfully", "model", c.ModelConfig.Model)
@@ -841,6 +846,8 @@ func (c *Client) Rerank(ctx context.Context, query string, documents []types.Doc
 			Strict:      openai.Bool(false),
 		},
 	}
+
+	applySamplingProviderOpts(&params, c.ModelConfig.ProviderOpts)
 
 	resp, err := client.Chat.Completions.New(ctx, params)
 	if err != nil {

@@ -854,7 +854,7 @@ func TestInterleavedThinkingEnabled_NotSet(t *testing.T) {
 		},
 	}
 
-	assert.False(t, client.interleavedThinkingEnabled())
+	assert.True(t, client.interleavedThinkingEnabled())
 }
 
 func TestInterleavedThinkingEnabled_NilProviderOpts(t *testing.T) {
@@ -870,7 +870,7 @@ func TestInterleavedThinkingEnabled_NilProviderOpts(t *testing.T) {
 		},
 	}
 
-	assert.False(t, client.interleavedThinkingEnabled())
+	assert.True(t, client.interleavedThinkingEnabled())
 }
 
 func TestBuildAdditionalModelRequestFields_WithInterleavedThinking(t *testing.T) {

@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker-agent/pkg/httpclient"
 	"github.com/docker/docker-agent/pkg/model/provider/base"
 	"github.com/docker/docker-agent/pkg/model/provider/options"
+	"github.com/docker/docker-agent/pkg/model/provider/providerutil"
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
@@ -335,6 +336,12 @@ func (c *Client) CreateChatCompletionStream(
 		}
 	} else if c.ModelConfig.Temperature != nil || c.ModelConfig.TopP != nil {
 		slog.Debug("Anthropic extended thinking enabled, ignoring temperature/top_p settings")
+	}
+
+	// Forward top_k from provider_opts (Anthropic natively supports it)
+	if topK, ok := providerutil.GetProviderOptInt64(c.ModelConfig.ProviderOpts, "top_k"); ok {
+		params.TopK = param.NewOpt(topK)
+		slog.Debug("Anthropic provider_opts: set top_k", "value", topK)
 	}
 
 	if len(requestTools) > 0 {
