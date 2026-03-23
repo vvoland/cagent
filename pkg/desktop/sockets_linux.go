@@ -24,6 +24,7 @@ func getDockerDesktopPaths() (DockerDesktopPaths, error) {
 		// Inside WSL2
 		return DockerDesktopPaths{
 			BackendSocket: "/mnt/wsl/docker-desktop/shared-sockets/host-services/backend.sock",
+			ProxySocket:   "/mnt/wsl/docker-desktop/shared-sockets/host-services/httpproxy.sock",
 		}, nil
 	}
 
@@ -39,5 +40,6 @@ func getDockerDesktopPaths() (DockerDesktopPaths, error) {
 	// On Linux
 	return DockerDesktopPaths{
 		BackendSocket: filepath.Join(home, ".docker", "desktop", "backend.sock"),
+		ProxySocket:   filepath.Join(home, ".docker", "desktop", "httpproxy.sock"),
 	}, nil
 }

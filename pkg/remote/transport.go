@@ -5,10 +5,15 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"time"
+
+	"github.com/kofalt/go-memoize"
 
 	"github.com/docker/docker-agent/pkg/desktop"
 	socket "github.com/docker/docker-agent/pkg/desktop/socket"
 )
+
+var memoizer = memoize.NewMemoizer(1*time.Minute, 1*time.Minute)
 
 // NewTransport returns an HTTP transport that uses Docker Desktop proxy if available.
 func NewTransport(ctx context.Context) http.RoundTripper {
@@ -18,9 +23,13 @@ func NewTransport(ctx context.Context) http.RoundTripper {
 	}
 	transport := t.Clone()
 
-	if desktop.IsDockerDesktopRunning(ctx) {
-		// Route all traffic through Docker Desktop's HTTP proxy socket
-		// Set a dummy proxy URL - the actual connection happens via DialContext
+	desktopRunning, err, _ := memoizer.Memoize("desktopRunning", func() (any, error) {
+		return desktop.IsDockerDesktopRunning(context.Background()), nil
+	})
+	if err != nil {
+		return transport
+	}
+	if running, ok := desktopRunning.(bool); ok && running {
 		transport.Proxy = http.ProxyURL(&url.URL{
 			Scheme: "http",
 		})
