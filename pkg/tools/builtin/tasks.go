@@ -155,8 +155,8 @@ func effectiveStatus(task Task, tasks map[string]Task) TaskStatus {
 
 func hasCycle(tasks map[string]Task, startID string, deps []string) bool {
 	visited := make(map[string]bool)
-	stack := make([]string, len(deps))
-	copy(stack, deps)
+	stack := make([]string, 0, len(deps))
+	stack = append(stack, deps...)
 	for len(stack) > 0 {
 		current := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
