@@ -13,5 +13,6 @@ func getDockerDesktopPaths() (DockerDesktopPaths, error) {
 
 	return DockerDesktopPaths{
 		BackendSocket: `\\.\pipe\dockerBackendApiServer`,
+		ProxySocket:   `\\.\pipe\dockerHTTPProxy`,
 	}, nil
 }

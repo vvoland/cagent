@@ -92,7 +92,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			clientOptions = append(clientOptions, option.WithBaseURL(cfg.BaseURL))
 		}
 
-		httpClient := httpclient.NewHTTPClient()
+		httpClient := httpclient.NewHTTPClient(ctx)
 		clientOptions = append(clientOptions, option.WithHTTPClient(httpClient))
 
 		client := openai.NewClient(clientOptions...)
@@ -135,7 +135,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			client := openai.NewClient(
 				option.WithAPIKey(authToken),
 				option.WithBaseURL(baseURL),
-				option.WithHTTPClient(httpclient.NewHTTPClient(httpOptions...)),
+				option.WithHTTPClient(httpclient.NewHTTPClient(ctx, httpOptions...)),
 				option.WithMiddleware(oaistream.ErrorBodyMiddleware()),
 			)
 

@@ -15,5 +15,6 @@ func getDockerDesktopPaths() (DockerDesktopPaths, error) {
 
 	return DockerDesktopPaths{
 		BackendSocket: filepath.Join(data, "backend.sock"),
+		ProxySocket:   filepath.Join(data, "httpproxy.sock"),
 	}, nil
 }

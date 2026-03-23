@@ -35,7 +35,7 @@ func IsDigestReference(registryRef string) bool {
 
 // Pull pulls an artifact from a registry and stores it in the content store
 func Pull(ctx context.Context, registryRef string, force bool, opts ...crane.Option) (string, error) {
-	opts = append(opts, crane.WithContext(ctx))
+	opts = append(opts, crane.WithContext(ctx), crane.WithTransport(NewTransport(ctx)))
 
 	ref, err := name.ParseReference(registryRef)
 	if err != nil {

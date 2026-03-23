@@ -97,7 +97,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			}
 
 			backend = genai.BackendGeminiAPI
-			httpClient = httpclient.NewHTTPClient()
+			httpClient = httpclient.NewHTTPClient(ctx)
 		}
 
 		client, err := genai.NewClient(ctx, &genai.ClientConfig{
@@ -152,7 +152,7 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			return genai.NewClient(ctx, &genai.ClientConfig{
 				APIKey:     authToken,
 				Backend:    genai.BackendGeminiAPI,
-				HTTPClient: httpclient.NewHTTPClient(httpOptions...),
+				HTTPClient: httpclient.NewHTTPClient(ctx, httpOptions...),
 				HTTPOptions: genai.HTTPOptions{
 					BaseURL: baseURL,
 					Headers: http.Header{
