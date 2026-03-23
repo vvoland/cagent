@@ -24,30 +24,6 @@ type ManagersBuildConfig struct {
 	Models        map[string]latest.ModelConfig // Model configurations from config
 }
 
-// NewManagers constructs all RAG managers defined in the config.
-//
-// Deprecated: Use NewManager for per-toolset creation instead.
-func NewManagers(ctx context.Context, cfg *latest.Config, buildCfg ManagersBuildConfig) ([]*Manager, error) {
-	if len(cfg.RAG) == 0 {
-		return nil, nil
-	}
-
-	var managers []*Manager
-
-	for ragName, ragToolset := range cfg.RAG {
-		if ragToolset.RAGConfig == nil {
-			continue
-		}
-		mgr, err := NewManager(ctx, ragName, ragToolset.RAGConfig, buildCfg)
-		if err != nil {
-			return nil, err
-		}
-		managers = append(managers, mgr)
-	}
-
-	return managers, nil
-}
-
 // NewManager constructs a single RAG manager from a RAGConfig.
 func NewManager(
 	ctx context.Context,

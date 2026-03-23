@@ -96,11 +96,6 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		// Emit team information
 		events <- TeamInfo(r.agentDetailsFromTeam(), a.Name())
 
-		// Initialize RAG and forward events
-		r.StartBackgroundRAGInit(ctx, func(event Event) {
-			events <- event
-		})
-
 		r.emitAgentWarnings(a, chanSend(events))
 		r.configureToolsetHandlers(a, events)
 
@@ -534,6 +529,11 @@ func (r *LocalRuntime) configureToolsetHandlers(a *agent.Agent, events chan Even
 			func() { events <- Authorization(tools.ElicitationActionAccept, a.Name()) },
 			r.managedOAuth,
 		)
+
+		// Wire RAG event forwarding so the TUI shows indexing progress.
+		if ragTool, ok := tools.As[*builtin.RAGTool](toolset); ok {
+			ragTool.SetEventCallback(ragEventForwarder(ragTool.Name(), r, chanSend(events)))
+		}
 	}
 }
 

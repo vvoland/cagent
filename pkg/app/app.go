@@ -30,12 +30,6 @@ import (
 	"github.com/docker/docker-agent/pkg/tui/messages"
 )
 
-// RAGInitializer is implemented by runtimes that support background RAG initialization.
-// Local runtimes use this to start indexing early; remote runtimes typically do not.
-type RAGInitializer interface {
-	StartBackgroundRAGInit(ctx context.Context, sendEvent func(runtime.Event))
-}
-
 type App struct {
 	runtime                runtime.Runtime
 	session                *session.Session
@@ -121,18 +115,6 @@ func New(ctx context.Context, rt runtime.Runtime, sess *session.Session, opts ..
 			}
 		}
 	}()
-
-	// If the runtime supports background RAG initialization, start it
-	// and forward events to the TUI. Remote runtimes typically handle RAG server-side
-	// and won't implement this optional interface.
-	if ragRuntime, ok := rt.(RAGInitializer); ok {
-		go ragRuntime.StartBackgroundRAGInit(ctx, func(event runtime.Event) {
-			select {
-			case app.events <- event:
-			case <-ctx.Done():
-			}
-		})
-	}
 
 	// Subscribe to tool list changes so the sidebar updates immediately
 	// when an MCP server adds or removes tools (outside of a RunStream).
