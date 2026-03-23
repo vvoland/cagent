@@ -3,6 +3,52 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.36.1] - 2026-03-23
+
+This release improves OCI reference handling, adds a tools command, and enhances MCP server reliability with better error recovery.
+
+## What's New
+- Adds `/tools` command to show available tools in a TUI dialog
+- Adds support for serving digest-pinned OCI references directly from cache
+
+## Improvements
+- Uses Docker Desktop proxy for all HTTP operations when Docker Desktop is running
+- Improves MCP server reconnection by retrying tool calls on any connection error, not just session errors
+- Normalizes OCI reference handling in store lookups to match Pull() key format
+
+## Bug Fixes
+- Fixes `/clear` command to properly re-initialize the TUI
+- Fixes tools/permissions dialog height instability when scrolling
+- Fixes empty lines in tools dialog from multiline descriptions
+- Fixes relative path resolution when parentDir is empty by falling back to current working directory
+
+## Technical Changes
+- Extracts RAG code for better organization
+- Removes model alias resolution for inline agent model references
+- Sets missing category on MCP and script shell tools
+- Removes dead code and unused agent event handling
+- Enables additional linters (bodyclose, makezero, sqlclosecheck) with corresponding fixes
+- Adds comprehensive Managing Secrets documentation guide
+
+### Pull Requests
+
+- [#2201](https://github.com/docker/docker-agent/pull/2201) - docs: update CHANGELOG.md for v1.36.0
+- [#2204](https://github.com/docker/docker-agent/pull/2204) - Better oci refs
+- [#2205](https://github.com/docker/docker-agent/pull/2205) - Simplify the runtime related RAG code a bit
+- [#2206](https://github.com/docker/docker-agent/pull/2206) - Remove model alias resolution for inline agent model references
+- [#2207](https://github.com/docker/docker-agent/pull/2207) - Fix /clear
+- [#2209](https://github.com/docker/docker-agent/pull/2209) - Add /tools command to show the available tools
+- [#2212](https://github.com/docker/docker-agent/pull/2212) - fix: recover from ErrSessionMissing when remote MCP server restarts
+- [#2213](https://github.com/docker/docker-agent/pull/2213) - docs: clarify :agent and :name parameters in API server endpoints
+- [#2215](https://github.com/docker/docker-agent/pull/2215) - fix: retry MCP callTool on any connection error, not just ErrSessionMissing
+- [#2217](https://github.com/docker/docker-agent/pull/2217) - docs: add Managing Secrets guide
+- [#2218](https://github.com/docker/docker-agent/pull/2218) - Bump Go dependencies
+- [#2219](https://github.com/docker/docker-agent/pull/2219) - Enable bodyclose, makezero, and sqlclosecheck linters
+- [#2221](https://github.com/docker/docker-agent/pull/2221) - fix: resolve relative paths against CWD when parentDir is empty
+- [#2222](https://github.com/docker/docker-agent/pull/2222) - Use Docker Desktop proxy when available
+- [#2224](https://github.com/docker/docker-agent/pull/2224) - Make run.go easier to read
+
+
 ## [v1.36.0] - 2026-03-20
 
 This release adds WebSocket transport support for OpenAI streaming, introduces configurable tool call token limits, and improves the command-line interface with new session management capabilities.
@@ -1512,3 +1558,5 @@ This release improves the terminal user interface with better error handling and
 [v1.34.0]: https://github.com/docker/docker-agent/releases/tag/v1.34.0
 
 [v1.36.0]: https://github.com/docker/docker-agent/releases/tag/v1.36.0
+
+[v1.36.1]: https://github.com/docker/docker-agent/releases/tag/v1.36.1
