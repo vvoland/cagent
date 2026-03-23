@@ -680,6 +680,7 @@ func (s *SQLiteSessionStore) loadSessionItemsWith(ctx context.Context, q querier
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	// First, collect all raw row data so we can close the result set
 	// before making any recursive calls (SQLite doesn't allow concurrent queries)
@@ -687,16 +688,13 @@ func (s *SQLiteSessionStore) loadSessionItemsWith(ctx context.Context, q querier
 	for rows.Next() {
 		var row sessionItemRow
 		if err := rows.Scan(&row.position, &row.itemType, &row.agentName, &row.messageJSON, &row.implicit, &row.subsessionID, &row.summaryText); err != nil {
-			rows.Close()
 			return nil, err
 		}
 		rawRows = append(rawRows, row)
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
 		return nil, err
 	}
-	rows.Close()
 
 	if len(rawRows) == 0 {
 		return nil, nil
