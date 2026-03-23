@@ -279,7 +279,21 @@ func (c *Client) buildInferenceConfig(thinkingEnabled bool) *types.InferenceConf
 }
 
 func (c *Client) interleavedThinkingEnabled() bool {
-	return getProviderOpt[bool](c.ModelConfig.ProviderOpts, "interleaved_thinking")
+	// Default to true, matching the documented schema behavior.
+	v, ok := c.ModelConfig.ProviderOpts["interleaved_thinking"]
+	if !ok {
+		return true
+	}
+	b, ok := v.(bool)
+	if !ok {
+		slog.Warn("Bedrock provider_opts type mismatch",
+			"key", "interleaved_thinking",
+			"expected_type", "bool",
+			"actual_type", fmt.Sprintf("%T", v),
+			"value", v)
+		return true
+	}
+	return b
 }
 
 // isThinkingEnabled returns true if a valid thinking budget is configured.
@@ -349,6 +363,9 @@ func (c *Client) buildAdditionalModelRequestFields() document.Interface {
 			if c.interleavedThinkingEnabled() {
 				fields["anthropic_beta"] = []string{"interleaved-thinking-2025-05-14"}
 				slog.Debug("Bedrock request using interleaved thinking beta")
+			} else {
+				slog.Warn("Bedrock thinking_budget is set but interleaved_thinking is explicitly disabled; " +
+					"the anthropic_beta header will not be sent, which may cause the thinking budget to be ignored")
 			}
 		}
 	}

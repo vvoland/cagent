@@ -1,6 +1,10 @@
 package providerutil
 
-import "math"
+import (
+	"fmt"
+	"log/slog"
+	"math"
+)
 
 // GetProviderOptFloat64 extracts a float64 value from provider opts.
 // YAML may parse numbers as float64 or int, so this handles both.
@@ -22,6 +26,11 @@ func GetProviderOptFloat64(opts map[string]any, key string) (float64, bool) {
 	case int64:
 		return float64(n), true
 	default:
+		slog.Debug("provider_opts type mismatch, ignoring",
+			"key", key,
+			"expected_type", "numeric",
+			"actual_type", fmt.Sprintf("%T", v),
+			"value", v)
 		return 0, false
 	}
 }
@@ -45,8 +54,15 @@ func GetProviderOptInt64(opts map[string]any, key string) (int64, bool) {
 		if n == math.Trunc(n) && n >= math.MinInt64 && n <= math.MaxInt64 {
 			return int64(n), true
 		}
+		slog.Debug("provider_opts: float64 value is not a valid integer",
+			"key", key, "value", v)
 		return 0, false
 	default:
+		slog.Debug("provider_opts type mismatch, ignoring",
+			"key", key,
+			"expected_type", "integer",
+			"actual_type", fmt.Sprintf("%T", v),
+			"value", v)
 		return 0, false
 	}
 }
