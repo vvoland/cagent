@@ -10,13 +10,18 @@ import (
 	"slices"
 
 	"github.com/docker/docker-agent/pkg/rag"
+	ragtypes "github.com/docker/docker-agent/pkg/rag/types"
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
+// RAGEventCallback is called to forward RAG manager events during initialization.
+type RAGEventCallback func(event ragtypes.Event)
+
 // RAGTool provides document querying capabilities for a single RAG source
 type RAGTool struct {
-	manager  *rag.Manager
-	toolName string
+	manager       *rag.Manager
+	toolName      string
+	eventCallback RAGEventCallback
 }
 
 // Verify interface compliance
@@ -35,6 +40,11 @@ func NewRAGTool(manager *rag.Manager, toolName string) *RAGTool {
 	}
 }
 
+// Name returns the tool name for this RAG source.
+func (t *RAGTool) Name() string {
+	return t.toolName
+}
+
 type QueryRAGArgs struct {
 	Query string `json:"query" jsonschema:"Search query"`
 }
@@ -46,12 +56,24 @@ type QueryResult struct {
 	ChunkIndex int     `json:"chunk_index" jsonschema:"Index of the chunk within the source document"`
 }
 
+// SetEventCallback sets a callback to receive RAG manager events during initialization.
+// This must be called before Start() to receive indexing progress events.
+func (t *RAGTool) SetEventCallback(cb RAGEventCallback) {
+	t.eventCallback = cb
+}
+
 // Start initializes the RAG manager (indexes documents).
 func (t *RAGTool) Start(ctx context.Context) error {
 	if t.manager == nil {
 		return nil
 	}
 	slog.Debug("Starting RAG tool initialization", "tool", t.toolName)
+
+	// Forward RAG manager events if a callback is set
+	if t.eventCallback != nil {
+		go t.forwardEvents(ctx)
+	}
+
 	if err := t.manager.Initialize(ctx); err != nil {
 		return fmt.Errorf("failed to initialize RAG manager %q: %w", t.toolName, err)
 	}
@@ -62,6 +84,21 @@ func (t *RAGTool) Start(ctx context.Context) error {
 		}
 	}()
 	return nil
+}
+
+// forwardEvents reads events from the RAG manager and forwards them via the callback.
+func (t *RAGTool) forwardEvents(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-t.manager.Events():
+			if !ok {
+				return
+			}
+			t.eventCallback(event)
+		}
+	}
 }
 
 // Stop closes the RAG manager and releases resources.
