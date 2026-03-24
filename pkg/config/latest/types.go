@@ -25,7 +25,7 @@ type Config struct {
 	Providers   map[string]ProviderConfig `json:"providers,omitempty"`
 	Models      map[string]ModelConfig    `json:"models,omitempty"`
 	MCPs        map[string]MCPToolset     `json:"mcps,omitempty"`
-	RAG         map[string]RAGConfig      `json:"rag,omitempty"`
+	RAG         map[string]RAGToolset     `json:"rag,omitempty"`
 	Metadata    Metadata                  `json:"metadata"`
 	Permissions *PermissionsConfig        `json:"permissions,omitempty"`
 }
@@ -50,6 +50,96 @@ func (m *MCPToolset) UnmarshalYAML(unmarshal func(any) error) error {
 	m.Toolset = Toolset(tmp)
 	m.Type = "mcp"
 	return m.validate()
+}
+
+// RAGToolset is a reusable RAG source definition stored in the top-level
+// "rag" section. It is identical to a Toolset but skips the normal
+// Toolset.validate() call during YAML unmarshaling because the "type"
+// field is implicit (always "rag") and the RAG config is validated
+// during config resolution.
+type RAGToolset struct {
+	Toolset `json:",inline" yaml:",inline"`
+}
+
+func (r RAGToolset) MarshalYAML() (any, error) {
+	// Flatten RAGConfig fields alongside toolset fields into a single map.
+	result := make(map[string]any)
+
+	if r.Instruction != "" {
+		result["instruction"] = r.Instruction
+	}
+	if len(r.Tools) > 0 {
+		result["tools"] = r.Tools
+	}
+	if r.Name != "" {
+		result["name"] = r.Name
+	}
+	if !r.Defer.IsEmpty() {
+		result["defer"] = r.Defer
+	}
+
+	if r.RAGConfig != nil {
+		cfg := r.RAGConfig
+		result["tool"] = cfg.Tool
+		if len(cfg.Docs) > 0 {
+			result["docs"] = cfg.Docs
+		}
+		if cfg.RespectVCS != nil {
+			result["respect_vcs"] = *cfg.RespectVCS
+		}
+		if len(cfg.Strategies) > 0 {
+			result["strategies"] = cfg.Strategies
+		}
+		result["results"] = cfg.Results
+	}
+
+	return result, nil
+}
+
+func (r *RAGToolset) UnmarshalYAML(unmarshal func(any) error) error {
+	// RAGToolset flattens RAGConfig fields directly at the top level,
+	// so users write tool/docs/strategies alongside toolset fields
+	// (instruction, tools, name, defer) without a rag_config wrapper.
+	//
+	// We unmarshal into a raw map first to avoid strict-mode errors
+	// from fields that belong to RAGConfig but not Toolset.
+	var raw map[string]any
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+
+	// Extract toolset-level fields
+	var tf Toolset
+	tf.Type = "rag"
+	if v, ok := raw["instruction"].(string); ok {
+		tf.Instruction = v
+	}
+	if v, ok := raw["name"].(string); ok {
+		tf.Name = v
+	}
+	if v, ok := raw["tools"]; ok {
+		if arr, ok := v.([]any); ok {
+			for _, item := range arr {
+				if s, ok := item.(string); ok {
+					tf.Tools = append(tf.Tools, s)
+				}
+			}
+		}
+	}
+	if v, ok := raw["defer"]; ok {
+		data, _ := yaml.Marshal(v)
+		_ = yaml.Unmarshal(data, &tf.Defer)
+	}
+
+	// Unmarshal RAGConfig from the same map (it has its own UnmarshalYAML)
+	var ragCfg RAGConfig
+	if err := unmarshal(&ragCfg); err != nil {
+		return err
+	}
+
+	tf.RAGConfig = &ragCfg
+	r.Toolset = tf
+	return nil
 }
 
 type Agents []AgentConfig
@@ -236,16 +326,16 @@ func (d Duration) MarshalJSON() ([]byte, error) {
 
 // AgentConfig represents a single agent configuration
 type AgentConfig struct {
-	Name                    string
-	Model                   string            `json:"model,omitempty"`
-	Fallback                *FallbackConfig   `json:"fallback,omitempty"`
-	Description             string            `json:"description,omitempty"`
-	WelcomeMessage          string            `json:"welcome_message,omitempty"`
-	Toolsets                []Toolset         `json:"toolsets,omitempty"`
-	Instruction             string            `json:"instruction,omitempty"`
-	SubAgents               []string          `json:"sub_agents,omitempty"`
-	Handoffs                []string          `json:"handoffs,omitempty"`
-	RAG                     []string          `json:"rag,omitempty"`
+	Name           string
+	Model          string          `json:"model,omitempty"`
+	Fallback       *FallbackConfig `json:"fallback,omitempty"`
+	Description    string          `json:"description,omitempty"`
+	WelcomeMessage string          `json:"welcome_message,omitempty"`
+	Toolsets       []Toolset       `json:"toolsets,omitempty"`
+	Instruction    string          `json:"instruction,omitempty"`
+	SubAgents      []string        `json:"sub_agents,omitempty"`
+	Handoffs       []string        `json:"handoffs,omitempty"`
+
 	AddDate                 bool              `json:"add_date,omitempty"`
 	AddEnvironmentInfo      bool              `json:"add_environment_info,omitempty"`
 	CodeModeTools           bool              `json:"code_mode_tools,omitempty"`
@@ -606,6 +696,9 @@ type Toolset struct {
 
 	// For the `fetch` tool
 	Timeout int `json:"timeout,omitempty"`
+
+	// For the `rag` tool
+	RAGConfig *RAGConfig `json:"rag_config,omitempty" yaml:"rag_config,omitempty"`
 
 	// For the `model_picker` tool
 	Models []string `json:"models,omitempty"`

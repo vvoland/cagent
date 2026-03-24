@@ -4,18 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 
 	"github.com/docker/docker-agent/pkg/agent"
 	"github.com/docker/docker-agent/pkg/config/types"
 	"github.com/docker/docker-agent/pkg/permissions"
-	"github.com/docker/docker-agent/pkg/rag"
 )
 
 type Team struct {
 	agents      []*agent.Agent
-	ragManagers []*rag.Manager
 	permissions *permissions.Checker
 }
 
@@ -24,12 +21,6 @@ type Opt func(*Team)
 func WithAgents(agents ...*agent.Agent) Opt {
 	return func(t *Team) {
 		t.agents = agents
-	}
-}
-
-func WithRAGManagers(managers []*rag.Manager) Opt {
-	return func(t *Team) {
-		t.ragManagers = managers
 	}
 }
 
@@ -127,18 +118,8 @@ func (t *Team) StopToolSets(ctx context.Context) error {
 			return fmt.Errorf("failed to stop tool sets: %w", err)
 		}
 	}
-	for name, mgr := range t.ragManagers {
-		if err := mgr.Close(); err != nil {
-			slog.Error("Failed to close RAG manager", "name", name, "error", err)
-		}
-	}
 
 	return nil
-}
-
-// RAGManagers returns the RAG managers for this team
-func (t *Team) RAGManagers() []*rag.Manager {
-	return t.ragManagers
 }
 
 // Permissions returns the permission checker for this team.

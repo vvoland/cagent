@@ -90,8 +90,8 @@ func (t *Toolset) validate() error {
 	if len(t.Args) > 0 && t.Type != "mcp" && t.Type != "lsp" {
 		return errors.New("args can only be used with type 'mcp' or 'lsp'")
 	}
-	if t.Ref != "" && t.Type != "mcp" {
-		return errors.New("ref can only be used with type 'mcp'")
+	if t.Ref != "" && t.Type != "mcp" && t.Type != "rag" {
+		return errors.New("ref can only be used with type 'mcp' or 'rag'")
 	}
 	if (t.Remote.URL != "" || t.Remote.TransportType != "") && t.Type != "mcp" {
 		return errors.New("remote can only be used with type 'mcp'")
@@ -110,6 +110,9 @@ func (t *Toolset) validate() error {
 	}
 	if t.Name != "" && (t.Type != "mcp" && t.Type != "a2a") {
 		return errors.New("name can only be used with type 'mcp' or 'a2a'")
+	}
+	if t.RAGConfig != nil && t.Type != "rag" {
+		return errors.New("rag_config can only be used with type 'rag'")
 	}
 
 	switch t.Type {
@@ -151,6 +154,11 @@ func (t *Toolset) validate() error {
 	case "model_picker":
 		if len(t.Models) == 0 {
 			return errors.New("model_picker toolset requires at least one model in the 'models' list")
+		}
+	case "rag":
+		// rag toolset requires either a ref or inline rag_config
+		if t.Ref == "" && t.RAGConfig == nil {
+			return errors.New("rag toolset requires either ref or rag_config")
 		}
 	case "background_agents":
 		// no additional validation needed

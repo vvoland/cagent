@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker-agent/pkg/model/provider/options"
 	"github.com/docker/docker-agent/pkg/modelsdev"
 	"github.com/docker/docker-agent/pkg/permissions"
-	"github.com/docker/docker-agent/pkg/rag"
 	"github.com/docker/docker-agent/pkg/skills"
 	"github.com/docker/docker-agent/pkg/team"
 	"github.com/docker/docker-agent/pkg/tools"
@@ -122,20 +121,9 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 		return nil, err
 	}
 
-	// Create RAG managers
+	// Load agents
 	parentDir := cmp.Or(agentSource.ParentDir(), runConfig.WorkingDir)
 	configName := configNameFromSource(agentSource.Name())
-	ragManagers, err := rag.NewManagers(ctx, cfg, rag.ManagersBuildConfig{
-		ParentDir:     parentDir,
-		ModelsGateway: runConfig.ModelsGateway,
-		Env:           env,
-		Models:        cfg.Models,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create RAG managers: %w", err)
-	}
-
-	// Load agents
 	var agents []*agent.Agent
 	agentsByName := make(map[string]*agent.Agent)
 
@@ -211,12 +199,6 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 			opts = append(opts, agent.WithLoadTimeWarnings(warnings))
 		}
 
-		// Add RAG tools if agent has RAG sources
-		if len(agentConfig.RAG) > 0 {
-			ragTools := createRAGToolsForAgent(&agentConfig, ragManagers)
-			agentTools = append(agentTools, ragTools...)
-		}
-
 		// Add skills toolset if skills are enabled
 		if agentConfig.Skills.Enabled() {
 			loadedSkills := skills.Load(agentConfig.Skills.Sources)
@@ -275,7 +257,6 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 	return &LoadResult{
 		Team: team.New(
 			team.WithAgents(agents...),
-			team.WithRAGManagers(ragManagers),
 			team.WithPermissions(permChecker),
 		),
 		Models:             cfg.Models,
@@ -601,42 +582,4 @@ func externalDepthFromContext(ctx context.Context) int {
 
 func contextWithExternalDepth(ctx context.Context, depth int) context.Context {
 	return context.WithValue(ctx, externalDepthKey, depth)
-}
-
-// createRAGToolsForAgent creates RAG tools for an agent, one for each referenced RAG source
-func createRAGToolsForAgent(agentConfig *latest.AgentConfig, ragManagers []*rag.Manager) []tools.ToolSet {
-	if len(agentConfig.RAG) == 0 {
-		return nil
-	}
-
-	var ragTools []tools.ToolSet
-
-	for _, ragName := range agentConfig.RAG {
-		idx := slices.IndexFunc(ragManagers, func(m *rag.Manager) bool {
-			return m.Name() == ragName
-		})
-		if idx == -1 {
-			slog.Error("RAG source not found", "rag_source", ragName)
-			continue
-		}
-
-		mgr := ragManagers[idx]
-
-		// Use custom tool name if configured, otherwise use the RAG source name
-		toolName := cmp.Or(mgr.ToolName(), ragName)
-
-		// Create a separate tool for this RAG source
-		ragTool := builtin.NewRAGTool(mgr, toolName)
-
-		ragTools = append(ragTools, ragTool)
-
-		slog.Debug("Created RAG tool for agent",
-			"rag_source", ragName,
-			"tool_name", toolName,
-			"manager_name", mgr.Name(),
-			"description", mgr.Description(),
-			"instruction", mgr.ToolInstruction())
-	}
-
-	return ragTools
 }
