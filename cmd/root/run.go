@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker-agent/pkg/cli"
 	"github.com/docker/docker-agent/pkg/config"
 	"github.com/docker/docker-agent/pkg/paths"
+	"github.com/docker/docker-agent/pkg/permissions"
 	"github.com/docker/docker-agent/pkg/profiling"
 	"github.com/docker/docker-agent/pkg/runtime"
 	"github.com/docker/docker-agent/pkg/session"
@@ -59,6 +60,10 @@ type runExecFlags struct {
 
 	// Run only
 	hideToolResults bool
+
+	// globalPermissions holds the user-level global permission checker built
+	// from user config settings. Nil when no global permissions are configured.
+	globalPermissions *permissions.Checker
 }
 
 func newRunCmd() *cobra.Command {
@@ -187,6 +192,11 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 		}
 	}
 
+	// Build global permissions checker from user config settings.
+	if userSettings.Permissions != nil {
+		f.globalPermissions = permissions.NewChecker(userSettings.Permissions)
+	}
+
 	// Start fake proxy if --fake is specified
 	fakeCleanup, err := setupFakeProxy(f.fakeResponses, f.fakeStreamDelay, &f.runConfig)
 	if err != nil {
@@ -307,6 +317,12 @@ func (f *runExecFlags) createRemoteRuntimeAndSession(ctx context.Context, origin
 
 func (f *runExecFlags) createLocalRuntimeAndSession(ctx context.Context, loadResult *teamloader.LoadResult) (runtime.Runtime, *session.Session, error) {
 	t := loadResult.Team
+
+	// Merge user-level global permissions into the team's checker so the
+	// runtime receives a single, already-merged permission set.
+	if f.globalPermissions != nil && !f.globalPermissions.IsEmpty() {
+		t.SetPermissions(permissions.Merge(t.Permissions(), f.globalPermissions))
+	}
 
 	agt, err := t.Agent(f.agentName)
 	if err != nil {
@@ -503,6 +519,11 @@ func (f *runExecFlags) createSessionSpawner(agentSource config.Source, sessStore
 			ModelsGateway:      runConfigCopy.ModelsGateway,
 			EnvProvider:        runConfigCopy.EnvProvider(),
 			AgentDefaultModels: loadResult.AgentDefaultModels,
+		}
+
+		// Merge global permissions into the team's checker
+		if f.globalPermissions != nil && !f.globalPermissions.IsEmpty() {
+			team.SetPermissions(permissions.Merge(team.Permissions(), f.globalPermissions))
 		}
 
 		// Create the local runtime

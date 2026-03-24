@@ -112,6 +112,22 @@ func matchAny(patterns []string, toolName string, args map[string]any) bool {
 	return false
 }
 
+// Merge returns a new Checker that combines the patterns from all provided
+// checkers. Nil or empty checkers are skipped. The merged checker evaluates
+// all deny patterns first, then all allow patterns, then all ask patterns.
+func Merge(checkers ...*Checker) *Checker {
+	var allow, ask, deny []string
+	for _, c := range checkers {
+		if c == nil || c.IsEmpty() {
+			continue
+		}
+		allow = append(allow, c.allowPatterns...)
+		ask = append(ask, c.askPatterns...)
+		deny = append(deny, c.denyPatterns...)
+	}
+	return &Checker{allowPatterns: allow, askPatterns: ask, denyPatterns: deny}
+}
+
 // IsEmpty returns true if no permissions are configured
 func (c *Checker) IsEmpty() bool {
 	return len(c.allowPatterns) == 0 && len(c.askPatterns) == 0 && len(c.denyPatterns) == 0
