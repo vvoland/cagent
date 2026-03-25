@@ -128,6 +128,13 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		}
 		loopDetector := newToolLoopDetector(loopThreshold)
 
+		// overflowCompactions counts how many consecutive context-overflow
+		// auto-compactions have been attempted without a successful model
+		// call in between. This prevents an infinite loop when compaction
+		// cannot reduce the context below the model's limit.
+		const maxOverflowCompactions = 1
+		var overflowCompactions int
+
 		// toolModelOverride holds the per-toolset model from the most recent
 		// tool calls. It applies for one LLM turn, then resets.
 		var toolModelOverride string
@@ -281,13 +288,18 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				// Auto-recovery: if the error is a context overflow and
 				// session compaction is enabled, compact the conversation
 				// and retry the request instead of surfacing raw errors.
-				if _, ok := errors.AsType[*modelerrors.ContextOverflowError](err); ok && r.sessionCompaction {
+				// We allow at most maxOverflowCompactions consecutive attempts
+				// to avoid an infinite loop when compaction cannot reduce
+				// the context enough.
+				if _, ok := errors.AsType[*modelerrors.ContextOverflowError](err); ok && r.sessionCompaction && overflowCompactions < maxOverflowCompactions {
+					overflowCompactions++
 					slog.Warn("Context window overflow detected, attempting auto-compaction",
 						"agent", a.Name(),
 						"session_id", sess.ID,
 						"input_tokens", sess.InputTokens,
 						"output_tokens", sess.OutputTokens,
 						"context_limit", contextLimit,
+						"attempt", overflowCompactions,
 					)
 					events <- Warning(
 						"The conversation has exceeded the model's context window. Automatically compacting the conversation history...",
@@ -313,6 +325,9 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				streamSpan.End()
 				return
 			}
+
+			// A successful model call resets the overflow compaction counter.
+			overflowCompactions = 0
 
 			if usedModel != nil && usedModel.ID() != model.ID() {
 				slog.Info("Used fallback model", "agent", a.Name(), "primary", model.ID(), "used", usedModel.ID())

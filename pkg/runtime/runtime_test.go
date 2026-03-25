@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/model/provider/base"
+	"github.com/docker/docker-agent/pkg/modelerrors"
 	"github.com/docker/docker-agent/pkg/modelsdev"
 	"github.com/docker/docker-agent/pkg/permissions"
 	"github.com/docker/docker-agent/pkg/session"
@@ -629,6 +630,55 @@ func TestCompaction(t *testing.T) {
 	}
 
 	require.NotEqual(t, -1, compactionStartIdx, "expected a SessionCompaction start event")
+}
+
+// errorProvider always returns the configured error from CreateChatCompletionStream.
+type errorProvider struct {
+	id  string
+	err error
+}
+
+func (p *errorProvider) ID() string { return p.id }
+
+func (p *errorProvider) CreateChatCompletionStream(context.Context, []chat.Message, []tools.Tool) (chat.MessageStream, error) {
+	return nil, p.err
+}
+
+func (p *errorProvider) BaseConfig() base.Config { return base.Config{} }
+
+func (p *errorProvider) MaxTokens() int { return 0 }
+
+func TestCompactionOverflowDoesNotLoop(t *testing.T) {
+	// The model always returns a ContextOverflowError. Without the
+	// max-retry guard this would loop forever because compaction
+	// cannot fix the problem.
+	overflowErr := modelerrors.NewContextOverflowError(errors.New("prompt is too long"))
+	prov := &errorProvider{id: "test/overflow-model", err: overflowErr}
+
+	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
+	tm := team.New(team.WithAgents(root))
+
+	rt, err := NewLocalRuntime(tm, WithSessionCompaction(true), WithModelStore(mockModelStoreWithLimit{limit: 100}))
+	require.NoError(t, err)
+
+	sess := session.New(session.WithUserMessage("Hello"))
+	events := rt.RunStream(t.Context(), sess)
+
+	var compactionCount int
+	var sawError bool
+	for ev := range events {
+		if e, ok := ev.(*SessionCompactionEvent); ok && e.Status == "started" {
+			compactionCount++
+		}
+		if _, ok := ev.(*ErrorEvent); ok {
+			sawError = true
+		}
+	}
+
+	// Compaction should have been attempted at most once, then the loop
+	// must give up and surface an error instead of retrying indefinitely.
+	require.LessOrEqual(t, compactionCount, 1, "expected at most 1 compaction attempt, got %d", compactionCount)
+	require.True(t, sawError, "expected an ErrorEvent after exhausting compaction retries")
 }
 
 func TestSessionWithoutUserMessage(t *testing.T) {
