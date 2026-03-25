@@ -127,3 +127,10 @@ func (t *Team) StopToolSets(ctx context.Context) error {
 func (t *Team) Permissions() *permissions.Checker {
 	return t.permissions
 }
+
+// SetPermissions replaces the team's permission checker.
+// This is used to merge additional permission sources (e.g. user-level global
+// permissions) into the team's checker after construction.
+func (t *Team) SetPermissions(checker *permissions.Checker) {
+	t.permissions = checker
+}
