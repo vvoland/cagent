@@ -268,6 +268,26 @@ func TestBuildPrompt(t *testing.T) {
 		assert.InDelta(t, 0.05, original[0].Cost, 1e-9)
 		assert.Len(t, original, 1)
 	})
+
+	t.Run("strips CacheControl from cloned messages", func(t *testing.T) {
+		t.Parallel()
+
+		input := []chat.Message{
+			{Role: chat.MessageRoleSystem, Content: "system", CacheControl: true},
+			{Role: chat.MessageRoleSystem, Content: "context", CacheControl: true},
+			{Role: chat.MessageRoleUser, Content: "hello"},
+		}
+
+		out := BuildPrompt(input, "")
+
+		// All cloned messages should have CacheControl=false
+		for i, msg := range out {
+			assert.False(t, msg.CacheControl, "message %d should have CacheControl stripped", i)
+		}
+		// Original should be unchanged
+		assert.True(t, input[0].CacheControl)
+		assert.True(t, input[1].CacheControl)
+	})
 }
 
 func TestPromptsAreEmbedded(t *testing.T) {
