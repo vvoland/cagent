@@ -18,3 +18,7 @@ func getDockerDesktopPaths() (DockerDesktopPaths, error) {
 		ProxySocket:   filepath.Join(data, "httpproxy.sock"),
 	}, nil
 }
+
+func IsWSL() bool {
+	return false
+}

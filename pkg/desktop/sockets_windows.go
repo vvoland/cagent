@@ -16,3 +16,7 @@ func getDockerDesktopPaths() (DockerDesktopPaths, error) {
 		ProxySocket:   `\\.\pipe\dockerHTTPProxy`,
 	}, nil
 }
+
+func IsWSL() bool {
+	return false
+}
