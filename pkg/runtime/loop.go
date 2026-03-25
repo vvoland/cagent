@@ -352,6 +352,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 					loopDetector.consecutive, toolName)
 				events <- Error(errMsg)
 				r.executeNotificationHooks(ctx, a, sess.ID, "error", errMsg)
+				loopDetector.reset()
 				return
 			}
 
