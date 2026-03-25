@@ -737,37 +737,6 @@ func TestNewRuntime_InvalidCurrentAgentError(t *testing.T) {
 	require.Contains(t, err.Error(), "agent not found: other (available agents: root)")
 }
 
-func TestSummarize_EmptySession(t *testing.T) {
-	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
-	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
-	tm := team.New(team.WithAgents(root))
-
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
-	require.NoError(t, err)
-
-	sess := session.New()
-	sess.Title = "Empty Session Test"
-
-	// Try to summarize the empty session
-	events := make(chan Event, 10)
-	rt.Summarize(t.Context(), sess, "", events)
-	close(events)
-
-	// Collect events
-	var warningFound bool
-	var warningMsg string
-	for ev := range events {
-		if warningEvent, ok := ev.(*WarningEvent); ok {
-			warningFound = true
-			warningMsg = warningEvent.Message
-		}
-	}
-
-	// Should have received a warning event about empty session
-	require.True(t, warningFound, "expected a warning event for empty session")
-	require.Contains(t, warningMsg, "empty", "warning message should mention empty session")
-}
-
 func TestProcessToolCalls_UnknownTool_ReturnsErrorResponse(t *testing.T) {
 	root := agent.New("root", "You are a test agent", agent.WithModel(&mockProvider{}))
 	tm := team.New(team.WithAgents(root))

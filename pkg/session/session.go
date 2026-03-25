@@ -470,6 +470,12 @@ func WithTitle(title string) Opt {
 	}
 }
 
+func WithMessages(messages []Item) Opt {
+	return func(s *Session) {
+		s.Messages = messages
+	}
+}
+
 func WithToolsApproved(toolsApproved bool) Opt {
 	return func(s *Session) {
 		s.ToolsApproved = toolsApproved

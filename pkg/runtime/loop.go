@@ -248,13 +248,14 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				slog.Debug("Failed to get model definition", "error", err)
 			}
 
+			// We can only compact if we know the limit.
 			var contextLimit int64
 			if m != nil {
 				contextLimit = int64(m.Limit.Context)
-			}
 
-			if m != nil && r.sessionCompaction && compaction.ShouldCompact(sess.InputTokens, sess.OutputTokens, 0, contextLimit) {
-				r.Summarize(ctx, sess, "", events)
+				if r.sessionCompaction && compaction.ShouldCompact(sess.InputTokens, sess.OutputTokens, 0, contextLimit) {
+					r.Summarize(ctx, sess, "", events)
+				}
 			}
 
 			messages := sess.GetMessages(a)
