@@ -232,6 +232,26 @@ permissions:
 docker-agent run --sandbox agent.yaml
 ```
 
+### Set Global Permission Guardrails
+
+Use [global permissions]({{ '/configuration/permissions/' | relative_url }}#global-permissions) in your user config to enforce safety rules across every agent:
+
+```yaml
+# ~/.config/cagent/config.yaml
+settings:
+  permissions:
+    deny:
+      - "shell:cmd=sudo*"
+      - "shell:cmd=rm*-rf*"
+      - "shell:cmd=git push --force*"
+    allow:
+      - "read_*"
+      - "shell:cmd=ls*"
+      - "shell:cmd=cat*"
+```
+
+These rules merge with any agent-level permissions. Deny patterns from your global config cannot be overridden by agent configs, so you can trust that dangerous commands stay blocked regardless of which agent you run.
+
 ### Use Hooks for Audit Logging
 
 Log all tool calls for compliance or debugging:
