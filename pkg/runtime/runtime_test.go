@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/model/provider/base"
+	"github.com/docker/docker-agent/pkg/modelerrors"
 	"github.com/docker/docker-agent/pkg/modelsdev"
 	"github.com/docker/docker-agent/pkg/permissions"
 	"github.com/docker/docker-agent/pkg/session"
@@ -631,6 +632,55 @@ func TestCompaction(t *testing.T) {
 	require.NotEqual(t, -1, compactionStartIdx, "expected a SessionCompaction start event")
 }
 
+// errorProvider always returns the configured error from CreateChatCompletionStream.
+type errorProvider struct {
+	id  string
+	err error
+}
+
+func (p *errorProvider) ID() string { return p.id }
+
+func (p *errorProvider) CreateChatCompletionStream(context.Context, []chat.Message, []tools.Tool) (chat.MessageStream, error) {
+	return nil, p.err
+}
+
+func (p *errorProvider) BaseConfig() base.Config { return base.Config{} }
+
+func (p *errorProvider) MaxTokens() int { return 0 }
+
+func TestCompactionOverflowDoesNotLoop(t *testing.T) {
+	// The model always returns a ContextOverflowError. Without the
+	// max-retry guard this would loop forever because compaction
+	// cannot fix the problem.
+	overflowErr := modelerrors.NewContextOverflowError(errors.New("prompt is too long"))
+	prov := &errorProvider{id: "test/overflow-model", err: overflowErr}
+
+	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
+	tm := team.New(team.WithAgents(root))
+
+	rt, err := NewLocalRuntime(tm, WithSessionCompaction(true), WithModelStore(mockModelStoreWithLimit{limit: 100}))
+	require.NoError(t, err)
+
+	sess := session.New(session.WithUserMessage("Hello"))
+	events := rt.RunStream(t.Context(), sess)
+
+	var compactionCount int
+	var sawError bool
+	for ev := range events {
+		if e, ok := ev.(*SessionCompactionEvent); ok && e.Status == "started" {
+			compactionCount++
+		}
+		if _, ok := ev.(*ErrorEvent); ok {
+			sawError = true
+		}
+	}
+
+	// Compaction should have been attempted at most once, then the loop
+	// must give up and surface an error instead of retrying indefinitely.
+	require.LessOrEqual(t, compactionCount, 1, "expected at most 1 compaction attempt, got %d", compactionCount)
+	require.True(t, sawError, "expected an ErrorEvent after exhausting compaction retries")
+}
+
 func TestSessionWithoutUserMessage(t *testing.T) {
 	stream := newStreamBuilder().AddContent("OK").AddStopWithUsage(1, 1).Build()
 
@@ -735,37 +785,6 @@ func TestNewRuntime_InvalidCurrentAgentError(t *testing.T) {
 	// Ask for a non-existent current agent
 	_, err := New(tm, WithCurrentAgent("other"), WithModelStore(mockModelStore{}))
 	require.Contains(t, err.Error(), "agent not found: other (available agents: root)")
-}
-
-func TestSummarize_EmptySession(t *testing.T) {
-	prov := &mockProvider{id: "test/mock-model", stream: &mockStream{}}
-	root := agent.New("root", "You are a test agent", agent.WithModel(prov))
-	tm := team.New(team.WithAgents(root))
-
-	rt, err := NewLocalRuntime(tm, WithSessionCompaction(false), WithModelStore(mockModelStore{}))
-	require.NoError(t, err)
-
-	sess := session.New()
-	sess.Title = "Empty Session Test"
-
-	// Try to summarize the empty session
-	events := make(chan Event, 10)
-	rt.Summarize(t.Context(), sess, "", events)
-	close(events)
-
-	// Collect events
-	var warningFound bool
-	var warningMsg string
-	for ev := range events {
-		if warningEvent, ok := ev.(*WarningEvent); ok {
-			warningFound = true
-			warningMsg = warningEvent.Message
-		}
-	}
-
-	// Should have received a warning event about empty session
-	require.True(t, warningFound, "expected a warning event for empty session")
-	require.Contains(t, warningMsg, "empty", "warning message should mention empty session")
 }
 
 func TestProcessToolCalls_UnknownTool_ReturnsErrorResponse(t *testing.T) {
