@@ -65,6 +65,7 @@ func BuildPrompt(messages []chat.Message, additionalPrompt string) []chat.Messag
 	for i, msg := range messages {
 		cloned := msg
 		cloned.Cost = 0
+		cloned.CacheControl = false
 		out[i] = cloned
 	}
 	out = append(out, chat.Message{
