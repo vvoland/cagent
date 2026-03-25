@@ -292,6 +292,13 @@ func (ts *Toolset) watchConnection(ctx context.Context) {
 		if !ts.tryRestart(ctx) {
 			return
 		}
+
+		// After a successful restart, eagerly refresh the tool and prompt
+		// caches and notify the runtime so it picks up the new server's
+		// state. The new server may expose a different set of tools/prompts,
+		// and without this the runtime would keep using its stale copy.
+		ts.refreshToolCache(ctx)
+		ts.refreshPromptCache(ctx)
 	}
 }
 
