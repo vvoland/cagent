@@ -3,6 +3,31 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.38.0] - 2026-03-26
+
+This release improves OAuth configuration and fixes tool caching issues with remote MCP server reconnections.
+
+## Improvements
+
+- Changes OAuth client name to "docker-agent" for better identification
+- Reworks compaction logic to prevent infinite loops when context overflow errors occur repeatedly
+
+## Bug Fixes
+
+- Fixes tool cache not refreshing after remote MCP server reconnects, ensuring updated tools are available after server restarts
+
+## Technical Changes
+
+- Updates CHANGELOG.md for v1.37.0 release documentation
+
+### Pull Requests
+
+- [#2242](https://github.com/docker/docker-agent/pull/2242) - Refactor compaction
+- [#2243](https://github.com/docker/docker-agent/pull/2243) - docs: update CHANGELOG.md for v1.37.0
+- [#2245](https://github.com/docker/docker-agent/pull/2245) - Change the oauth client name to docker-agent
+- [#2246](https://github.com/docker/docker-agent/pull/2246) - fix: refresh tool and prompt caches after remote MCP server reconnect
+
+
 ## [v1.37.0] - 2026-03-25
 
 This release adds support for forwarding sampling parameters to provider APIs, introduces global user-level permissions, and includes several bug fixes and improvements.
@@ -1610,3 +1635,5 @@ This release improves the terminal user interface with better error handling and
 [v1.36.1]: https://github.com/docker/docker-agent/releases/tag/v1.36.1
 
 [v1.37.0]: https://github.com/docker/docker-agent/releases/tag/v1.37.0
+
+[v1.38.0]: https://github.com/docker/docker-agent/releases/tag/v1.38.0
