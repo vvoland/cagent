@@ -177,7 +177,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 
 				// In non-interactive mode (e.g. MCP server), auto-stop instead of
 				// blocking forever waiting for user input.
-				if sess.ToolsApproved {
+				if sess.NonInteractive {
 					slog.Debug("Auto-stopping after max iterations (non-interactive)", "agent", a.Name())
 
 					assistantMessage := chat.Message{

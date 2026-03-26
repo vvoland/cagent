@@ -76,6 +76,12 @@ type Session struct {
 	// ToolsApproved is a flag to indicate if the tools have been approved
 	ToolsApproved bool `json:"tools_approved"`
 
+	// NonInteractive indicates the session is running in a non-interactive context
+	// (e.g. MCP server, A2A adapter, evaluation framework) where there is no user
+	// to provide input. This is distinct from ToolsApproved which can also be set
+	// in interactive TUI sessions when a user approves all tools.
+	NonInteractive bool `json:"non_interactive,omitempty"`
+
 	// HideToolResults is a flag to indicate if tool results should be hidden
 	HideToolResults bool `json:"hide_tool_results"`
 
@@ -473,6 +479,12 @@ func WithTitle(title string) Opt {
 func WithToolsApproved(toolsApproved bool) Opt {
 	return func(s *Session) {
 		s.ToolsApproved = toolsApproved
+	}
+}
+
+func WithNonInteractive(nonInteractive bool) Opt {
+	return func(s *Session) {
+		s.NonInteractive = nonInteractive
 	}
 }
 

@@ -59,6 +59,7 @@ func SessionFromEvents(events []map[string]any, title string, questions []string
 	sess := session.New(
 		session.WithTitle(title),
 		session.WithToolsApproved(true),
+		session.WithNonInteractive(true),
 	)
 
 	// Add user questions as initial messages.

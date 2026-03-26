@@ -49,6 +49,7 @@ func runDockerAgent(ctx agent.InvocationContext, t *team.Team, agentName string,
 			session.WithMaxConsecutiveToolCalls(a.MaxConsecutiveToolCalls()),
 			session.WithMaxOldToolCallTokens(a.MaxOldToolCallTokens()),
 			session.WithToolsApproved(true),
+			session.WithNonInteractive(true),
 		)
 
 		// Create runtime

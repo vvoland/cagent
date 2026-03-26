@@ -164,6 +164,7 @@ func CreateToolHandler(t *team.Team, agentName string) func(context.Context, *mc
 			session.WithMaxOldToolCallTokens(ag.MaxOldToolCallTokens()),
 			session.WithUserMessage(input.Message),
 			session.WithToolsApproved(true),
+			session.WithNonInteractive(true),
 		)
 
 		rt, err := runtime.New(t,
