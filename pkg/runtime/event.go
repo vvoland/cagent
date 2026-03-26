@@ -333,17 +333,19 @@ func SessionTitle(sessionID, title string) Event {
 type SessionSummaryEvent struct {
 	AgentContext
 
-	Type      string `json:"type"`
-	SessionID string `json:"session_id"`
-	Summary   string `json:"summary"`
+	Type           string `json:"type"`
+	SessionID      string `json:"session_id"`
+	Summary        string `json:"summary"`
+	FirstKeptEntry int    `json:"first_kept_entry,omitempty"`
 }
 
-func SessionSummary(sessionID, summary, agentName string) Event {
+func SessionSummary(sessionID, summary, agentName string, firstKeptEntry int) Event {
 	return &SessionSummaryEvent{
-		Type:         "session_summary",
-		SessionID:    sessionID,
-		Summary:      summary,
-		AgentContext: newAgentContext(agentName),
+		Type:           "session_summary",
+		SessionID:      sessionID,
+		Summary:        summary,
+		FirstKeptEntry: firstKeptEntry,
+		AgentContext:   newAgentContext(agentName),
 	}
 }
 

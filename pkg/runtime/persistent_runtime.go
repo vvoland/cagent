@@ -131,7 +131,7 @@ func (r *PersistentRuntime) handleEvent(ctx context.Context, sess *session.Sessi
 		}
 
 	case *SessionSummaryEvent:
-		if err := r.sessionStore.AddSummary(ctx, e.SessionID, e.Summary); err != nil {
+		if err := r.sessionStore.AddSummary(ctx, e.SessionID, e.Summary, e.FirstKeptEntry); err != nil {
 			slog.Warn("Failed to persist summary", "session_id", e.SessionID, "error", err)
 		}
 

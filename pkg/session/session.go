@@ -38,6 +38,13 @@ type Item struct {
 	// Summary is a summary of the session up until this point
 	Summary string `json:"summary,omitempty"`
 
+	// FirstKeptEntry is the index (into the session's Messages slice) of the
+	// first message that was kept verbatim during compaction. Messages from
+	// this index onward (up to the summary item itself) are appended after
+	// the summary when reconstructing the conversation. A value of -1 (or 0
+	// with no summary) means no messages were kept.
+	FirstKeptEntry int `json:"first_kept_entry,omitempty"`
+
 	// Cost tracks the cost of operations associated with this item that
 	// don't produce a regular message (e.g., compaction/summarization).
 	Cost float64 `json:"cost,omitempty"`
@@ -732,7 +739,11 @@ func buildContextSpecificSystemMessages(a *agent.Agent, s *Session) []chat.Messa
 // buildSessionSummaryMessages builds system messages containing the session summary
 // if one exists. Session summaries are context-specific per session and thus should not have a checkpoint (they will be cached alongside the first user message anyway)
 //
-// lastSummaryIndex is the index of the last summary item in s.Messages, or -1 if none exists.
+// startIndex is the index in items from which conversation messages should be
+// emitted. When a summary with FirstKeptEntry is present, this points to the
+// first kept message so that recent context is preserved after compaction.
+// Otherwise it is lastSummaryIndex+1 (i.e. right after the summary item), or
+// 0 when there is no summary.
 func buildSessionSummaryMessages(items []Item) ([]chat.Message, int) {
 	var messages []chat.Message
 	// Find the last summary index to determine where conversation messages start
@@ -753,7 +764,18 @@ func buildSessionSummaryMessages(items []Item) ([]chat.Message, int) {
 		})
 	}
 
-	return messages, lastSummaryIndex
+	// Determine where conversation messages should start.
+	// If the summary has a FirstKeptEntry, we start from there so that
+	// messages kept during compaction are included after the summary.
+	startIndex := lastSummaryIndex + 1
+	if lastSummaryIndex >= 0 {
+		kept := items[lastSummaryIndex].FirstKeptEntry
+		if kept > 0 && kept < lastSummaryIndex {
+			startIndex = kept
+		}
+	}
+
+	return messages, startIndex
 }
 
 func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
@@ -781,14 +803,12 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 	s.mu.RUnlock()
 
 	// Build session summary messages (vary per session)
-	summaryMessages, lastSummaryIndex := buildSessionSummaryMessages(items)
+	summaryMessages, startIndex := buildSessionSummaryMessages(items)
 
 	var messages []chat.Message
 	messages = append(messages, invariantMessages...)
 	messages = append(messages, contextMessages...)
 	messages = append(messages, summaryMessages...)
-
-	startIndex := lastSummaryIndex + 1
 
 	// Begin adding conversation messages
 	for i := startIndex; i < len(items); i++ {

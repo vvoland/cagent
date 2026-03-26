@@ -350,6 +350,12 @@ func getAllMigrations() []Migration {
 			Description: "Drop the legacy messages JSON column now that all data lives in session_items",
 			UpSQL:       `ALTER TABLE sessions DROP COLUMN messages`,
 		},
+		{
+			ID:          21,
+			Name:        "021_add_first_kept_entry_column",
+			Description: "Add first_kept_entry column to session_items for compaction-preserved messages",
+			UpSQL:       `ALTER TABLE session_items ADD COLUMN first_kept_entry INTEGER DEFAULT 0`,
+		},
 	}
 }
 
