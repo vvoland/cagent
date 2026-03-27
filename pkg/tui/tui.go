@@ -2089,6 +2089,13 @@ func (m *appModel) windowTitle() string {
 	return title
 }
 
+// exitFunc is the function called by the shutdown safety net when the
+// graceful exit times out. It defaults to os.Exit but can be replaced
+// in tests.
+var exitFunc = os.Exit
+
+var shutdownTimeout = 5 * time.Second
+
 // cleanupAll cleans up all sessions, editors, and resources.
 func (m *appModel) cleanupAll() {
 	m.transcriber.Stop()
