@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.39.0] - 2026-03-27
+
+This release adds new color themes for the terminal interface and includes internal version management updates.
+
+## What's New
+- Adds Calm Roots theme with warm white accents, sage green info messages, and charcoal background
+- Adds Neon Pink theme with vibrant pink tones and high-contrast white accents for readability
+
+## Technical Changes
+- Freezes v7 version
+- Updates CHANGELOG.md for v1.38.0
+
+### Pull Requests
+
+- [#2256](https://github.com/docker/docker-agent/pull/2256) - docs: update CHANGELOG.md for v1.38.0
+- [#2260](https://github.com/docker/docker-agent/pull/2260) - Add Calm Roots and Neon Pink themes
+- [#2264](https://github.com/docker/docker-agent/pull/2264) - Freeze v7
+
+
 ## [v1.38.0] - 2026-03-26
 
 This release improves OAuth configuration and fixes tool caching issues with remote MCP server reconnections.
@@ -1637,3 +1656,5 @@ This release improves the terminal user interface with better error handling and
 [v1.37.0]: https://github.com/docker/docker-agent/releases/tag/v1.37.0
 
 [v1.38.0]: https://github.com/docker/docker-agent/releases/tag/v1.38.0
+
+[v1.39.0]: https://github.com/docker/docker-agent/releases/tag/v1.39.0
