@@ -439,6 +439,7 @@ func (r *LocalRuntime) recordAssistantMessage(
 		Usage:             res.Usage,
 		Model:             messageModel,
 		Cost:              messageCost,
+		FinishReason:      res.FinishReason,
 	}
 
 	addAgentMessage(sess, a, &assistantMessage, events)
@@ -449,9 +450,10 @@ func (r *LocalRuntime) recordAssistantMessage(
 		return nil
 	}
 	msgUsage := &MessageUsage{
-		Usage: *res.Usage,
-		Cost:  messageCost,
-		Model: messageModel,
+		Usage:        *res.Usage,
+		Cost:         messageCost,
+		Model:        messageModel,
+		FinishReason: res.FinishReason,
 	}
 	if res.RateLimit != nil {
 		msgUsage.RateLimit = *res.RateLimit

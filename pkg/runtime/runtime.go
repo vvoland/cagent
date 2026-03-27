@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/docker/docker-agent/pkg/agent"
+	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/config/types"
 	"github.com/docker/docker-agent/pkg/hooks"
 	"github.com/docker/docker-agent/pkg/modelsdev"
@@ -861,6 +862,32 @@ func (r *LocalRuntime) EmitStartupInfo(ctx context.Context, sess *session.Sessio
 		}
 		usage := SessionUsage(sess, contextLimit)
 		usage.Cost = sess.TotalCost()
+
+		// Reconstruct LastMessage from the parent session's last assistant
+		// message so that FinishReason (and other per-message fields) are
+		// available on session restore.  We intentionally iterate
+		// sess.Messages (not GetAllMessages) so the result reflects the
+		// parent agent's state: this event carries the parent session_id,
+		// and sub-agents emit their own token_usage events with their own
+		// session_id during live streaming.
+		for i := len(sess.Messages) - 1; i >= 0; i-- {
+			item := &sess.Messages[i]
+			if !item.IsMessage() || item.Message.Message.Role != chat.MessageRoleAssistant {
+				continue
+			}
+			msg := &item.Message.Message
+			lm := &MessageUsage{
+				Model:        msg.Model,
+				Cost:         msg.Cost,
+				FinishReason: msg.FinishReason,
+			}
+			if msg.Usage != nil {
+				lm.Usage = *msg.Usage
+			}
+			usage.LastMessage = lm
+			break
+		}
+
 		send(NewTokenUsageEvent(sess.ID, r.CurrentAgentName(), usage))
 	}
 

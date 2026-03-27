@@ -283,13 +283,14 @@ type Usage struct {
 }
 
 // MessageUsage contains per-message usage data to include in TokenUsageEvent.
-// It embeds chat.Usage and adds Cost and Model fields.
+// It embeds chat.Usage and adds Cost, Model, and FinishReason fields.
 type MessageUsage struct {
 	chat.Usage
 	chat.RateLimit
 
-	Cost  float64
-	Model string
+	Cost         float64
+	Model        string
+	FinishReason chat.FinishReason `json:"finish_reason,omitempty"`
 }
 
 // NewTokenUsageEvent creates a TokenUsageEvent with the given usage data.
