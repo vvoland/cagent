@@ -2089,6 +2089,13 @@ func (m *appModel) windowTitle() string {
 	return title
 }
 
+// exitFunc is the function called by the shutdown safety net when the
+// graceful exit times out. It defaults to os.Exit but can be replaced
+// in tests.
+var exitFunc = os.Exit
+
+var shutdownTimeout = 5 * time.Second
+
 // cleanupAll cleans up all sessions, editors, and resources.
 func (m *appModel) cleanupAll() {
 	m.transcriber.Stop()
@@ -2096,6 +2103,17 @@ func (m *appModel) cleanupAll() {
 	for _, ed := range m.editors {
 		ed.Cleanup()
 	}
+
+	// Safety net: force-exit if bubbletea's shutdown gets stuck.
+	// This can happen when the renderer's flush goroutine blocks on a
+	// stdout write (terminal buffer full) while holding the renderer
+	// mutex, preventing the event loop from completing the render call
+	// that follows tea.Quit.
+	go func() {
+		time.Sleep(shutdownTimeout)
+		slog.Warn("Graceful shutdown timed out, forcing exit")
+		exitFunc(0)
+	}()
 }
 
 // persistedSessionID returns the session-store ID that should be used for
