@@ -46,8 +46,8 @@ go mod tidy
 Run the linter and the tests:
 
 ```sh
-task lint
-task test
+mise lint
+mise test
 ```
 
 ### d. Decide

@@ -21,10 +21,10 @@ toolsets:
   - type: script
     shell:
       run_tests:
-        cmd: task test
+        cmd: mise test
         description: Run the project test suite
       lint:
-        cmd: task lint
+        cmd: mise lint
         description: Run the linter
 ```
 
