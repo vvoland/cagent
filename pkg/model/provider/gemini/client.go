@@ -442,6 +442,28 @@ func (c *Client) applyGemini25ThinkingBudget(config *genai.GenerateContentConfig
 	slog.Debug("Gemini request using thinking_budget", "budget_tokens", tokens)
 }
 
+// builtInTools returns Gemini built-in tools (Google Search, Google Maps,
+// Code Execution) enabled via provider_opts.
+func (c *Client) builtInTools() []*genai.Tool {
+	entries := []struct {
+		key  string
+		tool *genai.Tool
+	}{
+		{"google_search", &genai.Tool{GoogleSearch: &genai.GoogleSearch{}}},
+		{"google_maps", &genai.Tool{GoogleMaps: &genai.GoogleMaps{}}},
+		{"code_execution", &genai.Tool{CodeExecution: &genai.ToolCodeExecution{}}},
+	}
+
+	var builtIn []*genai.Tool
+	for _, e := range entries {
+		if enabled, ok := providerutil.GetProviderOptBool(c.ModelConfig.ProviderOpts, e.key); ok && enabled {
+			builtIn = append(builtIn, e.tool)
+			slog.Debug("Gemini built-in tool enabled", "key", e.key)
+		}
+	}
+	return builtIn
+}
+
 // convertToolsToGemini converts tools to Gemini format
 func convertToolsToGemini(requestTools []tools.Tool) ([]*genai.Tool, error) {
 	if len(requestTools) == 0 {
@@ -533,6 +555,9 @@ func (c *Client) CreateChatCompletionStream(
 
 	config := c.buildConfig()
 
+	// Start with Google built-in tools (search, maps, code execution) from provider_opts
+	config.Tools = c.builtInTools()
+
 	// Add tools to config if provided
 	if len(requestTools) > 0 {
 		allTools, err := convertToolsToGemini(requestTools)
@@ -541,13 +566,18 @@ func (c *Client) CreateChatCompletionStream(
 			return nil, err
 		}
 
-		config.Tools = allTools
+		config.Tools = append(config.Tools, allTools...)
 
 		// Enable function calling
 		config.ToolConfig = &genai.ToolConfig{
 			FunctionCallingConfig: &genai.FunctionCallingConfig{
 				Mode: genai.FunctionCallingConfigModeAuto,
 			},
+		}
+
+		// When mixing built-in tools with function calling, Gemini requires this flag
+		if len(config.Tools) > len(allTools) {
+			config.ToolConfig.IncludeServerSideToolInvocations = new(true)
 		}
 
 		// Debug: Log the tools we're sending

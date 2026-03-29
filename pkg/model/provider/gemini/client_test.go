@@ -379,6 +379,98 @@ func TestConvertMessagesToGemini_ThoughtSignature(t *testing.T) {
 	}
 }
 
+func TestBuiltInTools(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		providerOpts map[string]any
+		wantCount    int
+		wantSearch   bool
+		wantMaps     bool
+		wantCodeExec bool
+	}{
+		{
+			name:         "no built-in tools by default",
+			providerOpts: nil,
+			wantCount:    0,
+		},
+		{
+			name:         "google_search enabled",
+			providerOpts: map[string]any{"google_search": true},
+			wantCount:    1,
+			wantSearch:   true,
+		},
+		{
+			name:         "google_maps enabled",
+			providerOpts: map[string]any{"google_maps": true},
+			wantCount:    1,
+			wantMaps:     true,
+		},
+		{
+			name:         "both enabled",
+			providerOpts: map[string]any{"google_search": true, "google_maps": true},
+			wantCount:    2,
+			wantSearch:   true,
+			wantMaps:     true,
+		},
+		{
+			name:         "explicitly disabled",
+			providerOpts: map[string]any{"google_search": false, "google_maps": false},
+			wantCount:    0,
+		},
+		{
+			name:         "code_execution enabled",
+			providerOpts: map[string]any{"code_execution": true},
+			wantCount:    1,
+			wantCodeExec: true,
+		},
+		{
+			name:         "all three enabled",
+			providerOpts: map[string]any{"google_search": true, "google_maps": true, "code_execution": true},
+			wantCount:    3,
+			wantSearch:   true,
+			wantMaps:     true,
+			wantCodeExec: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := &Client{
+				Config: base.Config{
+					ModelConfig: latest.ModelConfig{
+						Provider:     "google",
+						Model:        "gemini-2.5-flash",
+						ProviderOpts: tt.providerOpts,
+					},
+				},
+			}
+
+			result := client.builtInTools()
+			assert.Len(t, result, tt.wantCount)
+
+			var hasSearch, hasMaps, hasCodeExec bool
+			for _, tool := range result {
+				if tool.GoogleSearch != nil {
+					hasSearch = true
+				}
+				if tool.GoogleMaps != nil {
+					hasMaps = true
+				}
+				if tool.CodeExecution != nil {
+					hasCodeExec = true
+				}
+			}
+			assert.Equal(t, tt.wantSearch, hasSearch, "GoogleSearch")
+			assert.Equal(t, tt.wantMaps, hasMaps, "GoogleMaps")
+			assert.Equal(t, tt.wantCodeExec, hasCodeExec, "CodeExecution")
+		})
+	}
+}
+
 func TestBuildConfig_ThinkingFromBudget(t *testing.T) {
 	t.Parallel()
 
