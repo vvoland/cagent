@@ -15,6 +15,6 @@ func GetToken(ctx context.Context) string {
 
 func GetUserInfo(ctx context.Context) DockerHubInfo {
 	var info DockerHubInfo
-	_ = ClientBackend.Get(ctx, "/registry/username", &info)
+	_ = ClientBackend.Get(ctx, "/registry/info", &info)
 	return info
 }
