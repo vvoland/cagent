@@ -76,7 +76,7 @@ func newClient(ctx context.Context, logger *slog.Logger, enabled, debugMode bool
 	client := &Client{
 		logger:      telemetryLogger,
 		userUUID:    getUserUUID(),
-		desktopUUID: desktop.GetUuid(ctx),
+		desktopUUID: desktop.GetUUID(ctx),
 		enabled:     enabled,
 		debugMode:   debugMode,
 		httpClient:  httpClient,

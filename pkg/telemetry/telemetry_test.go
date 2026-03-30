@@ -566,12 +566,12 @@ func TestGlobalTelemetryFunctions(t *testing.T) {
 	SetGlobalTelemetryVersion("test-version")
 	SetGlobalTelemetryDebugMode(true)
 
-	TrackCommand(context.Background(), "test-command", []string{"arg1"})
+	TrackCommand(t.Context(), "test-command", []string{"arg1"})
 
 	assert.NotNil(t, globalToolTelemetryClient)
 
-	EnsureGlobalTelemetryInitialized(context.Background())
-	client := GetGlobalTelemetryClient(context.Background())
+	EnsureGlobalTelemetryInitialized(t.Context())
+	client := GetGlobalTelemetryClient(t.Context())
 	assert.NotNil(t, client)
 }
 
