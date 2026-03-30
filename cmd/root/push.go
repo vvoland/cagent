@@ -25,9 +25,9 @@ func newPushCmd() *cobra.Command {
 }
 
 func runPushCommand(cmd *cobra.Command, args []string) error {
-	telemetry.TrackCommand("share", append([]string{"push"}, args...))
-
 	ctx := cmd.Context()
+	telemetry.TrackCommand(ctx, "share", append([]string{"push"}, args...))
+
 	agentFilename := args[0]
 	tag := args[1]
 	out := cli.NewPrinter(cmd.OutOrStdout())

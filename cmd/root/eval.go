@@ -50,7 +50,7 @@ func newEvalCmd() *cobra.Command {
 }
 
 func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
-	telemetry.TrackCommand("eval", args)
+	telemetry.TrackCommand(cmd.Context(), "eval", args)
 
 	ctx := cmd.Context()
 	agentFilename := args[0]

@@ -1,6 +1,8 @@
 package desktop
 
-import "context"
+import (
+	"context"
+)
 
 type DockerHubInfo struct {
 	Username string `json:"id"`

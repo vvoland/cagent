@@ -85,8 +85,8 @@ func Run(ctx context.Context, out *Printer, cfg Config, rt runtime.Runtime, sess
 	defer cancel()
 
 	// Ensure telemetry is initialized and add to context so runtime can access it
-	telemetry.EnsureGlobalTelemetryInitialized()
-	if telemetryClient := telemetry.GetGlobalTelemetryClient(); telemetryClient != nil {
+	telemetry.EnsureGlobalTelemetryInitialized(ctx)
+	if telemetryClient := telemetry.GetGlobalTelemetryClient(ctx); telemetryClient != nil {
 		ctx = telemetry.WithClient(ctx, telemetryClient)
 	}
 
