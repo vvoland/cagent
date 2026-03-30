@@ -133,13 +133,14 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
 		return runInSandbox(cmd, &f.runConfig, f.sandboxTemplate)
 	}
 
+	ctx := cmd.Context()
+
 	if f.exec {
-		telemetry.TrackCommand("exec", args)
+		telemetry.TrackCommand(ctx, "exec", args)
 	} else {
-		telemetry.TrackCommand("run", args)
+		telemetry.TrackCommand(ctx, "run", args)
 	}
 
-	ctx := cmd.Context()
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
 	useTUI := !f.exec && (f.forceTUI || isatty.IsTerminal(os.Stdout.Fd()))

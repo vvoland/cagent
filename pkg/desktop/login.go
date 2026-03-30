@@ -18,3 +18,9 @@ func GetUserInfo(ctx context.Context) DockerHubInfo {
 	_ = ClientBackend.Get(ctx, "/registry/info", &info)
 	return info
 }
+
+func GetUuid(ctx context.Context) string {
+	var uuid string
+	_ = ClientBackend.Get(ctx, "/uuid", &uuid)
+	return uuid
+}
