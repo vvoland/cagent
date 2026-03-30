@@ -281,8 +281,9 @@ func TestSimple(t *testing.T) {
 		AgentChoice("root", sess.ID, "Hello"),
 		MessageAdded(sess.ID, msgAdded.Message, "root"),
 		NewTokenUsageEvent(sess.ID, "root", &Usage{InputTokens: 3, OutputTokens: 2, ContextLength: 5, LastMessage: &MessageUsage{
-			Usage: chat.Usage{InputTokens: 3, OutputTokens: 2},
-			Model: "test/mock-model",
+			Usage:        chat.Usage{InputTokens: 3, OutputTokens: 2},
+			Model:        "test/mock-model",
+			FinishReason: chat.FinishReasonStop,
 		}}),
 		StreamStopped(sess.ID, "root"),
 	}
@@ -324,8 +325,9 @@ func TestMultipleContentChunks(t *testing.T) {
 		AgentChoice("root", sess.ID, "you?"),
 		MessageAdded(sess.ID, msgAdded.Message, "root"),
 		NewTokenUsageEvent(sess.ID, "root", &Usage{InputTokens: 8, OutputTokens: 12, ContextLength: 20, LastMessage: &MessageUsage{
-			Usage: chat.Usage{InputTokens: 8, OutputTokens: 12},
-			Model: "test/mock-model",
+			Usage:        chat.Usage{InputTokens: 8, OutputTokens: 12},
+			Model:        "test/mock-model",
+			FinishReason: chat.FinishReasonStop,
 		}}),
 		StreamStopped(sess.ID, "root"),
 	}
@@ -363,8 +365,9 @@ func TestWithReasoning(t *testing.T) {
 		AgentChoice("root", sess.ID, "Hello, how can I help you?"),
 		MessageAdded(sess.ID, msgAdded.Message, "root"),
 		NewTokenUsageEvent(sess.ID, "root", &Usage{InputTokens: 10, OutputTokens: 15, ContextLength: 25, LastMessage: &MessageUsage{
-			Usage: chat.Usage{InputTokens: 10, OutputTokens: 15},
-			Model: "test/mock-model",
+			Usage:        chat.Usage{InputTokens: 10, OutputTokens: 15},
+			Model:        "test/mock-model",
+			FinishReason: chat.FinishReasonStop,
 		}}),
 		StreamStopped(sess.ID, "root"),
 	}
@@ -404,8 +407,9 @@ func TestMixedContentAndReasoning(t *testing.T) {
 		AgentChoice("root", sess.ID, " How can I help you today?"),
 		MessageAdded(sess.ID, msgAdded.Message, "root"),
 		NewTokenUsageEvent(sess.ID, "root", &Usage{InputTokens: 15, OutputTokens: 20, ContextLength: 35, LastMessage: &MessageUsage{
-			Usage: chat.Usage{InputTokens: 15, OutputTokens: 20},
-			Model: "test/mock-model",
+			Usage:        chat.Usage{InputTokens: 15, OutputTokens: 20},
+			Model:        "test/mock-model",
+			FinishReason: chat.FinishReasonStop,
 		}}),
 		StreamStopped(sess.ID, "root"),
 	}
@@ -980,6 +984,59 @@ func TestEmitStartupInfo_CostIncludesSubSessions(t *testing.T) {
 	// Cost must equal TotalCost (0.01 + 0.05 = 0.06), not OwnCost (0.01).
 	assert.InDelta(t, 0.06, tokenEvent.Usage.Cost, 0.0001,
 		"cost should include sub-session costs (TotalCost, not OwnCost)")
+}
+
+func TestEmitStartupInfo_LastMessageFinishReason(t *testing.T) {
+	// When restoring a session whose last assistant message has a
+	// FinishReason, the emitted TokenUsageEvent.LastMessage must carry
+	// that FinishReason so the UI can identify the final response.
+	prov := &mockProvider{id: "test/startup-model", stream: &mockStream{}}
+	root := agent.New("root", "agent",
+		agent.WithModel(prov),
+		agent.WithDescription("Root"),
+	)
+	tm := team.New(team.WithAgents(root))
+
+	rt, err := NewLocalRuntime(tm, WithCurrentAgent("root"),
+		WithModelStore(mockModelStoreWithLimit{limit: 128_000}))
+	require.NoError(t, err)
+
+	sess := session.New()
+	sess.InputTokens = 500
+	sess.OutputTokens = 200
+
+	sess.Messages = append(sess.Messages, session.Item{
+		Message: &session.Message{
+			AgentName: "root",
+			Message: chat.Message{
+				Role:         chat.MessageRoleAssistant,
+				Content:      "final answer",
+				Cost:         0.02,
+				Model:        "test/startup-model",
+				FinishReason: chat.FinishReasonStop,
+				Usage:        &chat.Usage{InputTokens: 500, OutputTokens: 200},
+			},
+		},
+	})
+
+	events := make(chan Event, 20)
+	rt.EmitStartupInfo(t.Context(), sess, events)
+	close(events)
+
+	var tokenEvent *TokenUsageEvent
+	for event := range events {
+		if te, ok := event.(*TokenUsageEvent); ok {
+			tokenEvent = te
+		}
+	}
+
+	require.NotNil(t, tokenEvent, "should emit TokenUsageEvent")
+	require.NotNil(t, tokenEvent.Usage.LastMessage, "LastMessage should be populated on session restore")
+	assert.Equal(t, chat.FinishReasonStop, tokenEvent.Usage.LastMessage.FinishReason)
+	assert.Equal(t, "test/startup-model", tokenEvent.Usage.LastMessage.Model)
+	assert.InDelta(t, 0.02, tokenEvent.Usage.LastMessage.Cost, 0.0001)
+	assert.Equal(t, int64(500), tokenEvent.Usage.LastMessage.InputTokens)
+	assert.Equal(t, int64(200), tokenEvent.Usage.LastMessage.OutputTokens)
 }
 
 func TestEmitStartupInfo_NilSessionNoTokenEvent(t *testing.T) {
