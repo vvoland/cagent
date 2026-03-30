@@ -75,8 +75,11 @@ func (f *debugFlags) loadTeam(ctx context.Context, agentFilename string, opts ..
 	return t, nil
 }
 
-func (f *debugFlags) runDebugConfigCommand(cmd *cobra.Command, args []string) error {
+func (f *debugFlags) runDebugConfigCommand(cmd *cobra.Command, args []string) (commandErr error) {
 	telemetry.TrackCommand(cmd.Context(), "debug", append([]string{"config"}, args...))
+	defer func() { // do not inline this defer so that commandErr is not resolved early
+		telemetry.TrackCommandError(cmd.Context(), "debug", append([]string{"config"}, args...), commandErr)
+	}()
 
 	agentSource, err := config.Resolve(args[0], f.runConfig.EnvProvider())
 	if err != nil {
@@ -91,8 +94,11 @@ func (f *debugFlags) runDebugConfigCommand(cmd *cobra.Command, args []string) er
 	return yaml.NewEncoder(cmd.OutOrStdout()).Encode(cfg)
 }
 
-func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) error {
+func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) (commandErr error) {
 	telemetry.TrackCommand(cmd.Context(), "debug", append([]string{"toolsets"}, args...))
+	defer func() { // do not inline this defer so that commandErr is not resolved early
+		telemetry.TrackCommandError(cmd.Context(), "debug", append([]string{"toolsets"}, args...), commandErr)
+	}()
 
 	ctx := cmd.Context()
 
@@ -131,8 +137,11 @@ func (f *debugFlags) runDebugToolsetsCommand(cmd *cobra.Command, args []string) 
 	return nil
 }
 
-func (f *debugFlags) runDebugTitleCommand(cmd *cobra.Command, args []string) error {
+func (f *debugFlags) runDebugTitleCommand(cmd *cobra.Command, args []string) (commandErr error) {
 	telemetry.TrackCommand(cmd.Context(), "debug", append([]string{"title"}, args...))
+	defer func() { // do not inline this defer so that commandErr is not resolved early
+		telemetry.TrackCommandError(cmd.Context(), "debug", append([]string{"title"}, args...), commandErr)
+	}()
 
 	ctx := cmd.Context()
 

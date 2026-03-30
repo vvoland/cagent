@@ -127,18 +127,24 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	cmd.PersistentFlags().BoolVar(&flags.outputJSON, "json", false, "Output results in JSON format")
 }
 
-func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) error {
-	// If --sandbox is set, delegate everything to docker sandbox.
-	if f.sandbox {
-		return runInSandbox(cmd, &f.runConfig, f.sandboxTemplate)
-	}
-
+func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) (commandErr error) {
 	ctx := cmd.Context()
 
 	if f.exec {
 		telemetry.TrackCommand(ctx, "exec", args)
+		defer func() { // do not inline this defer so that commandErr is not resolved early
+			telemetry.TrackCommandError(ctx, "exec", args, commandErr)
+		}()
 	} else {
 		telemetry.TrackCommand(ctx, "run", args)
+		defer func() { // do not inline this defer so that commandErr is not resolved early
+			telemetry.TrackCommandError(ctx, "run", args, commandErr)
+		}()
+	}
+
+	// If --sandbox is set, delegate everything to docker sandbox.
+	if f.sandbox {
+		return runInSandbox(cmd, &f.runConfig, f.sandboxTemplate)
 	}
 
 	out := cli.NewPrinter(cmd.OutOrStdout())

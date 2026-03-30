@@ -34,9 +34,12 @@ func newPullCmd() *cobra.Command {
 	return cmd
 }
 
-func (f *pullFlags) runPullCommand(cmd *cobra.Command, args []string) error {
+func (f *pullFlags) runPullCommand(cmd *cobra.Command, args []string) (commandErr error) {
 	ctx := cmd.Context()
 	telemetry.TrackCommand(ctx, "share", append([]string{"pull"}, args...))
+	defer func() { // do not inline this defer so that commandErr is not resolved early
+		telemetry.TrackCommandError(ctx, "share", append([]string{"pull"}, args...), commandErr)
+	}()
 
 	out := cli.NewPrinter(cmd.OutOrStdout())
 	registryRef := args[0]

@@ -32,9 +32,12 @@ func newDebugAuthCmd() *cobra.Command {
 		Use:   "auth",
 		Short: "Print Docker Desktop authentication information",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) (commandErr error) {
 			ctx := cmd.Context()
 			telemetry.TrackCommand(ctx, "debug", []string{"auth"})
+			defer func() { // do not inline this defer so that commandErr is not resolved early
+				telemetry.TrackCommandError(ctx, "debug", []string{"auth"}, commandErr)
+			}()
 
 			w := cmd.OutOrStdout()
 

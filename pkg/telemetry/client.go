@@ -49,9 +49,10 @@ func newClient(ctx context.Context, logger *slog.Logger, enabled, debugMode bool
 
 	if !enabled {
 		return &Client{
-			logger:  telemetryLogger,
-			enabled: false,
-			version: version,
+			logger:    telemetryLogger,
+			enabled:   false,
+			debugMode: debugMode,
+			version:   version,
 		}
 	}
 

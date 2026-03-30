@@ -24,9 +24,12 @@ func newPushCmd() *cobra.Command {
 	}
 }
 
-func runPushCommand(cmd *cobra.Command, args []string) error {
+func runPushCommand(cmd *cobra.Command, args []string) (commandErr error) {
 	ctx := cmd.Context()
 	telemetry.TrackCommand(ctx, "share", append([]string{"push"}, args...))
+	defer func() { // do not inline this defer so that commandErr is not resolved early
+		telemetry.TrackCommandError(ctx, "share", append([]string{"push"}, args...), commandErr)
+	}()
 
 	agentFilename := args[0]
 	tag := args[1]

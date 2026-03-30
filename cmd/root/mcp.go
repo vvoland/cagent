@@ -38,9 +38,12 @@ func newMCPCmd() *cobra.Command {
 	return cmd
 }
 
-func (f *mcpFlags) runMCPCommand(cmd *cobra.Command, args []string) error {
+func (f *mcpFlags) runMCPCommand(cmd *cobra.Command, args []string) (commandErr error) {
 	ctx := cmd.Context()
 	telemetry.TrackCommand(ctx, "serve", append([]string{"mcp"}, args...))
+	defer func() { // do not inline this defer so that commandErr is not resolved early
+		telemetry.TrackCommandError(ctx, "serve", append([]string{"mcp"}, args...), commandErr)
+	}()
 
 	agentFilename := args[0]
 

@@ -21,6 +21,25 @@ func TrackCommand(ctx context.Context, action string, args []string) {
 	}
 }
 
+// TrackCommandError records a command eventerror, send telemetry synchronously to ensure it is sent before the process exits after error
+// do nothing if err == nil
+func TrackCommandError(ctx context.Context, action string, args []string, err error) {
+	if err == nil {
+		return
+	}
+	EnsureGlobalTelemetryInitialized(ctx)
+
+	if globalToolTelemetryClient != nil {
+		commandEvent := CommandEvent{
+			Action:  action,
+			Args:    args,
+			Error:   err.Error(),
+			Success: false,
+		}
+		globalToolTelemetryClient.TrackSynchronous(ctx, &commandEvent)
+	}
+}
+
 // Global variables for simple tool telemetry
 var (
 	globalToolTelemetryClient *Client
