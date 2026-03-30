@@ -3,6 +3,98 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.39.0] - 2026-03-27
+
+This release adds new color themes for the terminal interface and includes internal version management updates.
+
+## What's New
+- Adds Calm Roots theme with warm white accents, sage green info messages, and charcoal background
+- Adds Neon Pink theme with vibrant pink tones and high-contrast white accents for readability
+
+## Technical Changes
+- Freezes v7 version
+- Updates CHANGELOG.md for v1.38.0
+
+### Pull Requests
+
+- [#2256](https://github.com/docker/docker-agent/pull/2256) - docs: update CHANGELOG.md for v1.38.0
+- [#2260](https://github.com/docker/docker-agent/pull/2260) - Add Calm Roots and Neon Pink themes
+- [#2264](https://github.com/docker/docker-agent/pull/2264) - Freeze v7
+
+
+## [v1.38.0] - 2026-03-26
+
+This release improves OAuth configuration and fixes tool caching issues with remote MCP server reconnections.
+
+## Improvements
+
+- Changes OAuth client name to "docker-agent" for better identification
+- Reworks compaction logic to prevent infinite loops when context overflow errors occur repeatedly
+
+## Bug Fixes
+
+- Fixes tool cache not refreshing after remote MCP server reconnects, ensuring updated tools are available after server restarts
+
+## Technical Changes
+
+- Updates CHANGELOG.md for v1.37.0 release documentation
+
+### Pull Requests
+
+- [#2242](https://github.com/docker/docker-agent/pull/2242) - Refactor compaction
+- [#2243](https://github.com/docker/docker-agent/pull/2243) - docs: update CHANGELOG.md for v1.37.0
+- [#2245](https://github.com/docker/docker-agent/pull/2245) - Change the oauth client name to docker-agent
+- [#2246](https://github.com/docker/docker-agent/pull/2246) - fix: refresh tool and prompt caches after remote MCP server reconnect
+
+
+## [v1.37.0] - 2026-03-25
+
+This release adds support for forwarding sampling parameters to provider APIs, introduces global user-level permissions, and includes several bug fixes and improvements.
+
+## What's New
+
+- Adds support for forwarding sampling provider options (top_k, repetition_penalty, etc.) to provider APIs
+- Adds global-level permissions from user config that apply across all sessions and agents
+- Adds a welcome message to the interface
+- Adds custom linter to enforce config version import chain
+
+## Improvements
+
+- Refactors RAG from agent-level config to standard toolset type for consistency with other toolsets
+- Restores RAG indexing event forwarding to TUI after toolset refactor
+- Simplifies RAG event forwarding and cleans up RAGTool
+
+## Bug Fixes
+
+- Fixes Bedrock interleaved_thinking defaults to true and adds logging for provider_opts mismatches
+- Fixes issue where CacheControl markers were preserved during message compaction, exceeding Anthropic's limit
+- Fixes tool loop detector by resetting it after degenerate loop error
+- Fixes desktop proxy socket name on WSL where http-proxy socket is not allowed for users
+
+## Technical Changes
+
+- Documents max_old_tool_call_tokens and max_consecutive_tool_calls in agent config reference
+- Documents global permissions from user config in permissions reference and guides
+- Pins GitHub actions for improved security
+- Updates cagent-action to latest version with better permissions
+
+### Pull Requests
+
+- [#2210](https://github.com/docker/docker-agent/pull/2210) - Refactor RAG from agent-level config to standard toolset type
+- [#2225](https://github.com/docker/docker-agent/pull/2225) - Add custom linter to enforce config version import chain
+- [#2226](https://github.com/docker/docker-agent/pull/2226) - feat: forward sampling provider_opts (top_k, repetition_penalty) to provider APIs
+- [#2227](https://github.com/docker/docker-agent/pull/2227) - docs: update CHANGELOG.md for v1.36.1
+- [#2229](https://github.com/docker/docker-agent/pull/2229) - docs: add max_old_tool_call_tokens and max_consecutive_tool_calls to agent config reference
+- [#2230](https://github.com/docker/docker-agent/pull/2230) - Add global-level permissions from user config
+- [#2231](https://github.com/docker/docker-agent/pull/2231) - Pin GitHub actions
+- [#2233](https://github.com/docker/docker-agent/pull/2233) - update cagent-action to latest (with better permissions)
+- [#2236](https://github.com/docker/docker-agent/pull/2236) - fix: strip CacheControl from messages during compaction
+- [#2237](https://github.com/docker/docker-agent/pull/2237) - Reset tool loop detector after degenerate loop error
+- [#2238](https://github.com/docker/docker-agent/pull/2238) - Bump direct Go module dependencies
+- [#2240](https://github.com/docker/docker-agent/pull/2240) - Fix desktop proxy socket name on WSL
+- [#2241](https://github.com/docker/docker-agent/pull/2241) - docs: document global permissions from user config
+
+
 ## [v1.36.1] - 2026-03-23
 
 This release improves OCI reference handling, adds a tools command, and enhances MCP server reliability with better error recovery.
@@ -1560,3 +1652,9 @@ This release improves the terminal user interface with better error handling and
 [v1.36.0]: https://github.com/docker/docker-agent/releases/tag/v1.36.0
 
 [v1.36.1]: https://github.com/docker/docker-agent/releases/tag/v1.36.1
+
+[v1.37.0]: https://github.com/docker/docker-agent/releases/tag/v1.37.0
+
+[v1.38.0]: https://github.com/docker/docker-agent/releases/tag/v1.38.0
+
+[v1.39.0]: https://github.com/docker/docker-agent/releases/tag/v1.39.0

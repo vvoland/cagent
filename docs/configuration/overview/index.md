@@ -53,7 +53,8 @@ providers:
     base_url: https://api.example.com/v1
     token_key: MY_API_KEY
 
-# 7. Permissions — global tool permission rules (optional)
+# 7. Permissions — agent-level tool permission rules (optional)
+#    For user-wide global permissions, see ~/.config/cagent/config.yaml
 permissions:
   allow: ["read_*"]
   deny: ["shell:cmd=sudo*"]
