@@ -67,6 +67,28 @@ func GetProviderOptInt64(opts map[string]any, key string) (int64, bool) {
 	}
 }
 
+// GetProviderOptBool extracts a bool value from provider opts.
+func GetProviderOptBool(opts map[string]any, key string) (bool, bool) {
+	if opts == nil {
+		return false, false
+	}
+	v, ok := opts[key]
+	if !ok {
+		return false, false
+	}
+	switch b := v.(type) {
+	case bool:
+		return b, true
+	default:
+		slog.Debug("provider_opts type mismatch, ignoring",
+			"key", key,
+			"expected_type", "bool",
+			"actual_type", fmt.Sprintf("%T", v),
+			"value", v)
+		return false, false
+	}
+}
+
 // samplingProviderOptsKeys lists the provider_opts keys that are
 // treated as sampling parameters and forwarded to provider APIs.
 // Provider-specific infrastructure keys (api_type, transport, region, etc.)

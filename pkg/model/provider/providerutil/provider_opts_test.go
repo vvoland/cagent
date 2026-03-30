@@ -33,6 +33,32 @@ func TestGetProviderOptFloat64(t *testing.T) {
 	}
 }
 
+func TestGetProviderOptBool(t *testing.T) {
+	tests := []struct {
+		name   string
+		opts   map[string]any
+		key    string
+		want   bool
+		wantOK bool
+	}{
+		{"nil opts", nil, "google_search", false, false},
+		{"missing key", map[string]any{}, "google_search", false, false},
+		{"true value", map[string]any{"google_search": true}, "google_search", true, true},
+		{"false value", map[string]any{"google_search": false}, "google_search", false, true},
+		{"string value", map[string]any{"google_search": "true"}, "google_search", false, false},
+		{"int value", map[string]any{"google_search": 1}, "google_search", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := GetProviderOptBool(tt.opts, tt.key)
+			assert.Equal(t, tt.wantOK, ok)
+			if ok {
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
 func TestGetProviderOptInt64(t *testing.T) {
 	tests := []struct {
 		name   string
