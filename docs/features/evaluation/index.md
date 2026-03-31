@@ -12,7 +12,7 @@ _Measure agent quality with automated evaluations — tool call accuracy, respon
 
 The `docker agent eval` command runs your agent against a set of recorded sessions and scores the results. Each eval session captures a user question, the expected tool calls, and criteria the response must satisfy. docker-agent replays the question, compares the agent's behavior to expectations, and produces a report.
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Docker required
 </div>
   <p>Evaluations run inside Docker containers for isolation. Each eval gets a clean environment with optional setup scripts. Docker Desktop (or Docker Engine) must be running.</p>
@@ -140,7 +140,7 @@ The easiest way to create eval sessions is from real conversations:
 3. Use the `/eval` slash command in the TUI to save the session as an eval file
 4. Edit the generated JSON to add `evals` criteria (relevance, size, etc.)
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Tip
 </div>
   <p>Start with tool call scoring (automatic from recorded sessions), then add relevance criteria for the responses you care most about.</p>
@@ -173,7 +173,7 @@ After a run completes, docker-agent produces:
 - **Sessions JSON** — Exported session data for analysis
 - **Log file** — Debug-level log of the entire evaluation run
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Debugging Failed Evals
 </div>
   <p>Use <code>--keep-containers</code> to preserve containers after evaluation. You can then inspect them with <code>docker exec</code> to understand why an eval failed. The session database (<code>.db</code> file) contains the full conversation history for each eval.</p>
@@ -222,7 +222,7 @@ $ docker agent run agent.yaml
 $ docker agent eval agent.yaml ./evals
 ```
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ See also
 </div>
   <p>Use <code>/eval</code> in the <a href="{{ '/features/tui/' | relative_url }}">TUI</a> to create eval sessions from conversations. See the <a href="{{ '/features/cli/' | relative_url }}">CLI Reference</a> for all <code>docker agent eval</code> flags. Example eval configs are in <a href="https://github.com/docker/docker-agent/tree/main/examples/eval">examples/eval</a> on GitHub.</p>

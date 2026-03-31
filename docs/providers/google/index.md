@@ -48,7 +48,7 @@ models:
 
 Gemini supports two approaches depending on the model version:
 
-<div class="callout callout-warning">
+<div class="callout callout-warning" markdown="1">
 <div class="callout-title">⚠️ Different thinking formats
 </div>
   <p>Gemini 2.5 uses **token-based** budgets (integers). Gemini 3 uses **level-based** budgets (strings like <code>low</code>, <code>high</code>). Make sure you use the right format for your model version.</p>

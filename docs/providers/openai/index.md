@@ -59,7 +59,7 @@ models:
     thinking_budget: low # minimal | low | medium (default) | high
 ```
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Custom endpoints
 </div>
   <p>Use <code>base_url</code> for proxies and OpenAI-compatible services. See <a href="{{ '/providers/custom/' | relative_url }}">Custom Providers</a> for full setup.</p>

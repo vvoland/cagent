@@ -12,7 +12,7 @@ _Run shell commands at various points during agent execution for deterministic c
 
 Hooks allow you to execute shell commands or scripts at key points in an agent's lifecycle. They provide deterministic control that works alongside the LLM's behavior, enabling validation, logging, environment setup, and more.
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Use Cases
 </div>
 
@@ -214,14 +214,14 @@ hooks:
           timeout: 120 # 2 minutes
 ```
 
-<div class="callout callout-warning">
+<div class="callout callout-warning" markdown="1">
 <div class="callout-title">⚠️ Performance
 </div>
   <p>Hooks run synchronously and can slow down agent execution. Keep hook scripts fast and efficient. Consider using <code>suppress_output: true</code> for logging hooks to reduce noise.</p>
 
 </div>
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Session End and Cancellation
 </div>
   <p><code>session_end</code> hooks are designed to run even when the session is interrupted (e.g., Ctrl+C). They are still subject to their configured timeout.</p>
@@ -376,7 +376,7 @@ $ docker agent run agentcatalog/coder \
   --hook-pre-tool-use "./audit.sh"
 ```
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Merging behavior
 </div>
   <p>CLI hooks are <strong>appended</strong> to any hooks already defined in the agent's YAML config. They don't replace existing hooks. Pre/post-tool-use hooks added via CLI match all tools (equivalent to <code>matcher: "*"</code>).</p>

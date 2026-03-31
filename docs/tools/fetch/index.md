@@ -33,7 +33,7 @@ toolsets:
     timeout: 60
 ```
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Fetch vs. API Tool
 </div>
   <p>The fetch tool gives the agent full control over HTTP requests at runtime. The <a href="{{ '/tools/api/' | relative_url }}">API tool</a> lets you predefine specific API calls as named tools with typed parameters. Use fetch for general-purpose HTTP access; use the API tool for well-known endpoints you want to expose as structured tools.</p>

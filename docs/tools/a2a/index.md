@@ -28,7 +28,7 @@ toolsets:
 | `name`   | string | ✓        | Tool name for the remote agent |
 | `url`    | string | ✓        | A2A server endpoint URL        |
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 See also
 </div>
   <p>For full details on the A2A protocol and serving agents as A2A endpoints, see <a href="{{ '/features/a2a/' | relative_url }}">A2A Protocol</a>.</p>

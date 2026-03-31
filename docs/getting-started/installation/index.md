@@ -21,7 +21,7 @@ Starting with [Docker Desktop 4.49.0](https://docs.docker.com/desktop/release-no
 $ docker agent version
 ```
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Tip
 </div>
   <p>Docker Desktop bundles docker-agent and keeps it up to date. This is the easiest way to get started, especially if you want to use Docker MCP tools and Docker Model Runner.</p>
@@ -89,7 +89,7 @@ task build
 ./bin/docker-agent --help
 ```
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Building on Windows
 </div>
   <p>On Windows, use <code>task build-local</code> instead of <code>task build</code>. This builds the binary inside a Docker container using Docker Buildx, which avoids issues with Windows-specific toolchain setup and CGo cross-compilation. The output goes to the <code>./dist</code> directory.</p>
@@ -108,7 +108,7 @@ export GOOGLE_API_KEY="AI..."           # Google Gemini
 export MISTRAL_API_KEY="..."            # Mistral
 ```
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Note
 </div>
   <p>You only need the key(s) for the provider(s) you configure in your agent YAML. If you use Docker Model Runner (DMR), no API key is needed — models run locally.</p>

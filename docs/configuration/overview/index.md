@@ -154,7 +154,7 @@ API keys and secrets are read from environment variables — never stored in con
 | `DOCKER_AGENT_AUTO_INSTALL` | Set to `false` to disable automatic tool installation           |
 | `DOCKER_AGENT_TOOLS_DIR`    | Override the base directory for installed tools (default: `~/.cagent/tools/`) |
 
-<div class="callout callout-warning">
+<div class="callout callout-warning" markdown="1">
 <div class="callout-title">⚠️ Important
 </div>
   <p>Model references are case-sensitive: <code>openai/gpt-4o</code> is not the same as <code>openai/GPT-4o</code>.</p>

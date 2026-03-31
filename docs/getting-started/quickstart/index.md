@@ -90,7 +90,7 @@ Once your agent is running, try asking it to:
 - _"Create a Python script that fetches weather data"_
 - _"Explain what the code in main.go does"_
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Tip
 </div>
   <p>Add <code>--yolo</code> to auto-approve all tool calls: `docker agent run agent.yaml --yolo`</p>
@@ -129,7 +129,7 @@ agents:
         ref: docker:duckduckgo
 ```
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Docker MCP Tools
 </div>
   <p>The <code>ref: docker:duckduckgo</code> syntax runs the DuckDuckGo MCP server in a Docker container. This is the recommended way to use MCP tools — secure, isolated, and easy to configure. Requires Docker Desktop.</p>

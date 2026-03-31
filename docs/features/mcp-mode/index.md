@@ -17,7 +17,7 @@ The `docker agent serve mcp` command makes your agents available to any applicat
 - Build reusable agent teams consumable from any MCP client
 - Integrate domain-specific agents into existing workflows
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ What is MCP?
 </div>
   <p>The <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> is an open standard for connecting AI tools. See also <a href="{{ '/features/remote-mcp/' | relative_url }}">Remote MCP Servers</a> for connecting to cloud services.</p>

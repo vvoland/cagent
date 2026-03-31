@@ -16,7 +16,7 @@ docker-agent can connect to any OpenAI-compatible local model server. This guide
 - **vLLM** — High-performance inference server
 - **LocalAI** — OpenAI-compatible API for various backends
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Docker Model Runner
 </div>
   <p>For the easiest local model experience, consider <a href="{{ '/providers/dmr/' | relative_url }}">Docker Model Runner</a> which is built into Docker Desktop and requires no additional setup.</p>
@@ -169,7 +169,7 @@ agents:
 
 ## Performance Tips
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Local Model Considerations
 </div>
 

@@ -12,7 +12,7 @@ _Force the agent to respond with JSON matching a specific schema._
 
 Structured output constrains the agent's responses to match a predefined JSON schema. This is useful for building agents that need to produce machine-readable output for downstream processing, API responses, or integration with other systems.
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ When to Use</div>
 <ul>
 <li>Building API endpoints that need consistent JSON responses</li>
@@ -221,7 +221,7 @@ agents:
         required: ["category", "priority", "confidence"]
 ```
 
-<div class="callout callout-warning">
+<div class="callout callout-warning" markdown="1">
 <div class="callout-title">⚠️ Tool Limitations</div>
 <p>When using structured output, the agent typically cannot use tools since its response format is constrained to the schema. Design your agent workflow accordingly — structured output agents work best for single-turn analysis or extraction tasks.</p>
 </div>

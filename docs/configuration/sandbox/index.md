@@ -12,7 +12,7 @@ _Run agents in an isolated Docker container for enhanced security._
 
 Sandbox mode runs the entire agent inside a Docker container instead of directly on the host system. This provides an additional layer of isolation, limiting the potential impact of unintended or malicious commands.
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Requirements
 </div>
   <p>Sandbox mode requires Docker to be installed and running on the host system.</p>
@@ -53,7 +53,7 @@ docker agent run --sandbox agent.yaml
 3. All agent tools (shell, filesystem, etc.) operate inside the container
 4. When the session ends, the container is automatically stopped and removed
 
-<div class="callout callout-warning">
+<div class="callout callout-warning" markdown="1">
 <div class="callout-title">⚠️ Limitations
 </div>
 

@@ -27,7 +27,7 @@ agents:
       - type: filesystem # required for reading skill files
 ```
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Tip
 </div>
   <p>Skills are perfect for encoding team-specific workflows (PR review, deployment, coding standards) that apply across projects.</p>
@@ -97,7 +97,7 @@ When the agent encounters a task that matches a `context: fork` skill, it uses t
 - **Folds the result** — only the sub-agent's final answer is returned to the parent as the tool result
 - **Inherits the parent's model and tools** — the sub-agent can use all tools available to the parent agent
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 When to use context: fork
 </div>
   <p>Use <code>context: fork</code> for skills that involve many steps, heavy tool usage, or that should not clutter the main conversation — for example dependency bumping, large refactors, or code generation pipelines.</p>
@@ -173,7 +173,7 @@ EOF
 
 The skill will automatically be available to any agent with `skills: true`.
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ See also
 </div>
   <p>Skills are enabled in the <a href="{{ '/configuration/agents/' | relative_url }}">Agent Config</a> with the <code>skills: true</code> property. For tool-based capabilities, see <a href="{{ '/concepts/tools/' | relative_url }}">Tools</a>.</p>
