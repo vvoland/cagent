@@ -796,12 +796,11 @@ func TestBuildTranscript(t *testing.T) {
 					},
 				},
 				{
-					"type":     "tool_call_response",
-					"response": "file contents here",
-					"tool_call": map[string]any{
-						"function": map[string]any{
-							"name": "read_file",
-						},
+					"type":         "tool_call_response",
+					"response":     "file contents here",
+					"tool_call_id": "call_123",
+					"tool_definition": map[string]any{
+						"name": "read_file",
 					},
 				},
 			},
@@ -814,12 +813,11 @@ func TestBuildTranscript(t *testing.T) {
 			name: "long tool response truncated",
 			events: []map[string]any{
 				{
-					"type":     "tool_call_response",
-					"response": strings.Repeat("x", 600),
-					"tool_call": map[string]any{
-						"function": map[string]any{
-							"name": "shell",
-						},
+					"type":         "tool_call_response",
+					"response":     strings.Repeat("x", 600),
+					"tool_call_id": "call_789",
+					"tool_definition": map[string]any{
+						"name": "shell",
 					},
 				},
 			},

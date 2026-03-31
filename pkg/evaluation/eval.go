@@ -575,7 +575,10 @@ func buildTranscript(events []map[string]any) string {
 			fmt.Fprintf(&transcript, "[Agent %s calls tool %q with arguments: %s]\n\n", cmp.Or(currentAgent, "unknown"), name, args)
 
 		case "tool_call_response":
-			name, _ := getToolCallInfo(event)
+			// The ToolCallResponseEvent has tool_definition at the top level, not
+			// nested under "tool_call".
+			td, _ := event["tool_definition"].(map[string]any)
+			name, _ := td["name"].(string)
 			response, _ := event["response"].(string)
 			if len(response) > 500 {
 				response = response[:500] + "...(truncated)"
