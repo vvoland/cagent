@@ -3,6 +3,30 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.40.0] - 2026-03-30
+
+This release improves AI assistant capabilities with better response tracking and Google integration, plus fixes a critical exit hang issue.
+
+## What's New
+- Adds Google Search, Google Maps, and code execution capabilities for Gemini models
+- Surfaces finish_reason information on assistant messages and token usage events to track why the AI stopped generating responses
+
+## Bug Fixes
+- Fixes process hang when using `/exit` command due to bubbletea renderer deadlock
+
+## Technical Changes
+- Adds tests reproducing bubbletea renderer deadlock on exit
+- Adds safety-net exit mechanism for bubbletea renderer deadlock prevention
+
+### Pull Requests
+
+- [#2254](https://github.com/docker/docker-agent/pull/2254) - Surface finish_reason on assistant messages and token usage events
+- [#2265](https://github.com/docker/docker-agent/pull/2265) - docs: update CHANGELOG.md for v1.39.0
+- [#2269](https://github.com/docker/docker-agent/pull/2269) - Fix process hang on /exit due to bubbletea renderer deadlock
+- [#2276](https://github.com/docker/docker-agent/pull/2276) - Google grounding
+- [#2277](https://github.com/docker/docker-agent/pull/2277) - Fix url
+
+
 ## [v1.39.0] - 2026-03-27
 
 This release adds new color themes for the terminal interface and includes internal version management updates.
@@ -1658,3 +1682,5 @@ This release improves the terminal user interface with better error handling and
 [v1.38.0]: https://github.com/docker/docker-agent/releases/tag/v1.38.0
 
 [v1.39.0]: https://github.com/docker/docker-agent/releases/tag/v1.39.0
+
+[v1.40.0]: https://github.com/docker/docker-agent/releases/tag/v1.40.0
