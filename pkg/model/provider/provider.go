@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker-agent/pkg/model/provider/openai"
 	"github.com/docker/docker-agent/pkg/model/provider/options"
 	"github.com/docker/docker-agent/pkg/model/provider/rulebased"
+	"github.com/docker/docker-agent/pkg/model/provider/vertexai"
 	"github.com/docker/docker-agent/pkg/rag/types"
 	"github.com/docker/docker-agent/pkg/tools"
 )
@@ -242,6 +243,11 @@ func createDirectProvider(ctx context.Context, cfg *latest.ModelConfig, env envi
 	case "anthropic":
 		return anthropic.NewClient(ctx, enhancedCfg, env, opts...)
 	case "google":
+		// Route non-Gemini models on Vertex AI (Model Garden) through the
+		// OpenAI-compatible endpoint instead of the Gemini SDK.
+		if vertexai.IsModelGardenConfig(enhancedCfg) {
+			return vertexai.NewClient(ctx, enhancedCfg, env, opts...)
+		}
 		return gemini.NewClient(ctx, enhancedCfg, env, opts...)
 	case "dmr":
 		return dmr.NewClient(ctx, enhancedCfg, opts...)
