@@ -21,6 +21,7 @@ type Model interface {
 	layout.Sizeable
 	SetMessage(msg *types.Message)
 	SetSelected(selected bool)
+	SetHovered(hovered bool)
 }
 
 // messageModel implements Model
@@ -32,6 +33,7 @@ type messageModel struct {
 	height   int
 	focused  bool
 	selected bool
+	hovered  bool
 	spinner  spinner.Spinner
 }
 
@@ -63,6 +65,10 @@ func (mv *messageModel) SetMessage(msg *types.Message) {
 
 func (mv *messageModel) SetSelected(selected bool) {
 	mv.selected = selected
+}
+
+func (mv *messageModel) SetHovered(hovered bool) {
+	mv.hovered = hovered
 }
 
 // Update handles messages and updates the message view state
@@ -134,11 +140,23 @@ func (mv *messageModel) Render(width int) string {
 			rendered = msg.Content
 		}
 
-		if mv.sameAgentAsPrevious(msg) {
-			return messageStyle.Render(rendered)
+		var prefix string
+		if !mv.sameAgentAsPrevious(msg) {
+			prefix = mv.senderPrefix(msg.Sender)
 		}
 
-		return mv.senderPrefix(msg.Sender) + messageStyle.Render(rendered)
+		// Always reserve a top row for the copy icon to avoid layout shifts.
+		// The icon is only visible when hovered or selected.
+		innerWidth := width - messageStyle.GetHorizontalFrameSize()
+		var topRow string
+		if mv.hovered || mv.selected {
+			copyIcon := styles.MutedStyle.Render(types.AssistantMessageCopyLabel)
+			iconWidth := ansi.StringWidth(types.AssistantMessageCopyLabel)
+			padding := max(innerWidth-iconWidth, 0)
+			topRow = strings.Repeat(" ", padding) + copyIcon
+		}
+		noTopPaddingStyle := messageStyle.PaddingTop(0)
+		return prefix + noTopPaddingStyle.Width(width).Render(topRow+"\n"+rendered)
 	case types.MessageTypeShellOutput:
 		if rendered, err := markdown.NewRenderer(width).Render(fmt.Sprintf("```console\n%s\n```", msg.Content)); err == nil {
 			return rendered

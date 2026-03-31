@@ -126,6 +126,9 @@ type model struct {
 	inlineEditTextarea      textarea.Model // Textarea for inline editing
 	inlineEditOriginal      string         // Original content (for cancel)
 	inlineEditPrevSelection int            // Previous selection index before entering inline edit (-1 = was not in selection mode)
+
+	// Hover state for showing copy button on assistant messages
+	hoveredMessageIndex int // Index of message under mouse (-1 = none)
 }
 
 // New creates a new message list component
@@ -152,6 +155,7 @@ func newModel(width, height int, sessionState *service.SessionState) *model {
 		scrollview:           sv,
 		selectedMessageIndex: -1,
 		inlineEditMsgIndex:   -1,
+		hoveredMessageIndex:  -1,
 		renderDirty:          true,
 	}
 }
@@ -294,6 +298,11 @@ func (m *model) handleMouseClick(msg tea.MouseClickMsg) (layout.Model, tea.Cmd) 
 				OriginalContent: msg.Content,
 			})
 		}
+
+		if m.isCopyLabelClick(msgIdx, localLine, col) {
+			cmd := m.copyMessageToClipboard(msgIdx)
+			return m, cmd
+		}
 	}
 
 	clickCount := m.selection.detectClickType(line, col)
@@ -353,6 +362,27 @@ func (m *model) handleMouseMotion(msg tea.MouseMotionMsg) (layout.Model, tea.Cmd
 		cmd := m.autoScroll()
 		return m, cmd
 	}
+
+	// Track hovered message for showing copy button on assistant messages
+	line, _ := m.mouseToLineCol(msg.X, msg.Y)
+	newHovered := -1
+	if msgIdx, _ := m.globalLineToMessageLine(line); msgIdx >= 0 && msgIdx < len(m.messages) {
+		if m.messages[msgIdx].Type == types.MessageTypeAssistant {
+			newHovered = msgIdx
+		}
+	}
+	if newHovered != m.hoveredMessageIndex {
+		oldHovered := m.hoveredMessageIndex
+		m.hoveredMessageIndex = newHovered
+		if oldHovered >= 0 {
+			m.invalidateItem(oldHovered)
+		}
+		if newHovered >= 0 {
+			m.invalidateItem(newHovered)
+		}
+		m.renderDirty = true
+	}
+
 	return m, nil
 }
 
@@ -905,15 +935,17 @@ func (m *model) renderItem(index int, view layout.Model) renderedItem {
 	}
 
 	isSelected := m.focused && index == m.selectedMessageIndex
+	isHovered := index == m.hoveredMessageIndex
 
 	switch v := view.(type) {
 	case message.Model:
 		v.SetSelected(isSelected)
+		v.SetHovered(isHovered)
 	case *reasoningblock.Model:
 		v.SetSelected(isSelected)
 	}
 
-	shouldCache := !isSelected && m.shouldCacheMessage(index)
+	shouldCache := !isSelected && !isHovered && m.shouldCacheMessage(index)
 	if shouldCache {
 		if cached, exists := m.renderedItems[index]; exists {
 			return cached
@@ -1195,6 +1227,7 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 	m.totalHeight = 0
 	m.bottomSlack = 0
 	m.selectedMessageIndex = -1
+	m.hoveredMessageIndex = -1
 
 	var cmds []tea.Cmd
 
@@ -1612,6 +1645,52 @@ func (m *model) isEditLabelClick(msgIdx, localLine, col int) (bool, *types.Messa
 	}
 
 	return false, nil
+}
+
+// isCopyLabelClick checks if the click is on the copy label of an assistant message.
+func (m *model) isCopyLabelClick(msgIdx, localLine, col int) bool {
+	if msgIdx < 0 || msgIdx >= len(m.messages) {
+		return false
+	}
+	msg := m.messages[msgIdx]
+	if msg.Type != types.MessageTypeAssistant {
+		return false
+	}
+	// Only clickable when hovered or selected
+	if msgIdx != m.hoveredMessageIndex && (!m.focused || msgIdx != m.selectedMessageIndex) {
+		return false
+	}
+	if msgIdx >= len(m.views) {
+		return false
+	}
+
+	item := m.renderItem(msgIdx, m.views[msgIdx])
+	lines := strings.Split(item.view, "\n")
+	if localLine < 0 || localLine >= len(lines) {
+		return false
+	}
+
+	plainLine := ansi.Strip(lines[localLine])
+	before, _, ok := strings.Cut(plainLine, types.AssistantMessageCopyLabel)
+	if !ok {
+		return false
+	}
+
+	labelStart := ansi.StringWidth(before)
+	labelEnd := labelStart + ansi.StringWidth(types.AssistantMessageCopyLabel)
+	return col >= labelStart && col < labelEnd
+}
+
+// copyMessageToClipboard copies the content of a specific message to clipboard.
+func (m *model) copyMessageToClipboard(msgIdx int) tea.Cmd {
+	if msgIdx < 0 || msgIdx >= len(m.messages) {
+		return nil
+	}
+	content := m.messages[msgIdx].Content
+	if content == "" {
+		return nil
+	}
+	return copyTextToClipboard(content)
 }
 
 func (m *model) mouseToLineCol(x, y int) (line, col int) {

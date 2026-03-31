@@ -23,7 +23,10 @@ const (
 	MessageTypeLoading
 )
 
-const UserMessageEditLabel = "✎"
+const (
+	UserMessageEditLabel      = "✎"
+	AssistantMessageCopyLabel = "⎘"
+)
 
 // ToolStatus represents the status of a tool call
 type ToolStatus int
