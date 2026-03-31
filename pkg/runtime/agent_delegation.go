@@ -85,6 +85,10 @@ type SubSessionConfig struct {
 	// user message sent to the child session. This allows callers like skill
 	// sub-agents to pass the task description as the user message.
 	ImplicitUserMessage string
+	// ExcludedTools lists tool names that should be filtered out of the agent's
+	// tool list for the child session. This prevents recursive tool calls
+	// (e.g. run_skill calling itself in a skill sub-session).
+	ExcludedTools []string
 }
 
 // newSubSession builds a *session.Session from a SubSessionConfig and a parent
@@ -115,7 +119,37 @@ func newSubSession(parent *session.Session, cfg SubSessionConfig, childAgent *ag
 	if cfg.PinAgent {
 		opts = append(opts, session.WithAgentName(cfg.AgentName))
 	}
+	// Merge parent's excluded tools with config's excluded tools so that
+	// nested sub-sessions (e.g. skill → transfer_task → child) inherit
+	// exclusions from all ancestors and don't re-introduce filtered tools.
+	excludedTools := mergeExcludedTools(parent.ExcludedTools, cfg.ExcludedTools)
+	if len(excludedTools) > 0 {
+		opts = append(opts, session.WithExcludedTools(excludedTools))
+	}
 	return session.New(opts...)
+}
+
+// mergeExcludedTools combines two excluded-tool lists, deduplicating entries.
+// It returns nil when both inputs are empty.
+func mergeExcludedTools(parent, child []string) []string {
+	if len(parent) == 0 {
+		return child
+	}
+	if len(child) == 0 {
+		return parent
+	}
+	set := make(map[string]struct{}, len(parent)+len(child))
+	for _, t := range parent {
+		set[t] = struct{}{}
+	}
+	for _, t := range child {
+		set[t] = struct{}{}
+	}
+	merged := make([]string, 0, len(set))
+	for t := range set {
+		merged = append(merged, t)
+	}
+	return merged
 }
 
 // runSubSessionForwarding runs a child session within the parent, forwarding all

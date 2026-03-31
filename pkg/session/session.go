@@ -128,6 +128,11 @@ type Session struct {
 	// These are shown in the model picker for easy re-selection.
 	CustomModelsUsed []string `json:"custom_models_used,omitempty"`
 
+	// ExcludedTools lists tool names that should be filtered out of the agent's
+	// tool list for this session. This is used by skill sub-sessions to prevent
+	// recursive run_skill calls.
+	ExcludedTools []string `json:"-"`
+
 	// AgentName, when set, tells RunStream which agent to use for this session
 	// instead of reading from the shared runtime currentAgent field. This is
 	// required for background agent tasks where multiple sessions may run
@@ -521,6 +526,15 @@ func WithAgentName(name string) Opt {
 func WithParentID(parentID string) Opt {
 	return func(s *Session) {
 		s.ParentID = parentID
+	}
+}
+
+// WithExcludedTools sets tool names that should be filtered out of the agent's
+// tool list for this session. This prevents recursive tool calls in skill
+// sub-sessions.
+func WithExcludedTools(names []string) Opt {
+	return func(s *Session) {
+		s.ExcludedTools = names
 	}
 }
 

@@ -104,6 +104,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			events <- Error(fmt.Sprintf("failed to get tools: %v", err))
 			return
 		}
+		agentTools = filterExcludedTools(agentTools, sess.ExcludedTools)
 
 		events <- ToolsetInfo(len(agentTools), false, a.Name())
 
@@ -158,6 +159,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				events <- Error(fmt.Sprintf("failed to get tools: %v", err))
 				return
 			}
+			agentTools = filterExcludedTools(agentTools, sess.ExcludedTools)
 
 			// Emit updated tool count. After a ToolListChanged MCP notification
 			// the cache is invalidated, so getTools above re-fetches from the
@@ -574,6 +576,25 @@ func formatToolWarning(a *agent.Agent, warnings []string) string {
 		fmt.Fprintf(&builder, "- %s\n", warning)
 	}
 	return strings.TrimSuffix(builder.String(), "\n")
+}
+
+// filterExcludedTools removes tools whose names appear in the excluded list.
+// This is used by skill sub-sessions to prevent recursive run_skill calls.
+func filterExcludedTools(agentTools []tools.Tool, excluded []string) []tools.Tool {
+	if len(excluded) == 0 {
+		return agentTools
+	}
+	excludeSet := make(map[string]bool, len(excluded))
+	for _, name := range excluded {
+		excludeSet[name] = true
+	}
+	filtered := make([]tools.Tool, 0, len(agentTools))
+	for _, t := range agentTools {
+		if !excludeSet[t.Name] {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
 }
 
 // chanSend wraps a channel as a func(Event) for use with emitAgentWarnings
