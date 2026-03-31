@@ -286,7 +286,6 @@ type Usage struct {
 // It embeds chat.Usage and adds Cost, Model, and FinishReason fields.
 type MessageUsage struct {
 	chat.Usage
-	chat.RateLimit
 
 	Cost         float64
 	Model        string

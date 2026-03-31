@@ -28,7 +28,6 @@ type streamResult struct {
 	Stopped           bool
 	FinishReason      chat.FinishReason
 	Usage             *chat.Usage
-	RateLimit         *chat.RateLimit
 }
 
 // handleStream reads a chat.MessageStream to completion, emitting streaming
@@ -44,7 +43,6 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 	var thoughtSignature []byte
 	var toolCalls []tools.ToolCall
 	var messageUsage *chat.Usage
-	var messageRateLimit *chat.RateLimit
 	var providerFinishReason chat.FinishReason
 
 	toolCallIndex := make(map[string]int)   // toolCallID -> index in toolCalls slice
@@ -89,10 +87,6 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 			messageUsage = response.Usage
 		}
 
-		if response.RateLimit != nil {
-			messageRateLimit = response.RateLimit
-		}
-
 		if len(response.Choices) == 0 {
 			continue
 		}
@@ -113,7 +107,6 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 				Stopped:           true,
 				FinishReason:      choice.FinishReason,
 				Usage:             messageUsage,
-				RateLimit:         messageRateLimit,
 			}, nil
 		}
 
@@ -236,7 +229,6 @@ func (r *LocalRuntime) handleStream(ctx context.Context, stream chat.MessageStre
 		Stopped:           stoppedDueToNoOutput,
 		FinishReason:      finishReason,
 		Usage:             messageUsage,
-		RateLimit:         messageRateLimit,
 	}, nil
 }
 
