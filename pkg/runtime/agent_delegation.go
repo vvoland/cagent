@@ -125,9 +125,15 @@ func newSubSession(parent *session.Session, cfg SubSessionConfig, childAgent *ag
 // This is the "interactive" path used by transfer_task where the parent agent
 // loop is blocked while the child executes.
 func (r *LocalRuntime) runSubSessionForwarding(ctx context.Context, parent, child *session.Session, span trace.Span, evts chan Event, callerAgent string) (*tools.ToolCallResult, error) {
-	for event := range r.RunStream(ctx, child) {
+	childEvents := r.RunStream(ctx, child)
+	for event := range childEvents {
 		evts <- event
 		if errEvent, ok := event.(*ErrorEvent); ok {
+			// Drain remaining events (including StreamStoppedEvent) so the
+			// TUI's streamDepth counter stays balanced.
+			for remaining := range childEvents {
+				evts <- remaining
+			}
 			span.RecordError(fmt.Errorf("%s", errEvent.Error))
 			span.SetStatus(codes.Error, "sub-session error")
 			return nil, fmt.Errorf("%s", errEvent.Error)
