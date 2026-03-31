@@ -139,7 +139,8 @@ type chatPage struct {
 	sessionState *service.SessionState
 
 	// State
-	working bool
+	working  bool
+	leanMode bool
 
 	msgCancel       context.CancelFunc
 	streamCancelled bool
@@ -173,6 +174,16 @@ type chatPage struct {
 // computeSidebarLayout calculates the layout based on current state.
 func (p *chatPage) computeSidebarLayout() sidebarLayout {
 	innerWidth := p.width - appPaddingHorizontal
+
+	// Lean mode: no sidebar at all
+	if p.leanMode {
+		return sidebarLayout{
+			mode:       sidebarCollapsedNarrow,
+			innerWidth: innerWidth,
+			chatWidth:  innerWidth,
+			chatHeight: max(1, p.height),
+		}
+	}
 
 	var mode sidebarLayoutMode
 	switch {
@@ -300,7 +311,7 @@ func getEditorDisplayNameFromEnv(visual, editorEnv string) string {
 }
 
 // New creates a new chat page
-func New(a *app.App, sessionState *service.SessionState) Page {
+func New(a *app.App, sessionState *service.SessionState, opts ...PageOption) Page {
 	p := &chatPage{
 		sidebar:      sidebar.New(sessionState),
 		messages:     messages.New(sessionState),
@@ -309,7 +320,21 @@ func New(a *app.App, sessionState *service.SessionState) Page {
 		sessionState: sessionState,
 	}
 
+	for _, opt := range opts {
+		opt(p)
+	}
+
 	return p
+}
+
+// PageOption configures a chat page.
+type PageOption func(*chatPage)
+
+// WithLeanMode creates a lean chat page with no sidebar.
+func WithLeanMode() PageOption {
+	return func(p *chatPage) {
+		p.leanMode = true
+	}
 }
 
 // Init initializes the chat page
@@ -518,19 +543,26 @@ func (p *chatPage) View() string {
 		bodyContent = lipgloss.JoinHorizontal(lipgloss.Left, chatView, toggleCol, sidebarView)
 
 	case sidebarCollapsed, sidebarCollapsedNarrow:
-		sidebarRendered := p.renderCollapsedSidebar(sl)
-
-		chatView := styles.ChatStyle.
-			Height(sl.chatHeight).
-			Width(sl.innerWidth).
-			Render(messagesView)
-
-		bodyContent = lipgloss.JoinVertical(lipgloss.Top, sidebarRendered, chatView)
+		if p.leanMode {
+			// Lean mode: no sidebar header, no fixed height
+			bodyContent = styles.ChatStyle.
+				Width(sl.innerWidth).
+				Render(messagesView)
+		} else {
+			sidebarRendered := p.renderCollapsedSidebar(sl)
+			chatView := styles.ChatStyle.
+				Height(sl.chatHeight).
+				Width(sl.innerWidth).
+				Render(messagesView)
+			bodyContent = lipgloss.JoinVertical(lipgloss.Top, sidebarRendered, chatView)
+		}
 	}
 
-	return styles.AppStyle.
-		Height(p.height).
-		Render(bodyContent)
+	appStyle := styles.AppStyle
+	if !p.leanMode {
+		appStyle = appStyle.Height(p.height)
+	}
+	return appStyle.Render(bodyContent)
 }
 
 // renderSidebarHandle renders the sidebar toggle/resize handle.

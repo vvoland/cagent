@@ -79,10 +79,10 @@ func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
 
 	sess := session.New(sessOpts...)
 
-	return runTUI(ctx, rt, sess, nil, nil, appOpts...)
+	return runTUI(ctx, rt, sess, nil, nil, nil, appOpts...)
 }
 
-func runTUI(ctx context.Context, rt runtime.Runtime, sess *session.Session, spawner tui.SessionSpawner, cleanup func(), opts ...app.Opt) error {
+func runTUI(ctx context.Context, rt runtime.Runtime, sess *session.Session, spawner tui.SessionSpawner, cleanup func(), tuiOpts []tui.Option, opts ...app.Opt) error {
 	if gen := rt.TitleGenerator(); gen != nil {
 		opts = append(opts, app.WithTitleGenerator(gen))
 	}
@@ -105,7 +105,7 @@ func runTUI(ctx context.Context, rt runtime.Runtime, sess *session.Session, spaw
 		cleanup = func() {}
 	}
 	wd, _ := os.Getwd()
-	model := tui.New(ctx, spawner, a, wd, cleanup)
+	model := tui.New(ctx, spawner, a, wd, cleanup, tuiOpts...)
 
 	p := tea.NewProgram(model, tea.WithContext(ctx), tea.WithFilter(filter))
 	coalescer.SetSender(p.Send)

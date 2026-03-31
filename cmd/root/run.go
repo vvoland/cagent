@@ -60,6 +60,7 @@ type runExecFlags struct {
 
 	// Run only
 	hideToolResults bool
+	lean            bool
 
 	// globalPermissions holds the user-level global permission checker built
 	// from user config settings. Nil when no global permissions are configured.
@@ -117,6 +118,7 @@ func addRunOrExecFlags(cmd *cobra.Command, flags *runExecFlags) {
 	_ = cmd.PersistentFlags().MarkHidden("memprofile")
 	cmd.PersistentFlags().BoolVar(&flags.forceTUI, "force-tui", false, "Force TUI mode even when not in a terminal")
 	_ = cmd.PersistentFlags().MarkHidden("force-tui")
+	cmd.PersistentFlags().BoolVar(&flags.lean, "lean", false, "Use a simplified TUI with minimal chrome")
 	cmd.PersistentFlags().BoolVar(&flags.sandbox, "sandbox", false, "Run the agent inside a Docker sandbox (requires Docker Desktop with sandbox support)")
 	cmd.PersistentFlags().StringVar(&flags.sandboxTemplate, "template", "", "Template image for the sandbox (passed to docker sandbox create -t)")
 	cmd.MarkFlagsMutuallyExclusive("fake", "record")
@@ -276,7 +278,7 @@ func (f *runExecFlags) runOrExec(ctx context.Context, out *cli.Printer, args []s
 	}
 
 	sessStore := rt.SessionStore()
-	return runTUI(ctx, rt, sess, f.createSessionSpawner(agentSource, sessStore), initialTeamCleanup, opts...)
+	return runTUI(ctx, rt, sess, f.createSessionSpawner(agentSource, sessStore), initialTeamCleanup, f.tuiOpts(), opts...)
 }
 
 func (f *runExecFlags) loadAgentFrom(ctx context.Context, agentSource config.Source) (*teamloader.LoadResult, error) {
@@ -455,7 +457,16 @@ func (f *runExecFlags) launchTUI(ctx context.Context, out *cli.Printer, rt runti
 		return err
 	}
 
-	return runTUI(ctx, rt, sess, nil, nil, opts...)
+	return runTUI(ctx, rt, sess, nil, nil, f.tuiOpts(), opts...)
+}
+
+// tuiOpts returns the TUI options derived from the current flags.
+func (f *runExecFlags) tuiOpts() []tui.Option {
+	var opts []tui.Option
+	if f.lean {
+		opts = append(opts, tui.WithLeanMode())
+	}
+	return opts
 }
 
 func (f *runExecFlags) buildAppOpts(args []string) ([]app.Opt, error) {
