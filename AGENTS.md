@@ -2,18 +2,18 @@
 
 ## Build and Development
 
-- `task build` - Build the application binary (outputs to `./bin/docker-agent`)
-- `task test` - Run Go tests (clears API keys to ensure deterministic tests)
-- `task lint` - Run golangci-lint (uses `.golangci.yml` configuration)
-- `task format` - Format code using golangci-lint fmt
-- `task dev` - Run lint, test, and build in sequence
+- `mise build` - Build the application binary (outputs to `./bin/docker-agent`)
+- `mise test` - Run Go tests (clears API keys to ensure deterministic tests)
+- `mise lint` - Run golangci-lint (uses `.golangci.yml` configuration)
+- `mise format` - Format code using golangci-lint fmt
+- `mise dev` - Run lint, test, and build in sequence
 
 ## Docker and Cross-Platform Builds
 
-- `task build-local` - Build binary for local platform using Docker Buildx
-- `task cross` - Build binaries for multiple platforms (linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64, windows/arm64)
-- `task build-image` - Build Docker image tagged as `docker/docker-agent`
-- `task push-image` - Build and push multi-platform Docker image to registry
+- `mise build-local` - Build binary for local platform using Docker Buildx
+- `mise cross` - Build binaries for multiple platforms (linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64, windows/arm64)
+- `mise build-image` - Build Docker image tagged as `docker/docker-agent`
+- `mise push-image` - Build and push multi-platform Docker image to registry
 
 ## Running docker-agent
 
@@ -39,7 +39,7 @@
 # Testing
 
 - Tests located alongside source files (`*_test.go`)
-- Run `task test` to execute full test suite
+- Run `mise test` to execute full test suite
 - E2E tests in `e2e/` directory
 - Test fixtures and data in `testdata/` subdirectories
 

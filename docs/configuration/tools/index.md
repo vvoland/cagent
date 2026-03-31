@@ -269,10 +269,10 @@ agents:
         shell:
           run_tests:
             description: Run the test suite
-            cmd: task test
+            cmd: mise test
           lint:
             description: Run the linter
-            cmd: task lint
+            cmd: mise lint
       # Custom API tool
       - type: api
         api_config:
