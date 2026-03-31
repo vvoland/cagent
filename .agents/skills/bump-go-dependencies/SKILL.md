@@ -23,8 +23,6 @@ module/path current_version update_path new_version
 
 If the command produces no output, all direct dependencies are already up to date. Inform the user and stop.
 
-NEVER bump `github.com/getkin/kin-openapi`. Version above v0.132.0 don't have a valid license.
-
 ## 2. Update Each Dependency One by One
 
 For **each** outdated dependency, perform the following steps in order:
