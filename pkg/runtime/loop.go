@@ -576,7 +576,17 @@ func formatToolWarning(a *agent.Agent, warnings []string) string {
 	return strings.TrimSuffix(builder.String(), "\n")
 }
 
-// chanSend wraps a channel as a func(Event) for use with emitAgentWarnings.
+// chanSend wraps a channel as a func(Event) for use with emitAgentWarnings
+// and RAG event forwarding. The send is non-blocking: if the channel is full
+// or closed, the event is silently dropped. This prevents a panic when a
+// long-lived goroutine (e.g. RAG file watcher) tries to forward an event
+// after the per-message events channel has been closed.
 func chanSend(ch chan Event) func(Event) {
-	return func(e Event) { ch <- e }
+	return func(e Event) {
+		defer func() { recover() }() //nolint:errcheck // swallow send-on-closed-channel panic
+		select {
+		case ch <- e:
+		default:
+		}
+	}
 }
