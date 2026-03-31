@@ -17,6 +17,11 @@ import (
 
 const maxSummaryTokens = 16_000
 
+// maxKeepTokens is the maximum number of tokens to preserve from the end of
+// the conversation during compaction. These recent messages are kept verbatim
+// so the LLM can continue naturally after compaction.
+const maxKeepTokens = 20_000
+
 // doCompact runs compaction on a session and applies the result (events,
 // persistence, token count updates). The agent is used to extract the
 // conversation from the session and to obtain the model for summarization.
@@ -41,8 +46,8 @@ func (r *LocalRuntime) doCompact(ctx context.Context, sess *session.Session, a *
 
 	compactionAgent := agent.New("root", compaction.SystemPrompt, agent.WithModel(summaryModel))
 
-	// Compute the messages to compact.
-	messages := extractMessagesToCompact(sess, compactionAgent, int64(m.Limit.Context), additionalPrompt)
+	// Compute the messages to compact, keeping recent messages aside.
+	messages, firstKeptEntry := extractMessagesToCompact(sess, compactionAgent, int64(m.Limit.Context), additionalPrompt)
 
 	// Run the compaction.
 	compactionSession := session.New(
@@ -72,16 +77,21 @@ func (r *LocalRuntime) doCompact(ctx context.Context, sess *session.Session, a *
 	sess.InputTokens = compactionSession.OutputTokens
 	sess.OutputTokens = 0
 	sess.Messages = append(sess.Messages, session.Item{
-		Summary: summary,
-		Cost:    compactionSession.TotalCost(),
+		Summary:        summary,
+		FirstKeptEntry: firstKeptEntry,
+		Cost:           compactionSession.TotalCost(),
 	})
 	_ = r.sessionStore.UpdateSession(ctx, sess)
 
 	slog.Debug("Generated session summary", "session_id", sess.ID, "summary_length", len(summary))
-	events <- SessionSummary(sess.ID, summary, a.Name())
+	events <- SessionSummary(sess.ID, summary, a.Name(), firstKeptEntry)
 }
 
-func extractMessagesToCompact(sess *session.Session, compactionAgent *agent.Agent, contextLimit int64, additionalPrompt string) []chat.Message {
+// extractMessagesToCompact returns the messages to send to the compaction model
+// and the index (into sess.Messages) of the first message that was kept aside.
+// Recent messages (up to maxKeepTokens) are excluded from compaction so they
+// can be preserved verbatim in the session after summarization.
+func extractMessagesToCompact(sess *session.Session, compactionAgent *agent.Agent, contextLimit int64, additionalPrompt string) ([]chat.Message, int) {
 	// Add all the existing messages.
 	var messages []chat.Message
 	for _, msg := range sess.GetMessages(compactionAgent) {
@@ -94,6 +104,17 @@ func extractMessagesToCompact(sess *session.Session, compactionAgent *agent.Agen
 
 		messages = append(messages, msg)
 	}
+
+	// Split: keep the last N tokens of messages aside so the LLM retains
+	// recent context after compaction.
+	splitIdx := splitIndexForKeep(messages, maxKeepTokens)
+	messagesToCompact := messages[:splitIdx]
+	// Compute firstKeptEntry: index into sess.Messages of the first kept message.
+	// The kept messages start at splitIdx in the non-system filtered list. We
+	// need to map this back to the original sess.Messages index.
+	firstKeptEntry := mapToSessionIndex(sess, splitIdx)
+
+	messages = messagesToCompact
 
 	// Prepare the first (system) message.
 	systemPromptMessage := chat.Message{
@@ -131,7 +152,49 @@ func extractMessagesToCompact(sess *session.Session, compactionAgent *agent.Agen
 	// Append the last (user) message.
 	messages = append(messages, userPromptMessage)
 
-	return messages
+	return messages, firstKeptEntry
+}
+
+// splitIndexForKeep returns the index that splits messages into [0:idx] (to
+// compact) and [idx:] (to keep). It walks backwards accumulating tokens up to
+// maxTokens, snapping to user/assistant boundaries.
+func splitIndexForKeep(messages []chat.Message, maxTokens int64) int {
+	if len(messages) == 0 {
+		return 0
+	}
+
+	var tokens int64
+	// Walk from the end; find the earliest index whose suffix fits in maxTokens.
+	lastValidBoundary := len(messages)
+	for i := len(messages) - 1; i >= 0; i-- {
+		tokens += compaction.EstimateMessageTokens(&messages[i])
+		if tokens > maxTokens {
+			return lastValidBoundary
+		}
+		role := messages[i].Role
+		if role == chat.MessageRoleUser || role == chat.MessageRoleAssistant {
+			lastValidBoundary = i
+		}
+	}
+	// All messages fit within maxTokens — don't keep any aside (compact everything).
+	return len(messages)
+}
+
+// mapToSessionIndex maps an index in the non-system-filtered message list back
+// to the corresponding index in sess.Messages. It counts only message items
+// that are not system messages.
+func mapToSessionIndex(sess *session.Session, filteredIdx int) int {
+	count := 0
+	for i, item := range sess.Messages {
+		if item.IsMessage() && item.Message.Message.Role != chat.MessageRoleSystem {
+			if count == filteredIdx {
+				return i
+			}
+			count++
+		}
+	}
+	// filteredIdx is past the end — no messages to keep.
+	return len(sess.Messages)
 }
 
 func firstMessageToKeep(messages []chat.Message, contextLimit int64) int {

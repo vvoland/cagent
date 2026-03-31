@@ -228,7 +228,7 @@ func (r *RemoteRuntime) Resume(ctx context.Context, req ResumeRequest) {
 // Summarize generates a summary for the session
 func (r *RemoteRuntime) Summarize(_ context.Context, sess *session.Session, _ string, events chan Event) {
 	slog.Debug("Summarize not yet implemented for remote runtime", "session_id", r.sessionID)
-	events <- SessionSummary(sess.ID, "Summary generation not yet implemented for remote runtime", r.currentAgent)
+	events <- SessionSummary(sess.ID, "Summary generation not yet implemented for remote runtime", r.currentAgent, 0)
 }
 
 func (r *RemoteRuntime) convertSessionMessages(sess *session.Session) []api.Message {
