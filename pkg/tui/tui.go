@@ -1727,6 +1727,11 @@ func (m *appModel) switchFocus() (tea.Model, tea.Cmd) {
 
 // handleMouseClick routes mouse clicks to the appropriate component based on Y coordinate.
 func (m *appModel) handleMouseClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
+	// Check if click hits a notification close button
+	if cmd := m.notification.HandleClick(msg.X, msg.Y); cmd != nil {
+		return m, cmd
+	}
+
 	// Dialogs use full-window coordinates (they're positioned over the entire screen)
 	if m.dialogMgr.Open() {
 		u, cmd := m.dialogMgr.Update(msg)
