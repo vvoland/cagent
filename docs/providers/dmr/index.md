@@ -12,7 +12,7 @@ _Run AI models locally with Docker — no API keys, no costs, full data privacy.
 
 Docker Model Runner (DMR) lets you run open-source AI models directly on your machine. Models run in Docker, so there's no API key needed and no data leaves your computer.
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 No API key needed
 </div>
   <p>DMR runs models locally — your data never leaves your machine. Great for development, sensitive data, or offline use.</p>

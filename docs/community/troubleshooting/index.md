@@ -62,7 +62,7 @@ $ docker agent run config.yaml --debug --log-file ./debug.log
 $ docker agent run config.yaml --otel
 ```
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Tip
 </div>
   <p>Always enable <code>--debug</code> when reporting issues. The log file contains detailed traces of API calls, tool executions, and agent interactions.</p>
@@ -146,7 +146,7 @@ docker-agent validates config at startup and reports errors with line numbers. C
 - MCP toolsets need either `command` (stdio), `remote` (SSE/HTTP), or `ref` (Docker)
 - Provider names must be one of: `openai`, `anthropic`, `google`, `amazon-bedrock`, `dmr`, etc.
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Schema Validation
 </div>
   <p>Use the <a href="https://github.com/docker/docker-agent/blob/main/agent-schema.json">JSON schema</a> in your editor for real-time config validation and autocompletion.</p>
@@ -234,7 +234,7 @@ When reviewing debug logs, search for these key patterns:
 | `[RAG Manager]`             | RAG retrieval operations                                                   |
 | `[Reranker]`                | Reranking operations                                                       |
 
-<div class="callout callout-warning">
+<div class="callout callout-warning" markdown="1">
 <div class="callout-title">⚠️ Still stuck?
 </div>
   <p>If these steps don't resolve your issue, file a bug on the <a href="https://github.com/docker/docker-agent/issues">GitHub issue tracker</a> with your debug log attached, or ask on <a href="https://dockercommunity.slack.com/archives/C09DASHHRU4">Slack</a>.</p>

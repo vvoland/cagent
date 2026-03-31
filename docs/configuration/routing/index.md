@@ -12,7 +12,7 @@ _Route requests to different models based on the content of user messages._
 
 Model routing lets you define a "router" model that automatically selects the best underlying model based on the user's message. This is useful for cost optimization, specialized handling, or load balancing across models.
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ How It Works
 </div>
   <p>docker-agent uses NLP-based text similarity (via Bleve full-text search) to match user messages against example phrases you define. The route with the best-matching examples wins, and that model handles the request.</p>
@@ -79,7 +79,7 @@ The router:
 4. Selects the route with the highest overall score
 5. Falls back to the base model if no good match is found
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Writing Good Examples
 </div>
 
@@ -167,7 +167,7 @@ Look for log entries like:
 "Route matched" model=anthropic/claude-sonnet-4-0 score=2.45
 ```
 
-<div class="callout callout-warning">
+<div class="callout callout-warning" markdown="1">
 <div class="callout-title">⚠️ Limitations
 </div>
 

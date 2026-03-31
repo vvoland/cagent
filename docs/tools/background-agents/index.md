@@ -52,7 +52,7 @@ agents:
         ref: docker:duckduckgo
 ```
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 When to Use
 </div>
   <p>Use <code>background_agents</code> when your orchestrator needs to fan out work to multiple specialists in parallel — for example, researching several topics simultaneously or running independent code analyses side by side.</p>

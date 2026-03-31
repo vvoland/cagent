@@ -17,7 +17,7 @@ The `providers` section in your agent YAML lets you define custom providers that
 - Enterprise deployments with custom endpoints
 - Any service with an OpenAI-compatible chat completions API
 
-<div class="callout callout-info">
+<div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Works with any OpenAI-compatible API
 </div>
   <p>If a service supports the <code>/v1/chat/completions</code> endpoint, you can use it with docker-agent. No source code changes needed.</p>

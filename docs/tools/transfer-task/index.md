@@ -45,7 +45,7 @@ agents:
 
 The coordinator agent automatically gets a `transfer_task` tool that can delegate to `developer` or `researcher`.
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 See also
 </div>
   <p>For parallel task delegation, see <a href="{{ '/tools/background-agents/' | relative_url }}">Background Agents</a>. For multi-agent patterns, see <a href="{{ '/concepts/multi-agent/' | relative_url }}">Multi-Agent</a>.</p>

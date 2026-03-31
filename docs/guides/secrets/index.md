@@ -74,7 +74,7 @@ The file format supports:
 - Quoted values: `KEY="value with spaces"`
 - Blank lines are ignored
 
-<div class="callout callout-warning">
+<div class="callout callout-warning" markdown="1">
 <div class="callout-title">⚠️ Important</div>
 <p>Add <code>.env</code> to your <code>.gitignore</code> to avoid committing secrets to version control.</p>
 </div>

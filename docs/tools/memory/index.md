@@ -54,7 +54,7 @@ Memories support an optional `category` field for organization and filtering. Co
 - `project` — Project-specific context
 - `decision` — Past decisions and their rationale
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Tip
 </div>
   <p>Memory is especially useful for long-running assistants that need to recall information across conversations — like coding preferences, project conventions, or context discovered during previous sessions.</p>

@@ -55,7 +55,7 @@ toolsets:
         cmd: "prettier --write ${file}"
 ```
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Tip
 </div>
   <p>The filesystem tool resolves paths relative to the working directory. Agents can also use absolute paths.</p>

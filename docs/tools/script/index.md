@@ -57,7 +57,7 @@ toolsets:
 | `shell.<name>.env`                | object | Environment variables for this script                      |
 | `shell.<name>.working_dir`        | string | Working directory for script execution                     |
 
-<div class="callout callout-tip">
+<div class="callout callout-tip" markdown="1">
 <div class="callout-title">💡 Script vs. Shell
 </div>
   <p>Use the <a href="{{ '/tools/shell/' | relative_url }}">shell tool</a> when the agent needs to run arbitrary commands. Use the script tool when you want to expose specific, predefined operations with clear names and typed parameters — giving the agent less freedom but more safety.</p>
