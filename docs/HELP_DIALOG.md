@@ -6,7 +6,7 @@ The cagent TUI now includes a contextual help dialog that displays all currently
 
 ## Usage
 
-Press **F1** to open the help dialog. (Alternatively, **Ctrl+?** also works in terminals that support keyboard enhancements.)
+Press **Ctrl+h** to open the help dialog. (Alternatively, **F1** or **Ctrl+?** also work.)
 
 The dialog will show all key bindings that are currently active based on:
 - Which panel is focused (content view vs editor)
@@ -63,7 +63,12 @@ The help dialog will pick this up automatically when it's included in any `Bindi
 
 ## Key Binding Notes
 
-**F1** is used as the primary help key because it's universally supported across all terminals. **Ctrl+?** (Ctrl+Shift+/) is also supported as an alternative, but requires terminals with keyboard enhancement support (kitty protocol).
+**Ctrl+h** is used as the primary help key because:
+- It's mnemonic (h = help)
+- It's universally supported across all terminals
+- It's easy to remember and type
+
+**F1** and **Ctrl+?** are also supported as alternatives. Ctrl+? requires terminals with keyboard enhancement support (kitty protocol).
 
 ## Related Files
 
