@@ -1578,8 +1578,8 @@ func (m *appModel) Bindings() []key.Binding {
 	))
 
 	bindings = append(bindings, key.NewBinding(
-		key.WithKeys("ctrl+?"),
-		key.WithHelp("Ctrl+?", "help"),
+		key.WithKeys("f1"),
+		key.WithHelp("F1", "help"),
 	))
 
 	// Show newline help based on keyboard enhancement support
@@ -1693,7 +1693,7 @@ func (m *appModel) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+x"))):
 		return m, core.CmdHandler(messages.ClearQueueMsg{})
 
-	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+?"))):
+	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+?", "f1"))):
 		// Show contextual help dialog with all currently active key bindings
 		return m, core.CmdHandler(dialog.OpenDialogMsg{
 			Model: dialog.NewHelpDialog(m.Bindings()),

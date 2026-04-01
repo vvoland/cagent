@@ -6,7 +6,7 @@ The cagent TUI now includes a contextual help dialog that displays all currently
 
 ## Usage
 
-Press **Ctrl+?** (Ctrl+Shift+/) to open the help dialog.
+Press **F1** to open the help dialog. (Alternatively, **Ctrl+?** also works in terminals that support keyboard enhancements.)
 
 The dialog will show all key bindings that are currently active based on:
 - Which panel is focused (content view vs editor)
@@ -60,6 +60,10 @@ newFeatureKey := key.NewBinding(
 ```
 
 The help dialog will pick this up automatically when it's included in any `Bindings()` return value.
+
+## Key Binding Notes
+
+**F1** is used as the primary help key because it's universally supported across all terminals. **Ctrl+?** (Ctrl+Shift+/) is also supported as an alternative, but requires terminals with keyboard enhancement support (kitty protocol).
 
 ## Related Files
 
