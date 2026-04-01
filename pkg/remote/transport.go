@@ -29,7 +29,7 @@ func NewTransport(ctx context.Context) http.RoundTripper {
 	if err != nil {
 		return transport
 	}
-	if running, ok := desktopRunning.(bool); ok && running && !desktop.IsWSL() {
+	if running, ok := desktopRunning.(bool); ok && running {
 		transport.Proxy = http.ProxyURL(&url.URL{
 			Scheme: "http",
 		})
