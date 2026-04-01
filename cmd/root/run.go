@@ -145,7 +145,7 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) (command
 	}
 
 	if f.sandbox {
-		return runInSandbox(ctx, &f.runConfig, f.sandboxTemplate)
+		return runInSandbox(ctx, args, &f.runConfig, f.sandboxTemplate)
 	}
 
 	out := cli.NewPrinter(cmd.OutOrStdout())

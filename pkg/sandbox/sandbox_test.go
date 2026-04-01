@@ -244,29 +244,6 @@ func TestBuildCagentArgs_ResolvesAlias(t *testing.T) {
 	assert.Equal(t, []string{"/path/to/dev.yaml", "--yolo"}, got)
 }
 
-func TestAgentRefFromArgs(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{"file first", []string{"./agent.yaml", "--debug"}, "./agent.yaml"},
-		{"flags before file", []string{"--debug", "./agent.yaml"}, "./agent.yaml"},
-		{"no positional", []string{"--debug", "--yolo"}, ""},
-		{"empty", nil, ""},
-		{"built-in name", []string{"default"}, "default"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, sandbox.AgentRefFromArgs(tt.args))
-		})
-	}
-}
-
 func TestExtraWorkspace(t *testing.T) {
 	tests := []struct {
 		name     string

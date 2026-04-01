@@ -102,18 +102,6 @@ func isEqualsFormOf(arg string, flags map[string]bool) bool {
 	return false
 }
 
-// AgentRefFromArgs returns the first positional (non-flag) argument from the
-// docker-agent arg list, which is the agent file reference. Returns "" if there are
-// no positional arguments.
-func AgentRefFromArgs(args []string) string {
-	for _, a := range args {
-		if !strings.HasPrefix(a, "-") {
-			return a
-		}
-	}
-	return ""
-}
-
 // ResolveAlias returns the alias path if name is a user-defined alias,
 // or an empty string otherwise.
 func ResolveAlias(name string) string {

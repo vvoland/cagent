@@ -20,7 +20,7 @@ import (
 // runInSandbox delegates the current command to a Docker sandbox.
 // It ensures a sandbox exists (creating or recreating as needed), then
 // executes docker agent inside it via `docker sandbox exec`.
-func runInSandbox(ctx context.Context, runConfig *config.RuntimeConfig, template string) error {
+func runInSandbox(ctx context.Context, args []string, runConfig *config.RuntimeConfig, template string) error {
 	if environment.InSandbox() {
 		return fmt.Errorf("already running inside a Docker sandbox (VM %s)", os.Getenv("SANDBOX_VM_ID"))
 	}
@@ -29,8 +29,12 @@ func runInSandbox(ctx context.Context, runConfig *config.RuntimeConfig, template
 		return err
 	}
 
+	var agentRef string
+	if len(args) > 0 {
+		agentRef = args[0]
+	}
+
 	dockerAgentArgs := sandbox.BuildCagentArgs(os.Args)
-	agentRef := sandbox.AgentRefFromArgs(dockerAgentArgs)
 	configDir := paths.GetConfigDir()
 
 	// Always forward config directory paths so the sandbox-side
