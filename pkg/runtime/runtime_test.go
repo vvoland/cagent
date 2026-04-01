@@ -1901,3 +1901,52 @@ func TestProcessToolCalls_UsesPinnedAgent(t *testing.T) {
 		}
 	}
 }
+
+func TestFilterExcludedTools(t *testing.T) {
+	allTools := []tools.Tool{
+		{Name: "read_skill"},
+		{Name: "run_skill"},
+		{Name: "shell"},
+	}
+
+	t.Run("no exclusions returns all tools", func(t *testing.T) {
+		result := filterExcludedTools(allTools, nil)
+		assert.Len(t, result, 3)
+	})
+
+	t.Run("excludes run_skill", func(t *testing.T) {
+		result := filterExcludedTools(allTools, []string{"run_skill"})
+		assert.Len(t, result, 2)
+		for _, tool := range result {
+			assert.NotEqual(t, "run_skill", tool.Name)
+		}
+	})
+
+	t.Run("excludes multiple tools", func(t *testing.T) {
+		result := filterExcludedTools(allTools, []string{"run_skill", "shell"})
+		assert.Len(t, result, 1)
+		assert.Equal(t, "read_skill", result[0].Name)
+	})
+}
+
+func TestMergeExcludedTools(t *testing.T) {
+	t.Run("both empty", func(t *testing.T) {
+		assert.Nil(t, mergeExcludedTools(nil, nil))
+	})
+
+	t.Run("parent only", func(t *testing.T) {
+		result := mergeExcludedTools([]string{"run_skill"}, nil)
+		assert.Equal(t, []string{"run_skill"}, result)
+	})
+
+	t.Run("child only", func(t *testing.T) {
+		result := mergeExcludedTools(nil, []string{"run_skill"})
+		assert.Equal(t, []string{"run_skill"}, result)
+	})
+
+	t.Run("deduplicates", func(t *testing.T) {
+		result := mergeExcludedTools([]string{"run_skill", "shell"}, []string{"run_skill", "read_skill"})
+		assert.Len(t, result, 3)
+		assert.ElementsMatch(t, []string{"run_skill", "shell", "read_skill"}, result)
+	})
+}

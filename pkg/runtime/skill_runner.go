@@ -74,6 +74,7 @@ func (r *LocalRuntime) handleRunSkill(ctx context.Context, sess *session.Session
 		AgentName:           ca,
 		Title:               "Skill: " + params.Name,
 		ToolsApproved:       sess.ToolsApproved,
+		ExcludedTools:       []string{builtin.ToolNameRunSkill},
 	}
 
 	s := newSubSession(sess, cfg, a)
