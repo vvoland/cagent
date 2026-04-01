@@ -1582,6 +1582,44 @@ func (m *appModel) Bindings() []key.Binding {
 		key.WithHelp("Ctrl+h", "help"),
 	))
 
+	// Additional global shortcuts
+	bindings = append(bindings, key.NewBinding(
+		key.WithKeys("ctrl+y"),
+		key.WithHelp("Ctrl+y", "toggle yolo mode"),
+	))
+
+	bindings = append(bindings, key.NewBinding(
+		key.WithKeys("ctrl+o"),
+		key.WithHelp("Ctrl+o", "toggle hide tool results"),
+	))
+
+	bindings = append(bindings, key.NewBinding(
+		key.WithKeys("ctrl+s"),
+		key.WithHelp("Ctrl+s", "cycle agent"),
+	))
+
+	bindings = append(bindings, key.NewBinding(
+		key.WithKeys("ctrl+m"),
+		key.WithHelp("Ctrl+m", "model picker"),
+	))
+
+	bindings = append(bindings, key.NewBinding(
+		key.WithKeys("ctrl+x"),
+		key.WithHelp("Ctrl+x", "clear queue"),
+	))
+
+	bindings = append(bindings, key.NewBinding(
+		key.WithKeys("ctrl+z"),
+		key.WithHelp("Ctrl+z", "suspend"),
+	))
+
+	if !m.leanMode {
+		bindings = append(bindings, key.NewBinding(
+			key.WithKeys("ctrl+b"),
+			key.WithHelp("Ctrl+b", "toggle sidebar"),
+		))
+	}
+
 	// Show newline help based on keyboard enhancement support
 	if m.keyboardEnhancementsSupported {
 		bindings = append(bindings, key.NewBinding(
