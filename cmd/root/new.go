@@ -50,9 +50,12 @@ Optionally provide a description as an argument to skip the initial prompt.`,
 	return cmd
 }
 
-func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) error {
+func (f *newFlags) runNewCommand(cmd *cobra.Command, args []string) (commandErr error) {
 	ctx := cmd.Context()
 	telemetry.TrackCommand(ctx, "new", args)
+	defer func() { // do not inline this defer so that commandErr is not resolved early
+		telemetry.TrackCommandError(ctx, "new", args, commandErr)
+	}()
 
 	t, err := creator.Agent(ctx, &f.runConfig, f.modelParam)
 	if err != nil {

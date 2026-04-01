@@ -49,8 +49,11 @@ func newEvalCmd() *cobra.Command {
 	return cmd
 }
 
-func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) error {
+func (f *evalFlags) runEvalCommand(cmd *cobra.Command, args []string) (commandErr error) {
 	telemetry.TrackCommand(cmd.Context(), "eval", args)
+	defer func() { // do not inline this defer so that commandErr is not resolved early
+		telemetry.TrackCommandError(cmd.Context(), "eval", args, commandErr)
+	}()
 
 	ctx := cmd.Context()
 	agentFilename := args[0]

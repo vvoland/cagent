@@ -111,8 +111,11 @@ func newAliasRemoveCmd() *cobra.Command {
 	}
 }
 
-func runAliasAddCommand(cmd *cobra.Command, args []string, flags *aliasAddFlags) error {
+func runAliasAddCommand(cmd *cobra.Command, args []string, flags *aliasAddFlags) (commandErr error) {
 	telemetry.TrackCommand(cmd.Context(), "alias", append([]string{"add"}, args...))
+	defer func() { // do not inline this defer so that commandErr is not resolved early
+		telemetry.TrackCommandError(cmd.Context(), "alias", append([]string{"add"}, args...), commandErr)
+	}()
 
 	out := cli.NewPrinter(cmd.OutOrStdout())
 	name := args[0]
@@ -178,8 +181,11 @@ func runAliasAddCommand(cmd *cobra.Command, args []string, flags *aliasAddFlags)
 	return nil
 }
 
-func runAliasListCommand(cmd *cobra.Command, args []string) error {
+func runAliasListCommand(cmd *cobra.Command, args []string) (commandErr error) {
 	telemetry.TrackCommand(cmd.Context(), "alias", append([]string{"list"}, args...))
+	defer func() { // do not inline this defer so that commandErr is not resolved early
+		telemetry.TrackCommandError(cmd.Context(), "alias", append([]string{"list"}, args...), commandErr)
+	}()
 
 	out := cli.NewPrinter(cmd.OutOrStdout())
 
@@ -234,8 +240,11 @@ func runAliasListCommand(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runAliasRemoveCommand(cmd *cobra.Command, args []string) error {
+func runAliasRemoveCommand(cmd *cobra.Command, args []string) (commandErr error) {
 	telemetry.TrackCommand(cmd.Context(), "alias", append([]string{"remove"}, args...))
+	defer func() {
+		telemetry.TrackCommandError(cmd.Context(), "alias", append([]string{"remove"}, args...), commandErr)
+	}()
 
 	out := cli.NewPrinter(cmd.OutOrStdout())
 	name := args[0]
