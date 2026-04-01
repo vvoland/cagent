@@ -1655,7 +1655,7 @@ func (m *appModel) AllBindings() []key.Binding {
 // This filters AllBindings() to show only the most essential commands.
 func (m *appModel) Bindings() []key.Binding {
 	all := m.AllBindings()
-	
+
 	// Define which keys should appear in the status bar
 	statusBarKeys := map[string]bool{
 		"ctrl+c":      true, // quit
@@ -1671,24 +1671,24 @@ func (m *appModel) Bindings() []key.Binding {
 		"ctrl+g":      true, // edit in external editor (editor context)
 		"ctrl+r":      true, // history search (editor context)
 		// Content panel bindings (↑↓, c, e, d) are always included
-		"up":          true,
-		"down":        true,
-		"c":           true,
-		"e":           true,
-		"d":           true,
+		"up":   true,
+		"down": true,
+		"c":    true,
+		"e":    true,
+		"d":    true,
 	}
-	
+
 	// Filter to only include status bar keys
 	var filtered []key.Binding
 	for _, binding := range all {
 		if len(binding.Keys()) > 0 {
-			key := binding.Keys()[0]
-			if statusBarKeys[key] {
+			bindingKey := binding.Keys()[0]
+			if statusBarKeys[bindingKey] {
 				filtered = append(filtered, binding)
 			}
 		}
 	}
-	
+
 	return filtered
 }
 

@@ -15,6 +15,7 @@ import (
 // helpDialog displays all currently active key bindings in a scrollable dialog.
 type helpDialog struct {
 	readOnlyScrollDialog
+
 	bindings []key.Binding
 }
 
@@ -61,41 +62,48 @@ func (d *helpDialog) renderContent(contentWidth, maxHeight int) []string {
 			continue
 		}
 		keyStr := binding.Keys()[0]
-		if strings.HasPrefix(keyStr, "ctrl+") {
+		switch {
+		case strings.HasPrefix(keyStr, "ctrl+"):
 			ctrlBindings = append(ctrlBindings, binding)
-		} else if keyStr == "esc" || keyStr == "enter" || keyStr == "tab" {
+		case keyStr == "esc" || keyStr == "enter" || keyStr == "tab":
 			globalBindings = append(globalBindings, binding)
-		} else {
+		default:
 			otherBindings = append(otherBindings, binding)
 		}
 	}
 
 	// Render global bindings
 	if len(globalBindings) > 0 {
-		lines = append(lines, styles.DialogHelpStyle.Bold(true).Render("General"))
-		lines = append(lines, "")
+		lines = append(lines,
+			styles.DialogHelpStyle.Bold(true).Render("General"),
+			"",
+		)
 		for _, binding := range globalBindings {
-			lines = append(lines, d.formatBinding(binding, keyStyle, descStyle, contentWidth))
+			lines = append(lines, d.formatBinding(binding, keyStyle, descStyle))
 		}
 		lines = append(lines, "")
 	}
 
 	// Render ctrl bindings
 	if len(ctrlBindings) > 0 {
-		lines = append(lines, styles.DialogHelpStyle.Bold(true).Render("Control Key Shortcuts"))
-		lines = append(lines, "")
+		lines = append(lines,
+			styles.DialogHelpStyle.Bold(true).Render("Control Key Shortcuts"),
+			"",
+		)
 		for _, binding := range ctrlBindings {
-			lines = append(lines, d.formatBinding(binding, keyStyle, descStyle, contentWidth))
+			lines = append(lines, d.formatBinding(binding, keyStyle, descStyle))
 		}
 		lines = append(lines, "")
 	}
 
 	// Render other bindings
 	if len(otherBindings) > 0 {
-		lines = append(lines, styles.DialogHelpStyle.Bold(true).Render("Other"))
-		lines = append(lines, "")
+		lines = append(lines,
+			styles.DialogHelpStyle.Bold(true).Render("Other"),
+			"",
+		)
 		for _, binding := range otherBindings {
-			lines = append(lines, d.formatBinding(binding, keyStyle, descStyle, contentWidth))
+			lines = append(lines, d.formatBinding(binding, keyStyle, descStyle))
 		}
 	}
 
@@ -103,23 +111,23 @@ func (d *helpDialog) renderContent(contentWidth, maxHeight int) []string {
 }
 
 // formatBinding formats a single key binding as "  key  description"
-func (d *helpDialog) formatBinding(binding key.Binding, keyStyle, descStyle lipgloss.Style, width int) string {
+func (d *helpDialog) formatBinding(binding key.Binding, keyStyle, descStyle lipgloss.Style) string {
 	helpInfo := binding.Help()
 	helpKey := helpInfo.Key
 	helpDesc := helpInfo.Desc
-	
+
 	// Calculate spacing to align descriptions
 	const keyWidth = 20
 	const indent = 2
-	
+
 	keyPart := keyStyle.Render(helpKey)
 	descPart := descStyle.Render(helpDesc)
-	
+
 	// Pad the key part to align descriptions
 	keyPartWidth := lipgloss.Width(keyPart)
 	padding := strings.Repeat(" ", max(1, keyWidth-keyPartWidth))
-	
-	return fmt.Sprintf("%s%s%s%s", 
+
+	return fmt.Sprintf("%s%s%s%s",
 		strings.Repeat(" ", indent),
 		keyPart,
 		padding,
@@ -133,10 +141,8 @@ func (d *helpDialog) Init() tea.Cmd {
 
 func (d *helpDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	model, cmd := d.readOnlyScrollDialog.Update(msg)
-	if model != nil {
-		if rod, ok := model.(*readOnlyScrollDialog); ok {
-			d.readOnlyScrollDialog = *rod
-		}
+	if rod, ok := model.(*readOnlyScrollDialog); ok {
+		d.readOnlyScrollDialog = *rod
 	}
 	return d, cmd
 }
