@@ -1572,46 +1572,41 @@ func (m *appModel) AllBindings() []key.Binding {
 	bindings := []key.Binding{quitBinding, tabBinding}
 	bindings = append(bindings, m.tabBar.Bindings()...)
 
-	bindings = append(bindings, key.NewBinding(
-		key.WithKeys("ctrl+k"),
-		key.WithHelp("Ctrl+k", "commands"),
-	))
-
-	bindings = append(bindings, key.NewBinding(
-		key.WithKeys("ctrl+h"),
-		key.WithHelp("Ctrl+h", "help"),
-	))
-
-	// Additional global shortcuts (not in status bar, but available)
-	bindings = append(bindings, key.NewBinding(
-		key.WithKeys("ctrl+y"),
-		key.WithHelp("Ctrl+y", "toggle yolo mode"),
-	))
-
-	bindings = append(bindings, key.NewBinding(
-		key.WithKeys("ctrl+o"),
-		key.WithHelp("Ctrl+o", "toggle hide tool results"),
-	))
-
-	bindings = append(bindings, key.NewBinding(
-		key.WithKeys("ctrl+s"),
-		key.WithHelp("Ctrl+s", "cycle agent"),
-	))
-
-	bindings = append(bindings, key.NewBinding(
-		key.WithKeys("ctrl+m"),
-		key.WithHelp("Ctrl+m", "model picker"),
-	))
-
-	bindings = append(bindings, key.NewBinding(
-		key.WithKeys("ctrl+x"),
-		key.WithHelp("Ctrl+x", "clear queue"),
-	))
-
-	bindings = append(bindings, key.NewBinding(
-		key.WithKeys("ctrl+z"),
-		key.WithHelp("Ctrl+z", "suspend"),
-	))
+	// Additional global shortcuts
+	bindings = append(bindings,
+		key.NewBinding(
+			key.WithKeys("ctrl+k"),
+			key.WithHelp("Ctrl+k", "commands"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+h"),
+			key.WithHelp("Ctrl+h", "help"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+y"),
+			key.WithHelp("Ctrl+y", "toggle yolo mode"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+o"),
+			key.WithHelp("Ctrl+o", "toggle hide tool results"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+s"),
+			key.WithHelp("Ctrl+s", "cycle agent"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+m"),
+			key.WithHelp("Ctrl+m", "model picker"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+x"),
+			key.WithHelp("Ctrl+x", "clear queue"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+z"),
+			key.WithHelp("Ctrl+z", "suspend"),
+		),
+	)
 
 	if !m.leanMode {
 		bindings = append(bindings, key.NewBinding(
