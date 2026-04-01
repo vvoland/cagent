@@ -60,7 +60,7 @@ func TestModelsListCommand_ProviderFilter(t *testing.T) {
 
 	output := buf.String()
 	// Every non-header line should be anthropic
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "PROVIDER") {
 			continue
@@ -166,4 +166,3 @@ func TestModelsListCommand_NoCredentials(t *testing.T) {
 	// DMR is always available as fallback
 	assert.Contains(t, output, "dmr")
 }
-

@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker-agent/pkg/cli"
 	"github.com/docker/docker-agent/pkg/config"
 	"github.com/docker/docker-agent/pkg/config/latest"
-	"github.com/docker/docker-agent/pkg/environment"
 	"github.com/docker/docker-agent/pkg/model/provider"
 	"github.com/docker/docker-agent/pkg/modelsdev"
 	"github.com/docker/docker-agent/pkg/telemetry"
@@ -100,13 +99,12 @@ func (f *modelsListFlags) runModelsListCommand(cmd *cobra.Command, args []string
 	// Determine which model auto-selection would pick.
 	autoModel := config.AutoModelConfig(ctx, f.runConfig.ModelsGateway, env, f.runConfig.DefaultModel)
 
-	rows := f.collectModels(ctx, env, availableProviders, autoModel)
+	rows := f.collectModels(ctx, availableProviders, autoModel)
 
 	// Apply provider filter
 	if f.providerFilter != "" {
-		filter := strings.ToLower(f.providerFilter)
 		rows = slices.DeleteFunc(rows, func(r modelRow) bool {
-			return strings.ToLower(r.Provider) != filter
+			return !strings.EqualFold(r.Provider, f.providerFilter)
 		})
 	}
 
@@ -143,7 +141,7 @@ func (f *modelsListFlags) runModelsListCommand(cmd *cobra.Command, args []string
 // collectModels returns all models from the catalog, filtered by credential
 // availability unless --all is set. Default models for each available provider
 // are always included even if the catalog fetch fails.
-func (f *modelsListFlags) collectModels(ctx context.Context, env environment.Provider, availableProviders map[string]bool, autoModel latest.ModelConfig) []modelRow {
+func (f *modelsListFlags) collectModels(ctx context.Context, availableProviders map[string]bool, autoModel latest.ModelConfig) []modelRow {
 	seen := make(map[string]bool)
 	var rows []modelRow
 
