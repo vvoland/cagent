@@ -106,7 +106,7 @@ func Ensure(ctx context.Context, wd, extra, template, configDir string) (string,
 		createArgs = append(createArgs, "-t", template)
 	}
 	createArgs = append(createArgs, "cagent", wd)
-	if extra != "" {
+	if extra != "" && extra != wd {
 		createArgs = append(createArgs, extra+":ro")
 	}
 	// Mount config directory read-only so the sandbox can
@@ -133,8 +133,8 @@ func Ensure(ctx context.Context, wd, extra, template, configDir string) (string,
 }
 
 // BuildExecCmd assembles the `docker sandbox exec` command.
-func BuildExecCmd(ctx context.Context, name string, cagentArgs, envFlags, envVars []string) *exec.Cmd {
-	execArgs := []string{"sandbox", "exec", "-it"}
+func BuildExecCmd(ctx context.Context, name, wd string, cagentArgs, envFlags, envVars []string) *exec.Cmd {
+	execArgs := []string{"sandbox", "exec", "-it", "-w", wd}
 	execArgs = append(execArgs, envFlags...)
 	execArgs = append(execArgs, name, "cagent", "run")
 	execArgs = append(execArgs, cagentArgs...)
