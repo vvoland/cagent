@@ -1670,7 +1670,12 @@ func (m *appModel) Bindings() []key.Binding {
 		"ctrl+j":      true, // newline fallback
 		"ctrl+g":      true, // edit in external editor (editor context)
 		"ctrl+r":      true, // history search (editor context)
-		// Content panel bindings are included via chatPage.Bindings()
+		// Content panel bindings (↑↓, c, e, d) are always included
+		"up":          true,
+		"down":        true,
+		"c":           true,
+		"e":           true,
+		"d":           true,
 	}
 	
 	// Filter to only include status bar keys
