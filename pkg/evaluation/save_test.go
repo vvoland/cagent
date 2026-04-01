@@ -302,11 +302,9 @@ func TestSessionFromEvents(t *testing.T) {
 					},
 				},
 				{
-					"type": "tool_call_response",
-					"tool_call": map[string]any{
-						"id": "call_123",
-					},
-					"response": "file content",
+					"type":         "tool_call_response",
+					"tool_call_id": "call_123",
+					"response":     "file content",
 				},
 				{"type": "agent_choice", "content": "Done!"},
 				{"type": "stream_stopped"},
@@ -452,11 +450,9 @@ func TestSessionFromEventsWithToolDefinitions(t *testing.T) {
 			},
 		},
 		{
-			"type": "tool_call_response",
-			"tool_call": map[string]any{
-				"id": "call_123",
-			},
-			"response": "file content",
+			"type":         "tool_call_response",
+			"tool_call_id": "call_123",
+			"response":     "file content",
 		},
 		{"type": "stream_stopped"},
 	}

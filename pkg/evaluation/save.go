@@ -192,21 +192,20 @@ func SessionFromEvents(events []map[string]any, title string, questions []string
 			// Flush any pending assistant message before adding tool response
 			flushAssistantMessage()
 
-			// Add tool response message
-			if tc, ok := event["tool_call"].(map[string]any); ok {
-				toolCallID, _ := tc["id"].(string)
-				response, _ := event["response"].(string)
+			// The ToolCallResponseEvent serializes tool_call_id as a top-level string field,
+			// not nested under a "tool_call" map.
+			toolCallID, _ := event["tool_call_id"].(string)
+			response, _ := event["response"].(string)
 
-				msg := &session.Message{
-					Message: chat.Message{
-						Role:       chat.MessageRoleTool,
-						Content:    response,
-						ToolCallID: toolCallID,
-						CreatedAt:  eventTimestamp,
-					},
-				}
-				sess.AddMessage(msg)
+			msg := &session.Message{
+				Message: chat.Message{
+					Role:       chat.MessageRoleTool,
+					Content:    response,
+					ToolCallID: toolCallID,
+					CreatedAt:  eventTimestamp,
+				},
 			}
+			sess.AddMessage(msg)
 
 		case "token_usage":
 			// Update session token usage
