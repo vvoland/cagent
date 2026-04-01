@@ -3,6 +3,66 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.41.0] - 2026-04-01
+
+This release introduces a new models discovery command, contextual help system, and several TUI improvements including persistent warnings and simplified lean mode.
+
+## What's New
+- Adds `docker agent models` command to list available models for the `--model` flag
+- Adds contextual help dialog accessible via Ctrl+H (or F1/Ctrl+?) showing all keyboard shortcuts
+- Adds `--lean` flag for simplified TUI mode with minimal interface (just message stream and editor)
+- Adds copy button on hover for assistant messages to copy content to clipboard
+- Adds Vertex AI Model Garden support for non-Gemini models (Claude, Llama) hosted on Google Cloud
+
+## Improvements
+- Makes TUI warnings persist until manually dismissed instead of auto-dismissing after 3 seconds
+- Preserves recent messages during session compaction to maintain conversational context
+- Shows elapsed time and warning for long-running tool calls in the TUI
+- Adds desktop_uuid in telemetry alongside user_uuid for better tracking
+
+## Bug Fixes
+- Fixes markdown rendering in callout notes by adding markdown="1" attribute
+- Fixes panic on closed channel by making chanSend non-blocking
+- Fixes recursive run_skill loop in context:fork skill sub-sessions
+- Fixes docker run --sandbox functionality
+- Fixes eval tool_call_response to use correct event field names
+- Fixes guard against nil tool_definition in buildTranscript
+
+## Technical Changes
+- Replaces kin-openapi with pb33f/libopenapi for OpenAPI parsing
+- Removes trailing headers handling for rate limit headers
+- Tracks command errors with success=false and error details in telemetry
+- Ports build system to mise
+- Updates Go module dependencies
+
+### Pull Requests
+
+- [#2252](https://github.com/docker/docker-agent/pull/2252) - Make TUI warnings persist until manually dismissed
+- [#2253](https://github.com/docker/docker-agent/pull/2253) - Add --lean flag for simplified TUI mode
+- [#2259](https://github.com/docker/docker-agent/pull/2259) - Preserve recent messages during session compaction
+- [#2279](https://github.com/docker/docker-agent/pull/2279) - Add desktop_uuid in telemetry (next to user_uuid)
+- [#2281](https://github.com/docker/docker-agent/pull/2281) - docs: update CHANGELOG.md for v1.40.0
+- [#2283](https://github.com/docker/docker-agent/pull/2283) - Track command errors with success=false and error details
+- [#2284](https://github.com/docker/docker-agent/pull/2284) - Bump direct Go module dependencies
+- [#2285](https://github.com/docker/docker-agent/pull/2285) - Fix markdown rendering in documentation callout notes
+- [#2286](https://github.com/docker/docker-agent/pull/2286) - fix: make chanSend non-blocking to prevent panic on closed channel
+- [#2287](https://github.com/docker/docker-agent/pull/2287) - Add Vertex AI Model Garden support for non-Gemini models
+- [#2288](https://github.com/docker/docker-agent/pull/2288) - Add copy button on hover for assistant messages
+- [#2289](https://github.com/docker/docker-agent/pull/2289) - fix: prevent recursive run_skill loop in context:fork skill sub-sessions
+- [#2290](https://github.com/docker/docker-agent/pull/2290) - docs: add Vertex AI Model Garden section to Google provider docs
+- [#2291](https://github.com/docker/docker-agent/pull/2291) - tui: show elapsed time and warning for long-running tool calls
+- [#2292](https://github.com/docker/docker-agent/pull/2292) - go mod tidy
+- [#2293](https://github.com/docker/docker-agent/pull/2293) - Port to mise
+- [#2294](https://github.com/docker/docker-agent/pull/2294) - Fix TUI stuck in Working state after failed sub-agent transfer_task
+- [#2298](https://github.com/docker/docker-agent/pull/2298) - Remove trailing headers handling for rate limit headers
+- [#2299](https://github.com/docker/docker-agent/pull/2299) - Replace kin-openapi with pb33f/libopenapi for OpenAPI parsing
+- [#2301](https://github.com/docker/docker-agent/pull/2301) - Fix `docker run --sandbox`
+- [#2302](https://github.com/docker/docker-agent/pull/2302) - fix: eval tool_call_response uses correct event field names
+- [#2304](https://github.com/docker/docker-agent/pull/2304) - feat: add `docker agent models` command
+- [#2305](https://github.com/docker/docker-agent/pull/2305) - Add contextual help dialog (Ctrl+H)
+- [#2306](https://github.com/docker/docker-agent/pull/2306) - use DD proxy when available, also from WSL
+
+
 ## [v1.40.0] - 2026-03-30
 
 This release improves AI assistant capabilities with better response tracking and Google integration, plus fixes a critical exit hang issue.
@@ -1684,3 +1744,5 @@ This release improves the terminal user interface with better error handling and
 [v1.39.0]: https://github.com/docker/docker-agent/releases/tag/v1.39.0
 
 [v1.40.0]: https://github.com/docker/docker-agent/releases/tag/v1.40.0
+
+[v1.41.0]: https://github.com/docker/docker-agent/releases/tag/v1.41.0
