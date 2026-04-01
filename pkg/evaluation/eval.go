@@ -577,8 +577,10 @@ func buildTranscript(events []map[string]any) string {
 		case "tool_call_response":
 			// The ToolCallResponseEvent has tool_definition at the top level, not
 			// nested under "tool_call".
-			td, _ := event["tool_definition"].(map[string]any)
-			name, _ := td["name"].(string)
+			var name string
+			if td, ok := event["tool_definition"].(map[string]any); ok {
+				name, _ = td["name"].(string)
+			}
 			response, _ := event["response"].(string)
 			if len(response) > 500 {
 				response = response[:500] + "...(truncated)"
