@@ -1577,6 +1577,11 @@ func (m *appModel) Bindings() []key.Binding {
 		key.WithHelp("Ctrl+k", "commands"),
 	))
 
+	bindings = append(bindings, key.NewBinding(
+		key.WithKeys("ctrl+?"),
+		key.WithHelp("Ctrl+?", "help"),
+	))
+
 	// Show newline help based on keyboard enhancement support
 	if m.keyboardEnhancementsSupported {
 		bindings = append(bindings, key.NewBinding(
