@@ -1553,7 +1553,7 @@ func (m *appModel) Help() help.KeyMap {
 	return core.NewSimpleHelp(m.Bindings())
 }
 
-// Bindings returns the key bindings shown in the status bar.
+// Bindings returns the key bindings shown in the status bar (a curated subset).
 func (m *appModel) Bindings() []key.Binding {
 	quitBinding := key.NewBinding(
 		key.WithKeys("ctrl+c"),
@@ -1582,7 +1582,67 @@ func (m *appModel) Bindings() []key.Binding {
 		key.WithHelp("Ctrl+h", "help"),
 	))
 
-	// Additional global shortcuts
+	// Show newline help based on keyboard enhancement support
+	if m.keyboardEnhancementsSupported {
+		bindings = append(bindings, key.NewBinding(
+			key.WithKeys("shift+enter"),
+			key.WithHelp("Shift+Enter", "newline"),
+		))
+	} else {
+		bindings = append(bindings, key.NewBinding(
+			key.WithKeys("ctrl+j"),
+			key.WithHelp("Ctrl+j", "newline"),
+		))
+	}
+
+	if m.focusedPanel == PanelContent {
+		bindings = append(bindings, m.chatPage.Bindings()...)
+	} else {
+		editorName := getEditorDisplayNameFromEnv(os.Getenv("VISUAL"), os.Getenv("EDITOR"))
+		bindings = append(bindings,
+			key.NewBinding(
+				key.WithKeys("ctrl+g"),
+				key.WithHelp("Ctrl+g", "edit in "+editorName),
+			),
+			key.NewBinding(
+				key.WithKeys("ctrl+r"),
+				key.WithHelp("Ctrl+r", "history search"),
+			),
+		)
+	}
+	return bindings
+}
+
+// AllBindings returns ALL available key bindings for the help dialog (comprehensive list).
+func (m *appModel) AllBindings() []key.Binding {
+	quitBinding := key.NewBinding(
+		key.WithKeys("ctrl+c"),
+		key.WithHelp("Ctrl+c", "quit"),
+	)
+
+	if m.leanMode {
+		return []key.Binding{quitBinding}
+	}
+
+	tabBinding := key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp("Tab", "switch focus"),
+	)
+
+	bindings := []key.Binding{quitBinding, tabBinding}
+	bindings = append(bindings, m.tabBar.Bindings()...)
+
+	bindings = append(bindings, key.NewBinding(
+		key.WithKeys("ctrl+k"),
+		key.WithHelp("Ctrl+k", "commands"),
+	))
+
+	bindings = append(bindings, key.NewBinding(
+		key.WithKeys("ctrl+h"),
+		key.WithHelp("Ctrl+h", "help"),
+	))
+
+	// Additional global shortcuts (not in status bar, but available)
 	bindings = append(bindings, key.NewBinding(
 		key.WithKeys("ctrl+y"),
 		key.WithHelp("Ctrl+y", "toggle yolo mode"),
@@ -1732,9 +1792,9 @@ func (m *appModel) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, core.CmdHandler(messages.ClearQueueMsg{})
 
 	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+h", "f1", "ctrl+?"))):
-		// Show contextual help dialog with all currently active key bindings
+		// Show contextual help dialog with ALL available key bindings
 		return m, core.CmdHandler(dialog.OpenDialogMsg{
-			Model: dialog.NewHelpDialog(m.Bindings()),
+			Model: dialog.NewHelpDialog(m.AllBindings()),
 		})
 	}
 
