@@ -1553,8 +1553,8 @@ func (m *appModel) Help() help.KeyMap {
 	return core.NewSimpleHelp(m.Bindings())
 }
 
-// Bindings returns the key bindings shown in the status bar.
-func (m *appModel) Bindings() []key.Binding {
+// AllBindings returns ALL available key bindings for the help dialog (comprehensive list).
+func (m *appModel) AllBindings() []key.Binding {
 	quitBinding := key.NewBinding(
 		key.WithKeys("ctrl+c"),
 		key.WithHelp("Ctrl+c", "quit"),
@@ -1572,10 +1572,48 @@ func (m *appModel) Bindings() []key.Binding {
 	bindings := []key.Binding{quitBinding, tabBinding}
 	bindings = append(bindings, m.tabBar.Bindings()...)
 
-	bindings = append(bindings, key.NewBinding(
-		key.WithKeys("ctrl+k"),
-		key.WithHelp("Ctrl+k", "commands"),
-	))
+	// Additional global shortcuts
+	bindings = append(bindings,
+		key.NewBinding(
+			key.WithKeys("ctrl+k"),
+			key.WithHelp("Ctrl+k", "commands"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+h"),
+			key.WithHelp("Ctrl+h", "help"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+y"),
+			key.WithHelp("Ctrl+y", "toggle yolo mode"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+o"),
+			key.WithHelp("Ctrl+o", "toggle hide tool results"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+s"),
+			key.WithHelp("Ctrl+s", "cycle agent"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+m"),
+			key.WithHelp("Ctrl+m", "model picker"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+x"),
+			key.WithHelp("Ctrl+x", "clear queue"),
+		),
+		key.NewBinding(
+			key.WithKeys("ctrl+z"),
+			key.WithHelp("Ctrl+z", "suspend"),
+		),
+	)
+
+	if !m.leanMode {
+		bindings = append(bindings, key.NewBinding(
+			key.WithKeys("ctrl+b"),
+			key.WithHelp("Ctrl+b", "toggle sidebar"),
+		))
+	}
 
 	// Show newline help based on keyboard enhancement support
 	if m.keyboardEnhancementsSupported {
@@ -1606,6 +1644,47 @@ func (m *appModel) Bindings() []key.Binding {
 		)
 	}
 	return bindings
+}
+
+// Bindings returns the key bindings shown in the status bar (a curated subset).
+// This filters AllBindings() to show only the most essential commands.
+func (m *appModel) Bindings() []key.Binding {
+	all := m.AllBindings()
+
+	// Define which keys should appear in the status bar
+	statusBarKeys := map[string]bool{
+		"ctrl+c":      true, // quit
+		"tab":         true, // switch focus
+		"ctrl+t":      true, // new tab (from tabBar)
+		"ctrl+w":      true, // close tab (from tabBar)
+		"ctrl+p":      true, // prev tab (from tabBar)
+		"ctrl+n":      true, // next tab (from tabBar)
+		"ctrl+k":      true, // commands
+		"ctrl+h":      true, // help
+		"shift+enter": true, // newline
+		"ctrl+j":      true, // newline fallback
+		"ctrl+g":      true, // edit in external editor (editor context)
+		"ctrl+r":      true, // history search (editor context)
+		// Content panel bindings (↑↓, c, e, d) are always included
+		"up":   true,
+		"down": true,
+		"c":    true,
+		"e":    true,
+		"d":    true,
+	}
+
+	// Filter to only include status bar keys
+	var filtered []key.Binding
+	for _, binding := range all {
+		if len(binding.Keys()) > 0 {
+			bindingKey := binding.Keys()[0]
+			if statusBarKeys[bindingKey] {
+				filtered = append(filtered, binding)
+			}
+		}
+	}
+
+	return filtered
 }
 
 // handleKeyPress handles all keyboard input with proper priority routing.
@@ -1687,6 +1766,12 @@ func (m *appModel) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+x"))):
 		return m, core.CmdHandler(messages.ClearQueueMsg{})
+
+	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+h", "f1", "ctrl+?"))):
+		// Show contextual help dialog with ALL available key bindings
+		return m, core.CmdHandler(dialog.OpenDialogMsg{
+			Model: dialog.NewHelpDialog(m.AllBindings()),
+		})
 	}
 
 	// History search is a modal state — capture all remaining keys before normal routing

@@ -132,6 +132,8 @@ Customize session titles to make them more meaningful and easier to find. By def
 | Enter    | Send message (or newline with Shift+Enter)      |
 | Up/Down  | Navigate message history                        |
 
+Press <kbd>Ctrl</kbd>+<kbd>H</kbd> to view the complete list of all available keyboard shortcuts.
+
 ## History Search
 
 Press <kbd>Ctrl</kbd>+<kbd>R</kbd> to enter incremental history search mode. Start typing to filter through your previous inputs. Press <kbd>Enter</kbd> to select a match, or <kbd>Escape</kbd> to cancel.
