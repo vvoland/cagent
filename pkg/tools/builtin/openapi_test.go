@@ -464,3 +464,60 @@ func TestSanitizeToolName(t *testing.T) {
 		})
 	}
 }
+
+func TestOpenAPITool_EnumAndDefaultTypes(t *testing.T) {
+	t.Parallel()
+
+	spec := `{
+		"openapi": "3.0.0",
+		"info": { "title": "Test", "version": "1.0.0" },
+		"paths": {
+			"/items": {
+				"get": {
+					"operationId": "listItems",
+					"summary": "List items",
+					"parameters": [
+						{
+							"name": "status",
+							"in": "query",
+							"schema": {
+								"type": "string",
+								"enum": ["active", "inactive"],
+								"default": "active"
+							}
+						},
+						{
+							"name": "limit",
+							"in": "query",
+							"schema": {
+								"type": "integer",
+								"enum": [10, 25, 50, 100],
+								"default": 25
+							}
+						}
+					],
+					"responses": { "200": {"description": "ok"} }
+				}
+			}
+		}
+	}`
+
+	specServer := serveSpec(t, spec)
+	toolsList, err := NewOpenAPITool(specServer.URL+"/openapi.json", nil).Tools(t.Context())
+	require.NoError(t, err)
+	require.Len(t, toolsList, 1)
+
+	schema, ok := toolsList[0].Parameters.(map[string]any)
+	require.True(t, ok)
+	props := schema["properties"].(map[string]any)
+
+	// String enum values should remain strings.
+	statusProp := props["status"].(map[string]any)
+	assert.Equal(t, []any{"active", "inactive"}, statusProp["enum"])
+	assert.Equal(t, "active", statusProp["default"])
+
+	// Integer enum values should remain integers (not strings).
+	limitProp := props["limit"].(map[string]any)
+	assert.Equal(t, []any{10, 25, 50, 100}, limitProp["enum"])
+	assert.Equal(t, 25, limitProp["default"])
+}

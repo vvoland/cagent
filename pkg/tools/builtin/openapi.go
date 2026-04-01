@@ -13,7 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"go.yaml.in/yaml/v4"
 
 	"github.com/docker/docker-agent/pkg/remote"
 	"github.com/docker/docker-agent/pkg/tools"
@@ -62,7 +65,7 @@ func (t *OpenAPITool) Tools(ctx context.Context) ([]tools.Tool, error) {
 }
 
 // fetchSpec retrieves and parses the OpenAPI specification from the configured URL.
-func (t *OpenAPITool) fetchSpec(ctx context.Context) (*openapi3.T, error) {
+func (t *OpenAPITool) fetchSpec(ctx context.Context) (*v3.Document, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, t.specURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -92,35 +95,38 @@ func (t *OpenAPITool) fetchSpec(ctx context.Context) (*openapi3.T, error) {
 		return nil, errors.New("OpenAPI spec exceeds 10MB size limit")
 	}
 
-	loader := openapi3.NewLoader()
-	loader.IsExternalRefsAllowed = false
-
-	spec, err := loader.LoadFromData(body)
+	doc, err := libopenapi.NewDocument(body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse OpenAPI spec: %w", err)
 	}
 
-	// Validate the spec but don't fail on validation errors.
-	// Some valid OpenAPI 3.1 features (e.g. "type": "null") are not yet
-	// supported by the validator in kin-openapi.
-	if err := spec.Validate(loader.Context); err != nil {
-		slog.Warn("OpenAPI spec validation reported issues; proceeding anyway", "url", t.specURL, "error", err)
+	model, buildErr := doc.BuildV3Model()
+	if buildErr != nil {
+		// Log validation issues but don't fail — some valid OpenAPI 3.1
+		// features may not be fully supported by the validator.
+		slog.Warn("OpenAPI spec validation reported issues; proceeding anyway", "url", t.specURL, "error", buildErr)
 	}
 
-	return spec, nil
+	if model == nil {
+		return nil, errors.New("failed to build OpenAPI V3 model from spec")
+	}
+
+	return &model.Model, nil
 }
 
 // buildTools converts an OpenAPI spec into a list of tools.
-func (t *OpenAPITool) buildTools(spec *openapi3.T) ([]tools.Tool, error) {
+func (t *OpenAPITool) buildTools(spec *v3.Document) ([]tools.Tool, error) {
 	baseURL, err := t.resolveBaseURL(spec)
 	if err != nil {
 		return nil, err
 	}
 
 	var result []tools.Tool
-	for path, pathItem := range spec.Paths.Map() {
-		for method, op := range pathOperations(pathItem) {
-			result = append(result, t.operationToTool(baseURL, path, method, op))
+	if spec.Paths != nil && spec.Paths.PathItems != nil {
+		for path, pathItem := range spec.Paths.PathItems.FromOldest() {
+			for method, op := range pathOperations(pathItem) {
+				result = append(result, t.operationToTool(baseURL, path, method, op))
+			}
 		}
 	}
 
@@ -128,8 +134,8 @@ func (t *OpenAPITool) buildTools(spec *openapi3.T) ([]tools.Tool, error) {
 }
 
 // pathOperations returns all non-nil operations for a path item.
-func pathOperations(item *openapi3.PathItem) map[string]*openapi3.Operation {
-	all := map[string]*openapi3.Operation{
+func pathOperations(item *v3.PathItem) map[string]*v3.Operation {
+	all := map[string]*v3.Operation{
 		http.MethodGet:     item.Get,
 		http.MethodPost:    item.Post,
 		http.MethodPut:     item.Put,
@@ -139,7 +145,7 @@ func pathOperations(item *openapi3.PathItem) map[string]*openapi3.Operation {
 		http.MethodOptions: item.Options,
 	}
 
-	ops := make(map[string]*openapi3.Operation, len(all))
+	ops := make(map[string]*v3.Operation, len(all))
 	for m, op := range all {
 		if op != nil {
 			ops[m] = op
@@ -150,7 +156,7 @@ func pathOperations(item *openapi3.PathItem) map[string]*openapi3.Operation {
 }
 
 // resolveBaseURL determines the base URL for API requests.
-func (t *OpenAPITool) resolveBaseURL(spec *openapi3.T) (string, error) {
+func (t *OpenAPITool) resolveBaseURL(spec *v3.Document) (string, error) {
 	if len(spec.Servers) > 0 && spec.Servers[0].URL != "" {
 		serverURL := spec.Servers[0].URL
 
@@ -182,7 +188,7 @@ func (t *OpenAPITool) resolveBaseURL(spec *openapi3.T) (string, error) {
 }
 
 // operationToTool converts a single OpenAPI operation to a tool.
-func (t *OpenAPITool) operationToTool(baseURL, path, method string, op *openapi3.Operation) tools.Tool {
+func (t *OpenAPITool) operationToTool(baseURL, path, method string, op *v3.Operation) tools.Tool {
 	name := operationToolName(path, method, op)
 	desc := operationDescription(path, method, op)
 	schema := operationSchema(op)
@@ -208,16 +214,16 @@ func (t *OpenAPITool) operationToTool(baseURL, path, method string, op *openapi3
 }
 
 // operationToolName returns a tool name derived from the operationId or the method+path.
-func operationToolName(path, method string, op *openapi3.Operation) string {
-	if op.OperationID != "" {
-		return sanitizeToolName(op.OperationID)
+func operationToolName(path, method string, op *v3.Operation) string {
+	if op.OperationId != "" {
+		return sanitizeToolName(op.OperationId)
 	}
 
 	return sanitizeToolName(strings.ToLower(method) + "_" + path)
 }
 
 // operationDescription returns a human-readable description for the operation.
-func operationDescription(path, method string, op *openapi3.Operation) string {
+func operationDescription(path, method string, op *v3.Operation) string {
 	if op.Summary != "" {
 		return op.Summary
 	}
@@ -233,32 +239,31 @@ func operationDescription(path, method string, op *openapi3.Operation) string {
 }
 
 // operationSchema builds a JSON Schema object describing the tool parameters.
-func operationSchema(op *openapi3.Operation) map[string]any {
+func operationSchema(op *v3.Operation) map[string]any {
 	properties := map[string]any{}
 	var required []string
 
 	// Path and query parameters.
-	for _, ref := range op.Parameters {
-		if ref.Value == nil {
+	for _, p := range op.Parameters {
+		if p == nil {
 			continue
 		}
 
-		p := ref.Value
-		prop := schemaRefToProperty(p.Schema)
+		prop := schemaProxyToProperty(p.Schema)
 		if p.Description != "" {
 			prop["description"] = p.Description
 		}
 
 		properties[p.Name] = prop
-		if p.Required {
+		if p.Required != nil && *p.Required {
 			required = append(required, p.Name)
 		}
 	}
 
 	// JSON request body properties (prefixed with "body_").
 	if body := requestBodySchema(op); body != nil {
-		for name, propRef := range body.Properties {
-			properties["body_"+name] = schemaRefToProperty(propRef)
+		for name, propProxy := range body.Properties.FromOldest() {
+			properties["body_"+name] = schemaProxyToProperty(propProxy)
 		}
 		for _, req := range body.Required {
 			required = append(required, "body_"+req)
@@ -277,31 +282,35 @@ func operationSchema(op *openapi3.Operation) map[string]any {
 }
 
 // requestBodySchema extracts the JSON schema from an operation's request body, if any.
-func requestBodySchema(op *openapi3.Operation) *openapi3.Schema {
-	if op.RequestBody == nil || op.RequestBody.Value == nil {
+func requestBodySchema(op *v3.Operation) *base.Schema {
+	if op.RequestBody == nil || op.RequestBody.Content == nil {
 		return nil
 	}
 
-	jsonContent, ok := op.RequestBody.Value.Content["application/json"]
-	if !ok || jsonContent.Schema == nil || jsonContent.Schema.Value == nil {
+	jsonContent, ok := op.RequestBody.Content.Get("application/json")
+	if !ok || jsonContent.Schema == nil {
 		return nil
 	}
 
-	s := jsonContent.Schema.Value
-	if s.Properties == nil {
+	s := jsonContent.Schema.Schema()
+	if s == nil || s.Properties == nil {
 		return nil
 	}
 
 	return s
 }
 
-// schemaRefToProperty converts an OpenAPI schema reference to a JSON Schema property map.
-func schemaRefToProperty(ref *openapi3.SchemaRef) map[string]any {
-	if ref == nil || ref.Value == nil {
+// schemaProxyToProperty converts a libopenapi SchemaProxy to a JSON Schema property map.
+func schemaProxyToProperty(proxy *base.SchemaProxy) map[string]any {
+	if proxy == nil {
 		return map[string]any{"type": "string"}
 	}
 
-	s := ref.Value
+	s := proxy.Schema()
+	if s == nil {
+		return map[string]any{"type": "string"}
+	}
+
 	prop := map[string]any{
 		"type": schemaType(s),
 	}
@@ -310,10 +319,16 @@ func schemaRefToProperty(ref *openapi3.SchemaRef) map[string]any {
 		prop["description"] = s.Description
 	}
 	if len(s.Enum) > 0 {
-		prop["enum"] = s.Enum
+		enumValues := make([]any, 0, len(s.Enum))
+		for _, node := range s.Enum {
+			if node != nil {
+				enumValues = append(enumValues, yamlNodeToValue(node))
+			}
+		}
+		prop["enum"] = enumValues
 	}
 	if s.Default != nil {
-		prop["default"] = s.Default
+		prop["default"] = yamlNodeToValue(s.Default)
 	}
 
 	return prop
@@ -321,14 +336,23 @@ func schemaRefToProperty(ref *openapi3.SchemaRef) map[string]any {
 
 // schemaType returns the JSON Schema type string for an OpenAPI schema.
 // Defaults to "string" when the type is unspecified.
-func schemaType(s *openapi3.Schema) string {
-	if s.Type != nil {
-		if types := s.Type.Slice(); len(types) > 0 {
-			return types[0]
-		}
+func schemaType(s *base.Schema) string {
+	if len(s.Type) > 0 {
+		return s.Type[0]
 	}
 
 	return "string"
+}
+
+// yamlNodeToValue converts a yaml.Node to a native Go value, preserving the
+// original type (int, float, bool, null) instead of returning everything as a
+// string.
+func yamlNodeToValue(node *yaml.Node) any {
+	var v any
+	if err := node.Decode(&v); err != nil {
+		return node.Value
+	}
+	return v
 }
 
 // sanitizeToolName converts a string into a valid tool name.
