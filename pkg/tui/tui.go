@@ -1553,66 +1553,6 @@ func (m *appModel) Help() help.KeyMap {
 	return core.NewSimpleHelp(m.Bindings())
 }
 
-// Bindings returns the key bindings shown in the status bar (a curated subset).
-func (m *appModel) Bindings() []key.Binding {
-	quitBinding := key.NewBinding(
-		key.WithKeys("ctrl+c"),
-		key.WithHelp("Ctrl+c", "quit"),
-	)
-
-	if m.leanMode {
-		return []key.Binding{quitBinding}
-	}
-
-	tabBinding := key.NewBinding(
-		key.WithKeys("tab"),
-		key.WithHelp("Tab", "switch focus"),
-	)
-
-	bindings := []key.Binding{quitBinding, tabBinding}
-	bindings = append(bindings, m.tabBar.Bindings()...)
-
-	bindings = append(bindings, key.NewBinding(
-		key.WithKeys("ctrl+k"),
-		key.WithHelp("Ctrl+k", "commands"),
-	))
-
-	bindings = append(bindings, key.NewBinding(
-		key.WithKeys("ctrl+h"),
-		key.WithHelp("Ctrl+h", "help"),
-	))
-
-	// Show newline help based on keyboard enhancement support
-	if m.keyboardEnhancementsSupported {
-		bindings = append(bindings, key.NewBinding(
-			key.WithKeys("shift+enter"),
-			key.WithHelp("Shift+Enter", "newline"),
-		))
-	} else {
-		bindings = append(bindings, key.NewBinding(
-			key.WithKeys("ctrl+j"),
-			key.WithHelp("Ctrl+j", "newline"),
-		))
-	}
-
-	if m.focusedPanel == PanelContent {
-		bindings = append(bindings, m.chatPage.Bindings()...)
-	} else {
-		editorName := getEditorDisplayNameFromEnv(os.Getenv("VISUAL"), os.Getenv("EDITOR"))
-		bindings = append(bindings,
-			key.NewBinding(
-				key.WithKeys("ctrl+g"),
-				key.WithHelp("Ctrl+g", "edit in "+editorName),
-			),
-			key.NewBinding(
-				key.WithKeys("ctrl+r"),
-				key.WithHelp("Ctrl+r", "history search"),
-			),
-		)
-	}
-	return bindings
-}
-
 // AllBindings returns ALL available key bindings for the help dialog (comprehensive list).
 func (m *appModel) AllBindings() []key.Binding {
 	quitBinding := key.NewBinding(
@@ -1709,6 +1649,42 @@ func (m *appModel) AllBindings() []key.Binding {
 		)
 	}
 	return bindings
+}
+
+// Bindings returns the key bindings shown in the status bar (a curated subset).
+// This filters AllBindings() to show only the most essential commands.
+func (m *appModel) Bindings() []key.Binding {
+	all := m.AllBindings()
+	
+	// Define which keys should appear in the status bar
+	statusBarKeys := map[string]bool{
+		"ctrl+c":      true, // quit
+		"tab":         true, // switch focus
+		"ctrl+t":      true, // new tab (from tabBar)
+		"ctrl+w":      true, // close tab (from tabBar)
+		"ctrl+p":      true, // prev tab (from tabBar)
+		"ctrl+n":      true, // next tab (from tabBar)
+		"ctrl+k":      true, // commands
+		"ctrl+h":      true, // help
+		"shift+enter": true, // newline
+		"ctrl+j":      true, // newline fallback
+		"ctrl+g":      true, // edit in external editor (editor context)
+		"ctrl+r":      true, // history search (editor context)
+		// Content panel bindings are included via chatPage.Bindings()
+	}
+	
+	// Filter to only include status bar keys
+	var filtered []key.Binding
+	for _, binding := range all {
+		if len(binding.Keys()) > 0 {
+			key := binding.Keys()[0]
+			if statusBarKeys[key] {
+				filtered = append(filtered, binding)
+			}
+		}
+	}
+	
+	return filtered
 }
 
 // handleKeyPress handles all keyboard input with proper priority routing.
