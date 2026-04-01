@@ -8,17 +8,22 @@
 
 ## Tests Performed
 
-### ✅ 1. Help Dialog Opens with F1
-**Command**: F1  
+### ✅ 1. Help Dialog Opens with Ctrl+h
+**Command**: Ctrl+h  
 **Result**: SUCCESS  
 **Details**: Help dialog opened successfully showing "Active Key Bindings" with categorized sections.
+
+### ✅ 1b. Fallback Keys Work
+**Commands**: F1, Ctrl+?  
+**Result**: SUCCESS  
+**Details**: Both F1 and Ctrl+? also successfully open the help dialog.
 
 ### ✅ 2. Dialog Content Display
 **Result**: SUCCESS  
 **Details**: Dialog shows three sections:
 - **General**: Tab (switch focus)
-- **Control Key Shortcuts**: Ctrl+c, Ctrl+t/w, Ctrl+p/n, Ctrl+k, Ctrl+j, Ctrl+g, Ctrl+r
-- **Other**: F1 (help), arrow keys, c (copy message), e (edit message), d (delete message)
+- **Control Key Shortcuts**: Ctrl+c, Ctrl+t/w, Ctrl+p/n, Ctrl+k, **Ctrl+h (help)**, Ctrl+j, Ctrl+g, Ctrl+r
+- **Other**: F1 (fallback), arrow keys, c (copy message), e (edit message), d (delete message)
 
 ### ✅ 3. Scrolling Functionality
 **Commands**: ↑↓ arrow keys  
@@ -69,7 +74,7 @@
 
 ### ✅ 8. Status Bar Integration
 **Result**: SUCCESS  
-**Details**: Status bar shows "F1 help" making the feature discoverable
+**Details**: Status bar shows "Ctrl+h help" making the feature discoverable
 
 ### ✅ 9. Multiple Open/Close Cycles
 **Result**: SUCCESS  
