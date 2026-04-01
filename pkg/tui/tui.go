@@ -1687,6 +1687,12 @@ func (m *appModel) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+x"))):
 		return m, core.CmdHandler(messages.ClearQueueMsg{})
+
+	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+?"))):
+		// Show contextual help dialog with all currently active key bindings
+		return m, core.CmdHandler(dialog.OpenDialogMsg{
+			Model: dialog.NewHelpDialog(m.Bindings()),
+		})
 	}
 
 	// History search is a modal state — capture all remaining keys before normal routing
