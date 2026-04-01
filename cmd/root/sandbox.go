@@ -8,8 +8,11 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/docker/cli/cli"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/docker/docker-agent/pkg/config"
 	"github.com/docker/docker-agent/pkg/environment"
@@ -20,7 +23,7 @@ import (
 // runInSandbox delegates the current command to a Docker sandbox.
 // It ensures a sandbox exists (creating or recreating as needed), then
 // executes docker agent inside it via `docker sandbox exec`.
-func runInSandbox(ctx context.Context, args []string, runConfig *config.RuntimeConfig, template string) error {
+func runInSandbox(ctx context.Context, cmd *cobra.Command, args []string, runConfig *config.RuntimeConfig, template string) error {
 	if environment.InSandbox() {
 		return fmt.Errorf("already running inside a Docker sandbox (VM %s)", os.Getenv("SANDBOX_VM_ID"))
 	}
@@ -34,19 +37,21 @@ func runInSandbox(ctx context.Context, args []string, runConfig *config.RuntimeC
 		agentRef = args[0]
 	}
 
-	dockerAgentArgs := sandbox.BuildCagentArgs(os.Args)
 	configDir := paths.GetConfigDir()
-
-	// Always forward config directory paths so the sandbox-side
-	// docker agent resolves it to the same host directories
-	// (which is mounted read-write by ensureSandbox).
-	dockerAgentArgs = sandbox.AppendFlagIfMissing(dockerAgentArgs, "--config-dir", configDir)
+	dockerAgentArgs := dockerAgentArgs(cmd, args, configDir)
+	dockerAgentArgs = append(dockerAgentArgs, args...)
+	dockerAgentArgs = append(dockerAgentArgs, "--config-dir", configDir)
 
 	stopTokenWriter := sandbox.StartTokenWriterIfNeeded(ctx, configDir, runConfig.ModelsGateway)
 	defer stopTokenWriter()
 
-	// Ensure a sandbox with the right workspace mounts exists.
-	wd := cmp.Or(runConfig.WorkingDir, ".")
+	// Resolve wd to an absolute path so that it matches the absolute
+	// workspace paths returned by `docker sandbox ls --json`.
+	wd, err := filepath.Abs(cmp.Or(runConfig.WorkingDir, "."))
+	if err != nil {
+		return fmt.Errorf("resolving workspace path: %w", err)
+	}
+
 	name, err := sandbox.Ensure(ctx, wd, sandbox.ExtraWorkspace(wd, agentRef), template, configDir)
 	if err != nil {
 		return err
@@ -63,7 +68,7 @@ func runInSandbox(ctx context.Context, args []string, runConfig *config.RuntimeC
 		envFlags = append(envFlags, "-e", envModelsGateway+"="+gateway)
 	}
 
-	dockerCmd := sandbox.BuildExecCmd(ctx, name, dockerAgentArgs, envFlags, envVars)
+	dockerCmd := sandbox.BuildExecCmd(ctx, name, wd, dockerAgentArgs, envFlags, envVars)
 	slog.Debug("Executing in sandbox", "name", name, "args", dockerCmd.Args)
 
 	if err := dockerCmd.Run(); err != nil {
@@ -74,4 +79,32 @@ func runInSandbox(ctx context.Context, args []string, runConfig *config.RuntimeC
 	}
 
 	return nil
+}
+
+func dockerAgentArgs(cmd *cobra.Command, args []string, configDir string) []string {
+	var dockerAgentArgs []string
+	hasYolo := false
+	cmd.Flags().Visit(func(f *pflag.Flag) {
+		if f.Name == "sandbox" || f.Name == "config-dir" {
+			return
+		}
+
+		if f.Name == "yolo" {
+			hasYolo = true
+		}
+
+		if f.Value.Type() == "bool" {
+			dockerAgentArgs = append(dockerAgentArgs, "--"+f.Name)
+		} else {
+			dockerAgentArgs = append(dockerAgentArgs, "--"+f.Name, f.Value.String())
+		}
+	})
+	if !hasYolo {
+		dockerAgentArgs = append(dockerAgentArgs, "--yolo")
+	}
+
+	dockerAgentArgs = append(dockerAgentArgs, args...)
+	dockerAgentArgs = append(dockerAgentArgs, "--config-dir", configDir)
+
+	return dockerAgentArgs
 }
