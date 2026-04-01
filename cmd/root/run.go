@@ -146,7 +146,7 @@ func (f *runExecFlags) runRunCommand(cmd *cobra.Command, args []string) (command
 
 	// If --sandbox is set, delegate everything to docker sandbox.
 	if f.sandbox {
-		return runInSandbox(cmd, &f.runConfig, f.sandboxTemplate)
+		return runInSandbox(ctx, &f.runConfig, f.sandboxTemplate)
 	}
 
 	out := cli.NewPrinter(cmd.OutOrStdout())

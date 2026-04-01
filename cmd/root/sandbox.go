@@ -2,6 +2,7 @@ package root
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -9,7 +10,6 @@ import (
 	"os/exec"
 
 	"github.com/docker/cli/cli"
-	"github.com/spf13/cobra"
 
 	"github.com/docker/docker-agent/pkg/config"
 	"github.com/docker/docker-agent/pkg/environment"
@@ -20,12 +20,11 @@ import (
 // runInSandbox delegates the current command to a Docker sandbox.
 // It ensures a sandbox exists (creating or recreating as needed), then
 // executes docker agent inside it via `docker sandbox exec`.
-func runInSandbox(cmd *cobra.Command, runConfig *config.RuntimeConfig, template string) error {
+func runInSandbox(ctx context.Context, runConfig *config.RuntimeConfig, template string) error {
 	if environment.InSandbox() {
 		return fmt.Errorf("already running inside a Docker sandbox (VM %s)", os.Getenv("SANDBOX_VM_ID"))
 	}
 
-	ctx := cmd.Context()
 	if err := sandbox.CheckAvailable(ctx); err != nil {
 		return err
 	}
