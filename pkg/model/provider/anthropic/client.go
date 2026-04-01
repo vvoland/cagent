@@ -6,9 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -33,21 +31,8 @@ import (
 type Client struct {
 	base.Config
 
-	clientFn         func(context.Context) (anthropic.Client, error)
-	lastHTTPResponse *http.Response
-	fileManager      *FileManager
-}
-
-func (c *Client) getResponseTrailer() http.Header {
-	if c.lastHTTPResponse == nil {
-		return nil
-	}
-
-	if c.lastHTTPResponse.Body != nil {
-		_, _ = io.Copy(io.Discard, c.lastHTTPResponse.Body)
-	}
-
-	return c.lastHTTPResponse.Trailer
+	clientFn    func(context.Context) (anthropic.Client, error)
+	fileManager *FileManager
 }
 
 // adjustMaxTokensForThinking checks if max_tokens needs adjustment for thinking_budget.
@@ -207,7 +192,6 @@ func NewClient(ctx context.Context, cfg *latest.ModelConfig, env environment.Pro
 			}
 
 			client := anthropic.NewClient(
-				option.WithResponseInto(&anthropicClient.lastHTTPResponse),
 				option.WithAuthToken(authToken),
 				option.WithAPIKey(authToken),
 				option.WithBaseURL(baseURL),

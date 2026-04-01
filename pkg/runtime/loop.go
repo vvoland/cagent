@@ -471,9 +471,6 @@ func (r *LocalRuntime) recordAssistantMessage(
 		Model:        messageModel,
 		FinishReason: res.FinishReason,
 	}
-	if res.RateLimit != nil {
-		msgUsage.RateLimit = *res.RateLimit
-	}
 	return msgUsage
 }
 

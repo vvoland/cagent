@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -20,17 +19,15 @@ import (
 type streamAdapter struct {
 	retryableStream[anthropic.MessageStreamEventUnion]
 
-	trackUsage         bool
-	toolCall           bool
-	toolID             string
-	getResponseTrailer func() http.Header
+	trackUsage bool
+	toolCall   bool
+	toolID     string
 }
 
 func (c *Client) newStreamAdapter(stream *ssestream.Stream[anthropic.MessageStreamEventUnion], trackUsage bool) *streamAdapter {
 	return &streamAdapter{
-		retryableStream:    retryableStream[anthropic.MessageStreamEventUnion]{stream: stream},
-		trackUsage:         trackUsage,
-		getResponseTrailer: c.getResponseTrailer,
+		retryableStream: retryableStream[anthropic.MessageStreamEventUnion]{stream: stream},
+		trackUsage:      trackUsage,
 	}
 }
 
@@ -151,28 +148,9 @@ func (a *streamAdapter) Recv() (chat.MessageStreamResponse, error) {
 		} else {
 			response.Choices[0].FinishReason = chat.FinishReasonStop
 		}
-
-		// MessageStopEvent is the last event. Let's drain the response to get the trailing headers.
-		trailers := a.getResponseTrailer()
-		if trailers.Get("X-RateLimit-Limit") != "" {
-			response.RateLimit = &chat.RateLimit{
-				Limit:      parseHeaderInt64(trailers.Get("X-RateLimit-Limit")),
-				Remaining:  parseHeaderInt64(trailers.Get("X-RateLimit-Remaining")),
-				Reset:      parseHeaderInt64(trailers.Get("X-RateLimit-Reset")),
-				RetryAfter: parseHeaderInt64(trailers.Get("Retry-After")),
-			}
-		}
 	}
 
 	return response, nil
-}
-
-func parseHeaderInt64(headerValue string) int64 {
-	value, err := strconv.ParseInt(headerValue, 10, 64)
-	if err != nil {
-		return 0
-	}
-	return value
 }
 
 // Close closes the stream
