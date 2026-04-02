@@ -276,7 +276,7 @@ type RelevanceCheck struct {
 type RelevanceCriterionResult struct {
 	Criterion string `json:"criterion"`
 	Passed    bool   `json:"passed"`
-	Reason    string `json:"reason,omitempty"` // Only set for failed criteria
+	Reason    string `json:"reason,omitempty"`
 }
 
 // EvalCriteria contains the evaluation criteria for a session.

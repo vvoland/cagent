@@ -47,10 +47,9 @@ func TestJudge_CheckRelevance_EmptyCriteria(t *testing.T) {
 	t.Parallel()
 
 	judge := NewJudge(nil, 1)
-	passed, failed, err := judge.CheckRelevance(t.Context(), "some response", nil)
+	results, err := judge.CheckRelevance(t.Context(), "some response", nil)
 
-	assert.Equal(t, 0, passed)
-	assert.Empty(t, failed)
+	assert.Empty(t, results)
 	assert.NoError(t, err)
 }
 
@@ -63,11 +62,10 @@ func TestJudge_CheckRelevance_ContextCanceled(t *testing.T) {
 	cancel() // Cancel immediately
 
 	criteria := []string{"criterion1", "criterion2", "criterion3"}
-	passed, failed, err := judge.CheckRelevance(ctx, "some response", criteria)
+	results, err := judge.CheckRelevance(ctx, "some response", criteria)
 
 	// All should have errors due to context cancellation
-	assert.Equal(t, 0, passed)
-	assert.Empty(t, failed)
+	assert.Len(t, results, len(criteria))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "context cancelled")
 }

@@ -357,12 +357,18 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 	if r.judge != nil && len(evals.Relevance) > 0 {
 		// Use transcript for relevance checking to preserve temporal ordering
 		transcript := buildTranscript(events)
-		passed, failed, err := r.judge.CheckRelevance(ctx, transcript, evals.Relevance)
+		results, err := r.judge.CheckRelevance(ctx, transcript, evals.Relevance)
 		if err != nil {
 			return result, fmt.Errorf("relevance check failed: %w", err)
 		}
-		result.RelevancePassed = float64(passed)
-		result.FailedRelevance = failed
+		var passed float64
+		for _, rr := range results {
+			if rr.Passed {
+				passed++
+			}
+		}
+		result.RelevancePassed = passed
+		result.RelevanceResults = results
 	}
 
 	slog.Debug("Evaluation complete", "title", evalSess.Title, "duration", time.Since(startTime))

@@ -171,7 +171,11 @@ func TestSaveRunSessionsJSON(t *testing.T) {
 				OutputTokens:      50,
 				RelevancePassed:   2,
 				RelevanceExpected: 2,
-				Session:           sess1,
+				RelevanceResults: []RelevanceResult{
+					{Criterion: "mentions Paris", Passed: true, Reason: "response includes Paris"},
+					{Criterion: "mentions France", Passed: true, Reason: "response includes France"},
+				},
+				Session: sess1,
 			},
 			{
 				Title:             "eval-json-2",
@@ -181,8 +185,9 @@ func TestSaveRunSessionsJSON(t *testing.T) {
 				OutputTokens:      30,
 				RelevancePassed:   1,
 				RelevanceExpected: 2,
-				FailedRelevance: []RelevanceResult{
-					{Criterion: "explains the math", Reason: "no explanation given"},
+				RelevanceResults: []RelevanceResult{
+					{Criterion: "gives the correct answer", Passed: true, Reason: "the response says 4"},
+					{Criterion: "explains the math", Passed: false, Reason: "no explanation given"},
 				},
 				Session: sess2,
 			},
@@ -275,9 +280,9 @@ func TestSaveRunSessionsJSON(t *testing.T) {
 	assert.Equal(t, float64(2), sess2Loaded.EvalResult.Checks.Relevance.Total)
 	require.Len(t, sess2Loaded.EvalResult.Checks.Relevance.Results, 2)
 
-	// First criterion should be passed (not in failed list)
+	// First criterion should be passed with reason
 	assert.True(t, sess2Loaded.EvalResult.Checks.Relevance.Results[0].Passed)
-	assert.Empty(t, sess2Loaded.EvalResult.Checks.Relevance.Results[0].Reason)
+	assert.Equal(t, "the response says 4", sess2Loaded.EvalResult.Checks.Relevance.Results[0].Reason)
 
 	// Second criterion should be failed with reason
 	assert.False(t, sess2Loaded.EvalResult.Checks.Relevance.Results[1].Passed)

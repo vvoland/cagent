@@ -446,32 +446,13 @@ func populateEvalResult(result *Result) {
 
 	// Populate relevance check if relevance was evaluated
 	if result.RelevanceExpected > 0 {
-		// Build a map of failed criteria for quick lookup
-		failedMap := make(map[string]string, len(result.FailedRelevance))
-		for _, fr := range result.FailedRelevance {
-			failedMap[fr.Criterion] = fr.Reason
-		}
-
-		// Build results for ALL criteria (passed + failed) from the eval input
-		var criteria []string
-		if result.Session.Evals != nil {
-			criteria = result.Session.Evals.Relevance
-		}
-
-		results := make([]session.RelevanceCriterionResult, 0, len(criteria))
-		for _, criterion := range criteria {
-			if reason, failed := failedMap[criterion]; failed {
-				results = append(results, session.RelevanceCriterionResult{
-					Criterion: criterion,
-					Passed:    false,
-					Reason:    reason,
-				})
-			} else {
-				results = append(results, session.RelevanceCriterionResult{
-					Criterion: criterion,
-					Passed:    true,
-				})
-			}
+		results := make([]session.RelevanceCriterionResult, 0, len(result.RelevanceResults))
+		for _, rr := range result.RelevanceResults {
+			results = append(results, session.RelevanceCriterionResult{
+				Criterion: rr.Criterion,
+				Passed:    rr.Passed,
+				Reason:    rr.Reason,
+			})
 		}
 
 		evalResult.Checks.Relevance = &session.RelevanceCheck{
