@@ -97,17 +97,18 @@ func (j *Judge) Validate(ctx context.Context) error {
 // RelevanceResult contains the result of a single relevance check.
 type RelevanceResult struct {
 	Criterion string `json:"criterion"`
+	Passed    bool   `json:"passed"`
 	Reason    string `json:"reason"`
 }
 
 // CheckRelevance runs all relevance checks concurrently with the configured concurrency.
-// It returns the number of passed checks, a slice of failed results with reasons, and an error
-// if any check encountered an error (e.g. judge model misconfiguration). Errors cause a hard
-// failure so that configuration issues are surfaced immediately rather than silently producing
-// zero-relevance results.
-func (j *Judge) CheckRelevance(ctx context.Context, response string, criteria []string) (passed int, failed []RelevanceResult, err error) {
+// It returns a result for every criterion (both passed and failed, each with a reason from
+// the judge model), and an error if any check encountered an error (e.g. judge model
+// misconfiguration). Errors cause a hard failure so that configuration issues are surfaced
+// immediately rather than silently producing zero-relevance results.
+func (j *Judge) CheckRelevance(ctx context.Context, response string, criteria []string) (results []RelevanceResult, err error) {
 	if len(criteria) == 0 {
-		return 0, nil, nil
+		return nil, nil
 	}
 
 	// Create work channel
@@ -122,23 +123,23 @@ func (j *Judge) CheckRelevance(ctx context.Context, response string, criteria []
 	close(work)
 
 	// Results slice preserves order
-	type result struct {
+	type rawResult struct {
 		passed bool
 		reason string
 		err    error
 	}
-	results := make([]result, len(criteria))
+	rawResults := make([]rawResult, len(criteria))
 
 	var wg sync.WaitGroup
 	for range j.concurrency {
 		wg.Go(func() {
 			for item := range work {
 				if ctx.Err() != nil {
-					results[item.index] = result{err: fmt.Errorf("context cancelled: %w", ctx.Err())}
+					rawResults[item.index] = rawResult{err: fmt.Errorf("context cancelled: %w", ctx.Err())}
 					continue
 				}
 				pass, reason, checkErr := j.checkSingle(ctx, response, item.criterion)
-				results[item.index] = result{passed: pass, reason: reason, err: checkErr}
+				rawResults[item.index] = rawResult{passed: pass, reason: reason, err: checkErr}
 			}
 		})
 	}
@@ -147,26 +148,24 @@ func (j *Judge) CheckRelevance(ctx context.Context, response string, criteria []
 	// Aggregate results. Any error is fatal — return it immediately so the
 	// caller can fail fast on judge misconfiguration.
 	var errs []error
-	for i, r := range results {
+	results = make([]RelevanceResult, len(criteria))
+	for i := range results {
+		results[i].Criterion = criteria[i]
+	}
+	for i, r := range rawResults {
 		if r.err != nil {
 			errs = append(errs, fmt.Errorf("checking %q: %w", criteria[i], r.err))
 			continue
 		}
-		if r.passed {
-			passed++
-		} else {
-			failed = append(failed, RelevanceResult{
-				Criterion: criteria[i],
-				Reason:    r.reason,
-			})
-		}
+		results[i].Passed = r.passed
+		results[i].Reason = r.reason
 	}
 
 	if len(errs) > 0 {
-		return passed, failed, errors.Join(errs...)
+		return results, errors.Join(errs...)
 	}
 
-	return passed, failed, nil
+	return results, nil
 }
 
 // checkSingle checks a single relevance criterion against the response.

@@ -74,6 +74,9 @@ type Session struct {
 	// Evals contains evaluation criteria for this session (used by eval framework)
 	Evals *EvalCriteria `json:"evals,omitempty"`
 
+	// EvalResult contains the evaluation scoring outcome (populated after eval run).
+	EvalResult *EvalResult `json:"eval_result,omitempty"`
+
 	// Messages holds the conversation history (messages and sub-sessions)
 	Messages []Item `json:"messages"`
 
@@ -227,6 +230,53 @@ func NewMessageItem(msg *Message) Item {
 // NewSubSessionItem creates a SessionItem containing a sub-session
 func NewSubSessionItem(subSession *Session) Item {
 	return Item{SubSession: subSession}
+}
+
+// EvalResult contains the evaluation scoring outcome for a session.
+type EvalResult struct {
+	Passed       bool             `json:"passed"`
+	Successes    []string         `json:"successes,omitempty"`
+	Failures     []string         `json:"failures,omitempty"`
+	Error        string           `json:"error,omitempty"`
+	Cost         float64          `json:"cost"`
+	OutputTokens int64            `json:"output_tokens"`
+	Checks       EvalResultChecks `json:"checks"`
+}
+
+// EvalResultChecks groups the individual check results.
+// Only checks that were evaluated will be present (omitted if nil).
+type EvalResultChecks struct {
+	Size      *SizeCheck      `json:"size,omitempty"`
+	ToolCalls *ToolCallsCheck `json:"tool_calls,omitempty"`
+	Relevance *RelevanceCheck `json:"relevance,omitempty"`
+}
+
+// SizeCheck contains the result of the response size check.
+type SizeCheck struct {
+	Passed   bool   `json:"passed"`
+	Actual   string `json:"actual"`
+	Expected string `json:"expected"`
+}
+
+// ToolCallsCheck contains the result of the tool calls F1 score check.
+type ToolCallsCheck struct {
+	Passed bool    `json:"passed"`
+	Score  float64 `json:"score"`
+}
+
+// RelevanceCheck contains the result of the LLM judge relevance check.
+type RelevanceCheck struct {
+	Passed      bool                       `json:"passed"`
+	PassedCount float64                    `json:"passed_count"`
+	Total       float64                    `json:"total"`
+	Results     []RelevanceCriterionResult `json:"results"`
+}
+
+// RelevanceCriterionResult contains the judge's verdict on a single relevance criterion.
+type RelevanceCriterionResult struct {
+	Criterion string `json:"criterion"`
+	Passed    bool   `json:"passed"`
+	Reason    string `json:"reason,omitempty"`
 }
 
 // EvalCriteria contains the evaluation criteria for a session.

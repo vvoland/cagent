@@ -196,7 +196,7 @@ func TestResultCheckResults(t *testing.T) {
 		},
 		{
 			name:         "relevance failures listed",
-			result:       Result{RelevanceExpected: 2, RelevancePassed: 0, FailedRelevance: []RelevanceResult{{Criterion: "check A", Reason: "reason A"}, {Criterion: "check B", Reason: "reason B"}}},
+			result:       Result{RelevanceExpected: 2, RelevancePassed: 0, RelevanceResults: []RelevanceResult{{Criterion: "check A", Passed: false, Reason: "reason A"}, {Criterion: "check B", Passed: false, Reason: "reason B"}}},
 			wantSuccess:  nil,
 			wantFailures: []string{"relevance: check A (reason: reason A)", "relevance: check B (reason: reason B)"},
 		},
@@ -658,7 +658,7 @@ func TestProgressBarPrintResult(t *testing.T) {
 				Size:              "S",
 				RelevanceExpected: 2,
 				RelevancePassed:   1,
-				FailedRelevance:   []RelevanceResult{{Criterion: "check failed", Reason: "did not meet criteria"}},
+				RelevanceResults:  []RelevanceResult{{Criterion: "check failed", Passed: false, Reason: "did not meet criteria"}},
 			},
 			wantContains: []string{
 				"✗ mixed-session", // overall failed

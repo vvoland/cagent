@@ -131,6 +131,9 @@ func TestSaveRunSessionsJSON(t *testing.T) {
 	sess1.InputTokens = 100
 	sess1.OutputTokens = 50
 	sess1.Cost = 0.01
+	sess1.Evals = &session.EvalCriteria{
+		Relevance: []string{"mentions Paris", "mentions France"},
+	}
 
 	sess2 := session.New(
 		session.WithTitle("eval-json-2"),
@@ -139,23 +142,54 @@ func TestSaveRunSessionsJSON(t *testing.T) {
 	sess2.InputTokens = 80
 	sess2.OutputTokens = 30
 	sess2.Cost = 0.005
+	sess2.Evals = &session.EvalCriteria{
+		Relevance: []string{"gives the correct answer", "explains the math"},
+	}
 
 	// Create an eval run with sessions and eval criteria
 	run := &EvalRun{
 		Name:      "test-json-001",
 		Timestamp: time.Now(),
+		Duration:  42 * time.Second,
+		Config: Config{
+			AgentFilename: "./test-agent.yaml",
+			JudgeModel:    "anthropic/claude-opus-4-5",
+			Concurrency:   4,
+			EvalsDir:      "./evals",
+		},
+		Summary: Summary{
+			TotalEvals:  3,
+			FailedEvals: 1,
+			TotalCost:   0.015,
+		},
 		Results: []Result{
 			{
-				Title:    "eval-json-1",
-				Question: "What is the capital of France?",
-				Response: "Paris is the capital of France.",
-				Session:  sess1,
+				Title:             "eval-json-1",
+				Question:          "What is the capital of France?",
+				Response:          "Paris is the capital of France.",
+				Cost:              0.01,
+				OutputTokens:      50,
+				RelevancePassed:   2,
+				RelevanceExpected: 2,
+				RelevanceResults: []RelevanceResult{
+					{Criterion: "mentions Paris", Passed: true, Reason: "response includes Paris"},
+					{Criterion: "mentions France", Passed: true, Reason: "response includes France"},
+				},
+				Session: sess1,
 			},
 			{
-				Title:    "eval-json-2",
-				Question: "What is 2+2?",
-				Response: "4",
-				Session:  sess2,
+				Title:             "eval-json-2",
+				Question:          "What is 2+2?",
+				Response:          "4",
+				Cost:              0.005,
+				OutputTokens:      30,
+				RelevancePassed:   1,
+				RelevanceExpected: 2,
+				RelevanceResults: []RelevanceResult{
+					{Criterion: "gives the correct answer", Passed: true, Reason: "the response says 4"},
+					{Criterion: "explains the math", Passed: false, Reason: "no explanation given"},
+				},
+				Session: sess2,
 			},
 			{
 				// Result without a session (error case)
@@ -176,16 +210,29 @@ func TestSaveRunSessionsJSON(t *testing.T) {
 	data, err := os.ReadFile(sessionsPath)
 	require.NoError(t, err)
 
-	var loadedSessions []*session.Session
-	err = json.Unmarshal(data, &loadedSessions)
+	var output RunOutput
+	err = json.Unmarshal(data, &output)
 	require.NoError(t, err)
 
+	// Verify run-level metadata
+	assert.Equal(t, "test-json-001", output.Name)
+	assert.Equal(t, "42s", output.Duration)
+	assert.Equal(t, "./test-agent.yaml", output.Config.Agent)
+	assert.Equal(t, "anthropic/claude-opus-4-5", output.Config.JudgeModel)
+	assert.Equal(t, 4, output.Config.Concurrency)
+	assert.Equal(t, "./evals", output.Config.EvalsDir)
+
+	// Verify summary
+	assert.Equal(t, 3, output.Summary.TotalEvals)
+	assert.Equal(t, 1, output.Summary.FailedEvals)
+	assert.InDelta(t, 0.015, output.Summary.TotalCost, 0.0001)
+
 	// Should have 2 sessions (excluding the error case)
-	assert.Len(t, loadedSessions, 2)
+	assert.Len(t, output.Sessions, 2)
 
 	// Verify session content
 	titles := make(map[string]*session.Session)
-	for _, sess := range loadedSessions {
+	for _, sess := range output.Sessions {
 		titles[sess.Title] = sess
 	}
 
@@ -198,10 +245,49 @@ func TestSaveRunSessionsJSON(t *testing.T) {
 	assert.Equal(t, int64(50), sess1Loaded.OutputTokens)
 	assert.InDelta(t, 0.01, sess1Loaded.Cost, 0.0001)
 
+	// Verify eval results are populated
+	require.NotNil(t, sess1Loaded.EvalResult)
+	assert.True(t, sess1Loaded.EvalResult.Passed)
+	assert.NotEmpty(t, sess1Loaded.EvalResult.Successes)
+	assert.Empty(t, sess1Loaded.EvalResult.Failures)
+	assert.InDelta(t, 0.01, sess1Loaded.EvalResult.Cost, 0.0001)
+	assert.Equal(t, int64(50), sess1Loaded.EvalResult.OutputTokens)
+
+	// Verify structured relevance check
+	require.NotNil(t, sess1Loaded.EvalResult.Checks.Relevance)
+	assert.True(t, sess1Loaded.EvalResult.Checks.Relevance.Passed)
+	assert.InDelta(t, 2, sess1Loaded.EvalResult.Checks.Relevance.PassedCount, 0.01)
+	assert.InDelta(t, 2, sess1Loaded.EvalResult.Checks.Relevance.Total, 0.01)
+
+	// No size or tool calls checks were configured
+	assert.Nil(t, sess1Loaded.EvalResult.Checks.Size)
+	assert.Nil(t, sess1Loaded.EvalResult.Checks.ToolCalls)
+
 	sess2Loaded := titles["eval-json-2"]
 	assert.Equal(t, int64(80), sess2Loaded.InputTokens)
 	assert.Equal(t, int64(30), sess2Loaded.OutputTokens)
 	assert.InDelta(t, 0.005, sess2Loaded.Cost, 0.0001)
+
+	// Verify failed eval result
+	require.NotNil(t, sess2Loaded.EvalResult)
+	assert.False(t, sess2Loaded.EvalResult.Passed)
+	assert.NotEmpty(t, sess2Loaded.EvalResult.Failures)
+
+	// Verify structured relevance check with per-criterion results
+	require.NotNil(t, sess2Loaded.EvalResult.Checks.Relevance)
+	assert.False(t, sess2Loaded.EvalResult.Checks.Relevance.Passed)
+	assert.InDelta(t, 1, sess2Loaded.EvalResult.Checks.Relevance.PassedCount, 0.01)
+	assert.InDelta(t, 2, sess2Loaded.EvalResult.Checks.Relevance.Total, 0.01)
+	require.Len(t, sess2Loaded.EvalResult.Checks.Relevance.Results, 2)
+
+	// First criterion should be passed with reason
+	assert.True(t, sess2Loaded.EvalResult.Checks.Relevance.Results[0].Passed)
+	assert.Equal(t, "the response says 4", sess2Loaded.EvalResult.Checks.Relevance.Results[0].Reason)
+
+	// Second criterion should be failed with reason
+	assert.False(t, sess2Loaded.EvalResult.Checks.Relevance.Results[1].Passed)
+	assert.Equal(t, "explains the math", sess2Loaded.EvalResult.Checks.Relevance.Results[1].Criterion)
+	assert.Equal(t, "no explanation given", sess2Loaded.EvalResult.Checks.Relevance.Results[1].Reason)
 }
 
 func TestSaveRunSessionsWithCost(t *testing.T) {
