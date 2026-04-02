@@ -149,16 +149,16 @@ func (j *Judge) CheckRelevance(ctx context.Context, response string, criteria []
 	// caller can fail fast on judge misconfiguration.
 	var errs []error
 	results = make([]RelevanceResult, len(criteria))
+	for i := range results {
+		results[i].Criterion = criteria[i]
+	}
 	for i, r := range rawResults {
 		if r.err != nil {
 			errs = append(errs, fmt.Errorf("checking %q: %w", criteria[i], r.err))
 			continue
 		}
-		results[i] = RelevanceResult{
-			Criterion: criteria[i],
-			Passed:    r.passed,
-			Reason:    r.reason,
-		}
+		results[i].Passed = r.passed
+		results[i].Reason = r.reason
 	}
 
 	if len(errs) > 0 {
