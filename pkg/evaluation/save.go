@@ -374,11 +374,15 @@ func SaveRunJSON(run *EvalRun, outputDir string) (string, error) {
 	return saveJSON(run, filepath.Join(outputDir, run.Name+".json"))
 }
 
-// SaveRunSessionsJSON saves all eval sessions to a single JSON file.
-// Each session includes its eval criteria in the "evals" field.
-// This complements SaveRunSessions which saves to SQLite, providing a
-// human-readable format for inspection.
+// SaveRunSessionsJSON saves the full evaluation run output to a JSON file.
+// The output includes run metadata (config, summary) and all sessions with
+// their eval criteria and scoring results (pass/fail, judge reasoning, errors).
 func SaveRunSessionsJSON(run *EvalRun, outputDir string) (string, error) {
+	// Populate eval results on each session
+	for i := range run.Results {
+		populateEvalResult(&run.Results[i])
+	}
+
 	// Collect all sessions from results
 	var sessions []*session.Session
 	for i := range run.Results {
@@ -387,8 +391,98 @@ func SaveRunSessionsJSON(run *EvalRun, outputDir string) (string, error) {
 		}
 	}
 
+	output := RunOutput{
+		Name:      run.Name,
+		Timestamp: run.Timestamp,
+		Duration:  run.Duration.Round(time.Millisecond).String(),
+		Config: RunOutputConfig{
+			Agent:       run.Config.AgentFilename,
+			JudgeModel:  run.Config.JudgeModel,
+			Concurrency: run.Config.Concurrency,
+			EvalsDir:    run.Config.EvalsDir,
+			BaseImage:   run.Config.BaseImage,
+		},
+		Summary:  run.Summary,
+		Sessions: sessions,
+	}
+
 	outputPath := filepath.Join(outputDir, run.Name+".json")
-	return saveJSON(sessions, outputPath)
+	return saveJSON(output, outputPath)
+}
+
+// populateEvalResult copies scoring data from a Result to its Session's EvalResult field.
+func populateEvalResult(result *Result) {
+	if result.Session == nil {
+		return
+	}
+
+	successes, failures := result.checkResults()
+
+	evalResult := &session.EvalResult{
+		Passed:       len(failures) == 0,
+		Successes:    successes,
+		Failures:     failures,
+		Error:        result.Error,
+		Cost:         result.Cost,
+		OutputTokens: result.OutputTokens,
+	}
+
+	// Populate size check if size was evaluated
+	if result.SizeExpected != "" {
+		evalResult.Checks.Size = &session.SizeCheck{
+			Passed:   result.Size == result.SizeExpected,
+			Actual:   result.Size,
+			Expected: result.SizeExpected,
+		}
+	}
+
+	// Populate tool calls check if tool calls were evaluated
+	if result.ToolCallsExpected > 0 {
+		evalResult.Checks.ToolCalls = &session.ToolCallsCheck{
+			Passed: result.ToolCallsScore >= 1.0,
+			Score:  result.ToolCallsScore,
+		}
+	}
+
+	// Populate relevance check if relevance was evaluated
+	if result.RelevanceExpected > 0 {
+		// Build a map of failed criteria for quick lookup
+		failedMap := make(map[string]string, len(result.FailedRelevance))
+		for _, fr := range result.FailedRelevance {
+			failedMap[fr.Criterion] = fr.Reason
+		}
+
+		// Build results for ALL criteria (passed + failed) from the eval input
+		var criteria []string
+		if result.Session.Evals != nil {
+			criteria = result.Session.Evals.Relevance
+		}
+
+		results := make([]session.RelevanceCriterionResult, 0, len(criteria))
+		for _, criterion := range criteria {
+			if reason, failed := failedMap[criterion]; failed {
+				results = append(results, session.RelevanceCriterionResult{
+					Criterion: criterion,
+					Passed:    false,
+					Reason:    reason,
+				})
+			} else {
+				results = append(results, session.RelevanceCriterionResult{
+					Criterion: criterion,
+					Passed:    true,
+				})
+			}
+		}
+
+		evalResult.Checks.Relevance = &session.RelevanceCheck{
+			Passed:      result.RelevancePassed >= result.RelevanceExpected,
+			PassedCount: result.RelevancePassed,
+			Total:       result.RelevanceExpected,
+			Results:     results,
+		}
+	}
+
+	result.Session.EvalResult = evalResult
 }
 
 func Save(sess *session.Session, filename string) (string, error) {

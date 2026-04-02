@@ -90,6 +90,7 @@ func Evaluate(ctx context.Context, ttyOut, out io.Writer, isTTY bool, runName st
 		Name:      runName,
 		Timestamp: startTime,
 		Duration:  duration,
+		Config:    cfg,
 		Results:   results,
 		Summary:   summary,
 	}

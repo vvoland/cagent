@@ -94,8 +94,28 @@ type EvalRun struct {
 	Name      string        `json:"name"`
 	Timestamp time.Time     `json:"timestamp"`
 	Duration  time.Duration `json:"duration"`
+	Config    Config        `json:"-"` // Used to build RunOutput, not serialized directly
 	Results   []Result      `json:"results"`
 	Summary   Summary       `json:"summary"`
+}
+
+// RunOutput is the top-level structure for the evaluation run JSON output.
+type RunOutput struct {
+	Name      string             `json:"name"`
+	Timestamp time.Time          `json:"timestamp"`
+	Duration  string             `json:"duration"`
+	Config    RunOutputConfig    `json:"config"`
+	Summary   Summary            `json:"summary"`
+	Sessions  []*session.Session `json:"sessions"`
+}
+
+// RunOutputConfig captures the evaluation run configuration.
+type RunOutputConfig struct {
+	Agent       string `json:"agent"`
+	JudgeModel  string `json:"judge_model,omitempty"`
+	Concurrency int    `json:"concurrency"`
+	EvalsDir    string `json:"evals_dir"`
+	BaseImage   string `json:"base_image,omitempty"`
 }
 
 // Config holds configuration for evaluation runs.
