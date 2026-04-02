@@ -234,13 +234,13 @@ func NewSubSessionItem(subSession *Session) Item {
 
 // EvalResult contains the evaluation scoring outcome for a session.
 type EvalResult struct {
-	Passed       bool              `json:"passed"`
-	Successes    []string          `json:"successes,omitempty"`
-	Failures     []string          `json:"failures,omitempty"`
-	Error        string            `json:"error,omitempty"`
-	Cost         float64           `json:"cost"`
-	OutputTokens int64             `json:"output_tokens"`
-	Checks       EvalResultChecks  `json:"checks"`
+	Passed       bool             `json:"passed"`
+	Successes    []string         `json:"successes,omitempty"`
+	Failures     []string         `json:"failures,omitempty"`
+	Error        string           `json:"error,omitempty"`
+	Cost         float64          `json:"cost"`
+	OutputTokens int64            `json:"output_tokens"`
+	Checks       EvalResultChecks `json:"checks"`
 }
 
 // EvalResultChecks groups the individual check results.
@@ -266,9 +266,9 @@ type ToolCallsCheck struct {
 
 // RelevanceCheck contains the result of the LLM judge relevance check.
 type RelevanceCheck struct {
-	Passed      bool                      `json:"passed"`
-	PassedCount float64                   `json:"passed_count"`
-	Total       float64                   `json:"total"`
+	Passed      bool                       `json:"passed"`
+	PassedCount float64                    `json:"passed_count"`
+	Total       float64                    `json:"total"`
 	Results     []RelevanceCriterionResult `json:"results"`
 }
 

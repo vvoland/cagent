@@ -256,8 +256,8 @@ func TestSaveRunSessionsJSON(t *testing.T) {
 	// Verify structured relevance check
 	require.NotNil(t, sess1Loaded.EvalResult.Checks.Relevance)
 	assert.True(t, sess1Loaded.EvalResult.Checks.Relevance.Passed)
-	assert.Equal(t, float64(2), sess1Loaded.EvalResult.Checks.Relevance.PassedCount)
-	assert.Equal(t, float64(2), sess1Loaded.EvalResult.Checks.Relevance.Total)
+	assert.InDelta(t, 2, sess1Loaded.EvalResult.Checks.Relevance.PassedCount, 0.01)
+	assert.InDelta(t, 2, sess1Loaded.EvalResult.Checks.Relevance.Total, 0.01)
 
 	// No size or tool calls checks were configured
 	assert.Nil(t, sess1Loaded.EvalResult.Checks.Size)
@@ -276,7 +276,7 @@ func TestSaveRunSessionsJSON(t *testing.T) {
 	// Verify structured relevance check with per-criterion results
 	require.NotNil(t, sess2Loaded.EvalResult.Checks.Relevance)
 	assert.False(t, sess2Loaded.EvalResult.Checks.Relevance.Passed)
-	assert.Equal(t, float64(1), sess2Loaded.EvalResult.Checks.Relevance.PassedCount)
+	assert.InDelta(t, 1, sess2Loaded.EvalResult.Checks.Relevance.PassedCount, 0.01)
 	assert.Equal(t, float64(2), sess2Loaded.EvalResult.Checks.Relevance.Total)
 	require.Len(t, sess2Loaded.EvalResult.Checks.Relevance.Results, 2)
 

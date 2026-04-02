@@ -26,9 +26,9 @@ type Result struct {
 	SizeExpected      string            `json:"size_expected"`
 	ToolCallsScore    float64           `json:"tool_calls_score"`
 	ToolCallsExpected float64           `json:"tool_calls_score_expected"`
-	RelevancePassed    float64           `json:"relevance"`
-	RelevanceExpected   float64           `json:"relevance_expected"`
-	RelevanceResults    []RelevanceResult `json:"relevance_results,omitempty"`
+	RelevancePassed   float64           `json:"relevance"`
+	RelevanceExpected float64           `json:"relevance_expected"`
+	RelevanceResults  []RelevanceResult `json:"relevance_results,omitempty"`
 	Error             string            `json:"error,omitempty"`
 	RawOutput         []map[string]any  `json:"raw_output,omitempty"`
 	Session           *session.Session  `json:"-"` // Full session for database storage (not in JSON)

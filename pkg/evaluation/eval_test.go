@@ -658,7 +658,7 @@ func TestProgressBarPrintResult(t *testing.T) {
 				Size:              "S",
 				RelevanceExpected: 2,
 				RelevancePassed:   1,
-				RelevanceResults:   []RelevanceResult{{Criterion: "check failed", Passed: false, Reason: "did not meet criteria"}},
+				RelevanceResults:  []RelevanceResult{{Criterion: "check failed", Passed: false, Reason: "did not meet criteria"}},
 			},
 			wantContains: []string{
 				"✗ mixed-session", // overall failed
