@@ -277,7 +277,7 @@ func TestSaveRunSessionsJSON(t *testing.T) {
 	require.NotNil(t, sess2Loaded.EvalResult.Checks.Relevance)
 	assert.False(t, sess2Loaded.EvalResult.Checks.Relevance.Passed)
 	assert.InDelta(t, 1, sess2Loaded.EvalResult.Checks.Relevance.PassedCount, 0.01)
-	assert.Equal(t, float64(2), sess2Loaded.EvalResult.Checks.Relevance.Total)
+	assert.InDelta(t, 2, sess2Loaded.EvalResult.Checks.Relevance.Total, 0.01)
 	require.Len(t, sess2Loaded.EvalResult.Checks.Relevance.Results, 2)
 
 	// First criterion should be passed with reason
