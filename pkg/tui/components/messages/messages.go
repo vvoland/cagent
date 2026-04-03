@@ -396,6 +396,16 @@ func (m *model) handleMouseRelease(msg tea.MouseReleaseMsg) (layout.Model, tea.C
 		if m.selection.active {
 			line, col := m.mouseToLineCol(msg.X, msg.Y)
 			m.selection.update(line, col)
+
+			// If the mouse didn't move, this was a plain click — open URL if any
+			if line == m.selection.startLine && col == m.selection.startCol {
+				m.selection.clear()
+				if url := m.urlAt(line, col); url != "" {
+					return m, core.CmdHandler(messages.OpenURLMsg{URL: url})
+				}
+				return m, nil
+			}
+
 			m.selection.end()
 			cmd := m.copySelectionToClipboard()
 			return m, cmd
