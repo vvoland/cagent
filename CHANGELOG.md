@@ -3,6 +3,34 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.42.0] - 2026-04-03
+
+This release improves evaluation output with structured JSON results and fixes several Windows compatibility issues.
+
+## What's New
+- Adds URL click detection for terminals with mouse tracking support
+- Includes structured results, run configuration, and summary in evaluation JSON output
+- Includes judge reasons for passed relevance criteria in evaluation results
+
+## Bug Fixes
+- Fixes Windows OS detection typo in session environment (corrects "window" to "windows")
+- Replaces removed claude-3-7-sonnet-latest alias with explicit model ID in examples
+- Uses platform-aware shell detection for Windows compatibility in skill expansion, script_shell, post-edit hooks, and bang commands
+
+## Technical Changes
+- Pre-populates criterion names in CheckRelevance results
+- Fixes lint issues including gci formatting and testifylint float comparisons
+
+### Pull Requests
+
+- [#2307](https://github.com/docker/docker-agent/pull/2307) - docs: update CHANGELOG.md for v1.41.0
+- [#2308](https://github.com/docker/docker-agent/pull/2308) - tui/messages: Add URL click detection for terminals with mouse tracking
+- [#2309](https://github.com/docker/docker-agent/pull/2309) - eval: include structured results, run config, and summary in JSON output
+- [#2312](https://github.com/docker/docker-agent/pull/2312) - fix: correct Windows OS detection typo in session environment
+- [#2313](https://github.com/docker/docker-agent/pull/2313) - fix: replace removed claude-3-7-sonnet-latest alias in examples
+- [#2314](https://github.com/docker/docker-agent/pull/2314) - fix: use platform-aware shell for skill expansion, script_shell, post-edit hooks, and bang command
+
+
 ## [v1.41.0] - 2026-04-01
 
 This release introduces a new models discovery command, contextual help system, and several TUI improvements including persistent warnings and simplified lean mode.
@@ -1746,3 +1774,5 @@ This release improves the terminal user interface with better error handling and
 [v1.40.0]: https://github.com/docker/docker-agent/releases/tag/v1.40.0
 
 [v1.41.0]: https://github.com/docker/docker-agent/releases/tag/v1.41.0
+
+[v1.42.0]: https://github.com/docker/docker-agent/releases/tag/v1.42.0
