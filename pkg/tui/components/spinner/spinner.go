@@ -23,6 +23,8 @@ type Spinner interface {
 	layout.Model
 	Reset() Spinner
 	Stop()
+	// RawFrame returns the current spinner character without any styling applied.
+	RawFrame() string
 }
 type spinner struct {
 	animSub             *animation.Subscription // manages animation tick subscription
@@ -134,6 +136,11 @@ func (s *spinner) Init() tea.Cmd {
 // Call this when the spinner is no longer active/visible.
 func (s *spinner) Stop() {
 	s.animSub.Stop()
+}
+
+// RawFrame returns the current spinner character without any styling applied.
+func (s *spinner) RawFrame() string {
+	return spinnerFrames[s.frame%len(spinnerFrames)]
 }
 
 // spinnerFrames holds the animation frames for the current terminal.
