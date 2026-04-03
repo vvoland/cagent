@@ -413,7 +413,7 @@ func main() {
 	postEditConfigs := []PostEditConfig{
 		{
 			Path: "*.go",
-			Cmd:  "touch $path.formatted",
+			Cmd:  "touch $file.formatted",
 		},
 	}
 	tool := NewFilesystemTool(tmpDir, WithPostEditCommands(postEditConfigs))

@@ -17,6 +17,7 @@ import (
 
 	"github.com/docker/docker-agent/pkg/chat"
 	"github.com/docker/docker-agent/pkg/fsx"
+	"github.com/docker/docker-agent/pkg/shellpath"
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
@@ -354,9 +355,10 @@ func (t *FilesystemTool) executePostEditCommands(ctx context.Context, filePath s
 			continue
 		}
 
-		cmd := exec.CommandContext(ctx, "/bin/sh", "-c", postEdit.Cmd)
+		shell, argsPrefix := shellpath.DetectShell()
+		cmd := exec.CommandContext(ctx, shell, append(argsPrefix, postEdit.Cmd)...)
 		cmd.Env = cmd.Environ()
-		cmd.Env = append(cmd.Env, "path="+filePath)
+		cmd.Env = append(cmd.Env, "file="+filePath)
 
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("post-edit command failed for %s: %w", filePath, err)

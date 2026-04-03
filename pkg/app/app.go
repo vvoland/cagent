@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker-agent/pkg/runtime"
 	"github.com/docker/docker-agent/pkg/session"
 	"github.com/docker/docker-agent/pkg/sessiontitle"
+	"github.com/docker/docker-agent/pkg/shellpath"
 	"github.com/docker/docker-agent/pkg/skills"
 	"github.com/docker/docker-agent/pkg/tools"
 	mcptools "github.com/docker/docker-agent/pkg/tools/mcp"
@@ -503,7 +504,8 @@ func (a *App) RunBangCommand(ctx context.Context, command string) {
 		return
 	}
 
-	out, err := exec.CommandContext(ctx, "/bin/sh", "-c", command).CombinedOutput()
+	shell, argsPrefix := shellpath.DetectShell()
+	out, err := exec.CommandContext(ctx, shell, append(argsPrefix, command)...).CombinedOutput()
 	output := "$ " + command + "\n" + string(out)
 	if err != nil && len(out) == 0 {
 		output = "$ " + command + "\nError: " + err.Error()
