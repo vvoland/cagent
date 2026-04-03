@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/docker/docker-agent/pkg/shellpath"
 )
 
 // commandTimeout is the maximum time allowed for a single command expansion.
@@ -47,7 +49,8 @@ func runCommand(ctx context.Context, command, workDir string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, commandTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	shell, argsPrefix := shellpath.DetectShell()
+	cmd := exec.CommandContext(ctx, shell, append(argsPrefix, command)...)
 	cmd.Dir = workDir
 
 	var stderr bytes.Buffer
