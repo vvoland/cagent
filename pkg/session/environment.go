@@ -29,7 +29,7 @@ func getOperatingSystem() string {
 	switch runtime.GOOS {
 	case "darwin":
 		return "MacOS"
-	case "window":
+	case "windows":
 		return "Windows"
 	case "linux":
 		return "Linux"
