@@ -1159,7 +1159,7 @@ func (m *model) renderAgentEntry(content *strings.Builder, agent runtime.AgentDe
 	var prefix string
 	if isCurrent {
 		if m.workingAgent == agent.Name {
-			prefix = agentStyle.Render(m.spinner.View()) + " "
+			prefix = agentStyle.Render(m.spinner.RawFrame()) + " "
 		} else {
 			prefix = agentStyle.Render("▶") + " "
 		}
