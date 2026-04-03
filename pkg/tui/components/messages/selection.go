@@ -255,24 +255,7 @@ func (m *model) applySelectionHighlight(lines []string, viewportStartLine int) [
 
 // highlightLine applies selection highlighting to a portion of a line
 func (m *model) highlightLine(line string, startCol, endCol int) string {
-	// Get plain text for boundary checks
-	plainLine := ansi.Strip(line)
-	plainWidth := runewidth.StringWidth(plainLine)
-
-	// Validate and normalize boundaries
-	if startCol >= plainWidth || startCol >= endCol {
-		return line
-	}
-	endCol = min(endCol, plainWidth)
-
-	// Extract the three parts while preserving ANSI codes
-	before := ansi.Cut(line, 0, startCol)
-	selectedText := ansi.Cut(line, startCol, endCol)
-	selectedPlain := ansi.Strip(selectedText)
-	selected := styles.SelectionStyle.Render(selectedPlain)
-	after := ansi.Cut(line, endCol, plainWidth)
-
-	return before + selected + after
+	return styleLineSegment(line, startCol, endCol, styles.SelectionStyle)
 }
 
 // clearSelection resets the selection state

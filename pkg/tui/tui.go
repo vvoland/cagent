@@ -2447,7 +2447,7 @@ func getEditorDisplayNameFromEnv(visual, editorEnv string) string {
 func toFullscreenView(content, windowTitle string, working, leanMode bool) tea.View {
 	view := tea.NewView(content)
 	view.AltScreen = !leanMode
-	view.MouseMode = tea.MouseModeCellMotion
+	view.MouseMode = tea.MouseModeAllMotion
 	view.BackgroundColor = styles.Background
 	view.WindowTitle = windowTitle
 	if working {
