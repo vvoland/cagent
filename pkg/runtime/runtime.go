@@ -808,7 +808,8 @@ func (r *LocalRuntime) emitToolsChanged() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	agentTools, err := r.CurrentAgentTools(ctx)
+	a := r.CurrentAgent()
+	agentTools, err := a.StartedTools(ctx)
 	if err != nil {
 		return
 	}
