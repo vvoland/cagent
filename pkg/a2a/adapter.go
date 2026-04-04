@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
+	"strings"
 
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/model"
@@ -64,9 +65,10 @@ func runDockerAgent(ctx agent.InvocationContext, t *team.Team, agentName string,
 		eventsChan := rt.RunStream(ctx, sess)
 
 		// Track accumulated content for chunked responses
-		var contentBuilder string
+		var contentBuilder strings.Builder
 
 		// Convert docker agent events to ADK events and yield them
+
 		for event := range eventsChan {
 			if ctx.Ended() {
 				slog.Debug("Invocation ended, stopping agent", "agent", agentName)
@@ -76,7 +78,7 @@ func runDockerAgent(ctx agent.InvocationContext, t *team.Team, agentName string,
 			switch e := event.(type) {
 			case *runtime.AgentChoiceEvent:
 				// Accumulate content chunks
-				contentBuilder += e.Content
+				contentBuilder.WriteString(e.Content)
 
 				// Create a partial response event
 				adkEvent := &adksession.Event{
@@ -94,16 +96,18 @@ func runDockerAgent(ctx agent.InvocationContext, t *team.Team, agentName string,
 
 			case *runtime.ErrorEvent:
 				// Yield error and stop
+
 				yield(nil, fmt.Errorf("%s", e.Error))
 				return
 
 			case *runtime.StreamStoppedEvent:
 				// Send final complete event with all accumulated content
-				if contentBuilder != "" {
+
+				if contentBuilder.Len() > 0 {
 					finalEvent := &adksession.Event{
 						Author: agentName,
 						LLMResponse: model.LLMResponse{
-							Content:      genai.NewContentFromParts([]*genai.Part{{Text: contentBuilder}}, genai.RoleModel),
+							Content:      genai.NewContentFromParts([]*genai.Part{{Text: contentBuilder.String()}}, genai.RoleModel),
 							Partial:      false,
 							TurnComplete: true,
 							FinishReason: genai.FinishReasonStop,

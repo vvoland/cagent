@@ -112,6 +112,12 @@ type task struct {
 	status      atomic.Int32
 	result      string
 	errMsg      string
+
+	// viewCount tracks how many consecutive HandleView calls observed no
+	// new output. It is reset whenever the buffered output grows.
+	// Protected by outputMu.
+	viewCount             int
+	lastViewedOutputBytes int
 }
 
 func (t *task) loadStatus() taskStatus {
@@ -331,10 +337,21 @@ func (h *Handler) HandleView(_ context.Context, _ *session.Session, toolCall too
 	case taskStopped:
 		out.WriteString("<task was stopped>")
 	default:
-		t.outputMu.RLock()
+		t.outputMu.Lock()
 		progress := t.output.String()
 		truncated := t.outputBytes >= maxOutputBytes
-		t.outputMu.RUnlock()
+		currentBytes := t.outputBytes
+
+		// Track whether output has changed since the last view.
+		if currentBytes == t.lastViewedOutputBytes {
+			t.viewCount++
+		} else {
+			t.viewCount = 1
+			t.lastViewedOutputBytes = currentBytes
+		}
+		viewCount := t.viewCount
+		t.outputMu.Unlock()
+
 		if progress != "" {
 			out.WriteString(progress)
 			if truncated {
@@ -344,6 +361,9 @@ func (h *Handler) HandleView(_ context.Context, _ *session.Session, toolCall too
 			}
 		} else {
 			out.WriteString("<no output yet — still running>")
+		}
+		if viewCount > 1 {
+			fmt.Fprintf(&out, "\n\n[No new output since last check — poll #%d]", viewCount)
 		}
 	}
 
