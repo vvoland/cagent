@@ -2,6 +2,7 @@ package config
 
 import (
 	"log/slog"
+	"maps"
 	"slices"
 	"sync"
 
@@ -23,6 +24,7 @@ type Config struct {
 	DefaultModel   *latest.ModelConfig
 	GlobalCodeMode bool
 	WorkingDir     string
+	Models         map[string]latest.ModelConfig
 
 	// Hook overrides from CLI flags
 	HookPreToolUse   []string
@@ -37,6 +39,7 @@ func (runConfig *RuntimeConfig) Clone() *RuntimeConfig {
 		Config: runConfig.Config,
 	}
 	clone.EnvFiles = slices.Clone(runConfig.EnvFiles)
+	clone.Models = maps.Clone(runConfig.Models)
 	clone.DefaultModel = runConfig.DefaultModel.Clone()
 	clone.HookPreToolUse = slices.Clone(runConfig.HookPreToolUse)
 	clone.HookPostToolUse = slices.Clone(runConfig.HookPostToolUse)
