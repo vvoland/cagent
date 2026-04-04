@@ -813,6 +813,15 @@ func (s *VectorStore) addPathToWatcher(ctx context.Context, path string) error {
 }
 
 func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string) {
+	// Capture watcher reference at goroutine start to avoid racing with Close()
+	// which sets s.watcher = nil under watcherMu.
+	s.watcherMu.Lock()
+	watcher := s.watcher
+	s.watcherMu.Unlock()
+	if watcher == nil {
+		return
+	}
+
 	var debounceTimer *time.Timer
 	debounceDuration := 2 * time.Second
 	pendingChanges := make(map[string]bool)
@@ -929,7 +938,7 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string) {
 			slog.Info("File watcher stopped", "strategy", s.name)
 			return
 
-		case event, ok := <-s.watcher.Events:
+		case event, ok := <-watcher.Events:
 			if !ok {
 				return
 			}
@@ -940,8 +949,10 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string) {
 
 			if event.Op&fsnotify.Create != 0 {
 				s.watcherMu.Lock()
-				if err := s.addPathToWatcher(ctx, event.Name); err != nil {
-					slog.Debug("Could not watch new path", "path", event.Name, "error", err)
+				if s.watcher != nil {
+					if err := s.addPathToWatcher(ctx, event.Name); err != nil {
+						slog.Debug("Could not watch new path", "path", event.Name, "error", err)
+					}
 				}
 				s.watcherMu.Unlock()
 			}
@@ -974,7 +985,7 @@ func (s *VectorStore) watchLoop(ctx context.Context, docPaths []string) {
 			}
 			debounceTimer = time.AfterFunc(debounceDuration, processChanges)
 
-		case err, ok := <-s.watcher.Errors:
+		case err, ok := <-watcher.Errors:
 			if !ok {
 				return
 			}

@@ -24,7 +24,7 @@ func resolveRAGDefinitions(cfg *latest.Config) error {
 				return fmt.Errorf("agent '%s' references non-existent RAG definition '%s'", agent.Name, ts.Ref)
 			}
 
-			applyRAGDefaults(ts, &def.Toolset)
+			applyRAGDefaults(ts, &def.Toolset, ts.Ref)
 		}
 	}
 
@@ -32,7 +32,7 @@ func resolveRAGDefinitions(cfg *latest.Config) error {
 }
 
 // applyRAGDefaults fills empty fields in ts from def. Toolset values win.
-func applyRAGDefaults(ts, def *latest.Toolset) {
+func applyRAGDefaults(ts, def *latest.Toolset, refName string) {
 	// Clear the ref since it's been resolved
 	ts.Ref = ""
 
@@ -50,5 +50,11 @@ func applyRAGDefaults(ts, def *latest.Toolset) {
 	}
 	if ts.Name == "" {
 		ts.Name = def.Name
+	}
+	// If name is still empty after applying defaults from the definition,
+	// use the ref key (e.g., "rag1") so that multiple RAG tools get unique
+	// tool names instead of all defaulting to "rag".
+	if ts.Name == "" {
+		ts.Name = refName
 	}
 }

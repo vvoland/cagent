@@ -108,8 +108,8 @@ func (t *Toolset) validate() error {
 	if t.URL != "" && t.Type != "a2a" && t.Type != "openapi" {
 		return errors.New("url can only be used with type 'a2a' or 'openapi'")
 	}
-	if t.Name != "" && (t.Type != "mcp" && t.Type != "a2a") {
-		return errors.New("name can only be used with type 'mcp' or 'a2a'")
+	if t.Name != "" && (t.Type != "mcp" && t.Type != "a2a" && t.Type != "rag") {
+		return errors.New("name can only be used with type 'mcp', 'a2a', or 'rag'")
 	}
 	if t.RAGConfig != nil && t.Type != "rag" {
 		return errors.New("rag_config can only be used with type 'rag'")
