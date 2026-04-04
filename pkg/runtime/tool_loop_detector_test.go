@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tools/builtin"
+	bgagent "github.com/docker/docker-agent/pkg/tools/builtin/agent"
 )
 
 func TestToolLoopDetector(t *testing.T) {
@@ -21,10 +23,12 @@ func TestToolLoopDetector(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		threshold int
-		batches   [][]tools.ToolCall
-		wantTrip  bool // whether any record call returns true
+		name        string
+		threshold   int
+		exemptTools []string
+		batches     [][]tools.ToolCall
+		wantTrip    bool // whether any record call returns true
+		wantCount   int
 	}{
 		{
 			name:      "no loop with varied calls",
@@ -34,7 +38,8 @@ func TestToolLoopDetector(t *testing.T) {
 				makeCalls("read_file", `{"path":"b.txt"}`),
 				makeCalls("write_file", `{"path":"c.txt"}`),
 			},
-			wantTrip: false,
+			wantTrip:  false,
+			wantCount: 1,
 		},
 		{
 			name:      "loop detected at exact threshold",
@@ -44,7 +49,8 @@ func TestToolLoopDetector(t *testing.T) {
 				makeCalls("read_file", `{"path":"a.txt"}`),
 				makeCalls("read_file", `{"path":"a.txt"}`),
 			},
-			wantTrip: true,
+			wantTrip:  true,
+			wantCount: 3,
 		},
 		{
 			name:      "counter resets when calls change",
@@ -55,7 +61,8 @@ func TestToolLoopDetector(t *testing.T) {
 				makeCalls("read_file", `{"path":"b.txt"}`), // reset
 				makeCalls("read_file", `{"path":"b.txt"}`),
 			},
-			wantTrip: false,
+			wantTrip:  false,
+			wantCount: 2,
 		},
 		{
 			name:      "empty calls never trigger",
@@ -65,7 +72,8 @@ func TestToolLoopDetector(t *testing.T) {
 				{},
 				{},
 			},
-			wantTrip: false,
+			wantTrip:  false,
+			wantCount: 0,
 		},
 		{
 			name:      "multi-tool batches compared correctly",
@@ -74,7 +82,8 @@ func TestToolLoopDetector(t *testing.T) {
 				makeCalls("read_file", `{"path":"a"}`, "write_file", `{"path":"b"}`),
 				makeCalls("read_file", `{"path":"a"}`, "write_file", `{"path":"b"}`),
 			},
-			wantTrip: true,
+			wantTrip:  true,
+			wantCount: 2,
 		},
 		{
 			name:      "multi-tool batches differ by one argument",
@@ -83,7 +92,8 @@ func TestToolLoopDetector(t *testing.T) {
 				makeCalls("read_file", `{"path":"a"}`, "write_file", `{"path":"b"}`),
 				makeCalls("read_file", `{"path":"a"}`, "write_file", `{"path":"c"}`),
 			},
-			wantTrip: false,
+			wantTrip:  false,
+			wantCount: 1,
 		},
 		{
 			name:      "reordered JSON keys are treated as identical",
@@ -92,7 +102,8 @@ func TestToolLoopDetector(t *testing.T) {
 				makeCalls("run", `{"cmd":"ls","cwd":"/tmp"}`),
 				makeCalls("run", `{"cwd":"/tmp","cmd":"ls"}`),
 			},
-			wantTrip: true,
+			wantTrip:  true,
+			wantCount: 2,
 		},
 		{
 			name:      "nested JSON key reordering is normalized",
@@ -101,13 +112,64 @@ func TestToolLoopDetector(t *testing.T) {
 				makeCalls("call", `{"a":{"y":2,"x":1},"b":1}`),
 				makeCalls("call", `{"b":1,"a":{"x":1,"y":2}}`),
 			},
-			wantTrip: true,
+			wantTrip:  true,
+			wantCount: 2,
+		},
+		{
+			name:        "exempt background agent polling does not count as a loop",
+			threshold:   2,
+			exemptTools: []string{bgagent.ToolNameViewBackgroundAgent},
+			batches: [][]tools.ToolCall{
+				makeCalls(bgagent.ToolNameViewBackgroundAgent, `{"task_id":"agent_task_123"}`),
+				makeCalls(bgagent.ToolNameViewBackgroundAgent, `{"task_id":"agent_task_123"}`),
+				makeCalls(bgagent.ToolNameViewBackgroundAgent, `{"task_id":"agent_task_123"}`),
+			},
+			wantTrip:  false,
+			wantCount: 0,
+		},
+		{
+			name:        "mixed batch with exempt and non exempt tools still counts",
+			threshold:   2,
+			exemptTools: []string{bgagent.ToolNameViewBackgroundAgent, builtin.ToolNameViewBackgroundJob},
+			batches: [][]tools.ToolCall{
+				makeCalls(bgagent.ToolNameViewBackgroundAgent, `{"task_id":"agent_task_123"}`, "read_file", `{"path":"a.txt"}`),
+				makeCalls(bgagent.ToolNameViewBackgroundAgent, `{"task_id":"agent_task_123"}`, "read_file", `{"path":"a.txt"}`),
+			},
+			wantTrip:  true,
+			wantCount: 2,
+		},
+		{
+			name:        "exempt shell background job polling does not count as a loop",
+			threshold:   2,
+			exemptTools: []string{builtin.ToolNameViewBackgroundJob},
+			batches: [][]tools.ToolCall{
+				makeCalls(builtin.ToolNameViewBackgroundJob, `{"job_id":"job_1"}`),
+				makeCalls(builtin.ToolNameViewBackgroundJob, `{"job_id":"job_1"}`),
+			},
+			wantTrip:  false,
+			wantCount: 0,
+		},
+		{
+			// A looping model cannot evade detection by interleaving a single
+			// polling call between identical non-exempt calls. Exempt calls are
+			// completely invisible to the detector and do NOT reset the counter.
+			name:        "interleaved polling does not evade loop detection",
+			threshold:   3,
+			exemptTools: []string{bgagent.ToolNameViewBackgroundAgent},
+			batches: [][]tools.ToolCall{
+				makeCalls("read_file", `{"path":"a.txt"}`),
+				makeCalls("read_file", `{"path":"a.txt"}`),
+				makeCalls(bgagent.ToolNameViewBackgroundAgent, `{"task_id":"t1"}`), // exempt — counter stays at 2
+				makeCalls("read_file", `{"path":"a.txt"}`),                         // consecutive=3 → trips
+			},
+			wantTrip:  true,
+			wantCount: 3,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := newToolLoopDetector(tt.threshold)
+			d := newToolLoopDetector(tt.threshold, tt.exemptTools...)
 			var tripped bool
 			for _, batch := range tt.batches {
 				if d.record(batch) {
@@ -116,6 +178,9 @@ func TestToolLoopDetector(t *testing.T) {
 			}
 			if tripped != tt.wantTrip {
 				t.Errorf("tripped = %v, want %v", tripped, tt.wantTrip)
+			}
+			if d.consecutive != tt.wantCount {
+				t.Errorf("consecutive = %d, want %d", d.consecutive, tt.wantCount)
 			}
 		})
 	}

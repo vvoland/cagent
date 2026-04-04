@@ -16,12 +16,20 @@ type toolLoopDetector struct {
 	lastSignature string
 	consecutive   int
 	threshold     int
+	exemptTools   map[string]struct{}
 }
 
 // newToolLoopDetector creates a detector that triggers after threshold
-// consecutive identical call batches.
-func newToolLoopDetector(threshold int) *toolLoopDetector {
-	return &toolLoopDetector{threshold: threshold}
+// consecutive identical call batches. Tool names passed in exemptTools
+// are polling-safe: batches composed entirely of exempt tools (e.g.
+// view_background_agent, view_background_job) never count toward the
+// consecutive-duplicate limit.
+func newToolLoopDetector(threshold int, exemptTools ...string) *toolLoopDetector {
+	exempt := make(map[string]struct{}, len(exemptTools))
+	for _, name := range exemptTools {
+		exempt[name] = struct{}{}
+	}
+	return &toolLoopDetector{threshold: threshold, exemptTools: exempt}
 }
 
 // reset clears the detector state so it can be reused after recovery.
@@ -32,8 +40,19 @@ func (d *toolLoopDetector) reset() {
 
 // record updates the detector with the latest tool call batch and returns
 // true if the consecutive-duplicate threshold has been reached.
+// Batches composed entirely of exempt (polling) tools are silently
+// skipped so that expected polling patterns are not flagged.
 func (d *toolLoopDetector) record(calls []tools.ToolCall) bool {
 	if len(calls) == 0 {
+		return false
+	}
+
+	// Polling tools are expected to be called repeatedly with identical
+	// arguments while waiting for a background task to finish. Exempt batches
+	// are completely invisible to the detector: they neither increment the
+	// consecutive counter nor reset it, so a looping model cannot evade
+	// detection by interleaving a single polling call.
+	if d.isExemptBatch(calls) {
 		return false
 	}
 
@@ -46,6 +65,20 @@ func (d *toolLoopDetector) record(calls []tools.ToolCall) bool {
 	}
 
 	return d.consecutive >= d.threshold
+}
+
+// isExemptBatch returns true when every call in the batch targets a
+// polling-exempt tool.
+func (d *toolLoopDetector) isExemptBatch(calls []tools.ToolCall) bool {
+	if len(d.exemptTools) == 0 {
+		return false
+	}
+	for _, c := range calls {
+		if _, ok := d.exemptTools[c.Function.Name]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // callSignature builds a composite key from the name and arguments of every

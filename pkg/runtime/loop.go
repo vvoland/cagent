@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker-agent/pkg/telemetry"
 	"github.com/docker/docker-agent/pkg/tools"
 	"github.com/docker/docker-agent/pkg/tools/builtin"
+	bgagent "github.com/docker/docker-agent/pkg/tools/builtin/agent"
 )
 
 // registerDefaultTools wires up the built-in tool handlers (delegation,
@@ -123,11 +124,19 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 		runtimeMaxIterations := sess.MaxIterations
 
 		// Initialize consecutive duplicate tool call detector
+		//
+		// Polling tools (view_background_agent, view_background_job) are
+		// expected to be called repeatedly with identical arguments while a
+		// background task is in progress. Exempt them so they never trigger
+		// the loop-termination path.
 		loopThreshold := sess.MaxConsecutiveToolCalls
 		if loopThreshold == 0 {
 			loopThreshold = 5 // default: always active
 		}
-		loopDetector := newToolLoopDetector(loopThreshold)
+		loopDetector := newToolLoopDetector(loopThreshold,
+			bgagent.ToolNameViewBackgroundAgent,
+			builtin.ToolNameViewBackgroundJob,
+		)
 
 		// overflowCompactions counts how many consecutive context-overflow
 		// auto-compactions have been attempted without a successful model

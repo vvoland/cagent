@@ -267,6 +267,59 @@ func TestHandleView_InvalidJSON(t *testing.T) {
 	require.Error(t, err, "invalid JSON should return an error")
 }
 
+func TestHandleView_RepeatedPolling_NoNewOutput(t *testing.T) {
+	h := newTestHandler()
+	insertTask(h, "t1", "researcher", taskRunning)
+
+	tc := makeToolCall(t, ViewBackgroundAgentArgs{TaskID: "t1"})
+
+	// First view should not include poll marker.
+	result1, err := h.HandleView(t.Context(), nil, tc)
+	require.NoError(t, err)
+	assert.NotContains(t, result1.Output, "poll #")
+
+	// Second view with no new output should include poll marker.
+	result2, err := h.HandleView(t.Context(), nil, tc)
+	require.NoError(t, err)
+	assert.Contains(t, result2.Output, "poll #2")
+
+	// Third view should show poll #3.
+	result3, err := h.HandleView(t.Context(), nil, tc)
+	require.NoError(t, err)
+	assert.Contains(t, result3.Output, "poll #3")
+
+	// Responses should be non-identical.
+	assert.NotEqual(t, result2.Output, result3.Output)
+}
+
+func TestHandleView_RepeatedPolling_OutputGrows(t *testing.T) {
+	h := newTestHandler()
+	tk := insertTask(h, "t1", "researcher", taskRunning)
+
+	tc := makeToolCall(t, ViewBackgroundAgentArgs{TaskID: "t1"})
+
+	// First view.
+	_, err := h.HandleView(t.Context(), nil, tc)
+	require.NoError(t, err)
+
+	// Second view with no change → poll #2.
+	result2, err := h.HandleView(t.Context(), nil, tc)
+	require.NoError(t, err)
+	assert.Contains(t, result2.Output, "poll #2")
+
+	// Simulate new output arriving.
+	tk.outputMu.Lock()
+	tk.output.WriteString("new progress")
+	tk.outputBytes += len("new progress")
+	tk.outputMu.Unlock()
+
+	// Third view should reset the poll counter since output changed.
+	result3, err := h.HandleView(t.Context(), nil, tc)
+	require.NoError(t, err)
+	assert.NotContains(t, result3.Output, "poll #", "poll marker should reset after new output")
+	assert.Contains(t, result3.Output, "new progress")
+}
+
 // --- HandleStop ---
 
 func TestHandleStop_NotFound(t *testing.T) {
