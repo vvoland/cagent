@@ -209,11 +209,23 @@ func (a *Agent) Hooks() *latest.HooksConfig {
 // Tools returns the tools available to this agent
 func (a *Agent) Tools(ctx context.Context) ([]tools.Tool, error) {
 	a.ensureToolSetsAreStarted(ctx)
+	return a.collectTools(ctx)
+}
 
+// StartedTools returns tools only from toolsets that have already been started,
+// without triggering initialization of unstarted toolsets. This is useful for
+// notifications (e.g. MCP tool list changes) that should not block on slow
+// toolset startup such as RAG file indexing.
+func (a *Agent) StartedTools(ctx context.Context) ([]tools.Tool, error) {
+	return a.collectTools(ctx)
+}
+
+// collectTools gathers tools from all started toolsets plus static tools.
+func (a *Agent) collectTools(ctx context.Context) ([]tools.Tool, error) {
 	var agentTools []tools.Tool
 	for _, toolSet := range a.toolsets {
 		if !toolSet.IsStarted() {
-			// Toolset failed to start; skip it
+			// Toolset not started; skip it
 			continue
 		}
 		ta, err := toolSet.Tools(ctx)
