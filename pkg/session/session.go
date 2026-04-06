@@ -579,6 +579,13 @@ func WithParentID(parentID string) Opt {
 	}
 }
 
+// WithID sets the session ID. If not set, a UUID will be generated.
+func WithID(id string) Opt {
+	return func(s *Session) {
+		s.ID = id
+	}
+}
+
 // WithExcludedTools sets tool names that should be filtered out of the agent's
 // tool list for this session. This prevents recursive tool calls in skill
 // sub-sessions.
@@ -647,11 +654,8 @@ func (s *Session) OwnCost() float64 {
 
 // New creates a new agent session
 func New(opts ...Opt) *Session {
-	sessionID := uuid.New().String()
-	slog.Debug("Creating new session", "session_id", sessionID)
-
 	s := &Session{
-		ID:              sessionID,
+		ID:              uuid.New().String(),
 		CreatedAt:       time.Now(),
 		SendUserMessage: true,
 	}
@@ -660,6 +664,7 @@ func New(opts ...Opt) *Session {
 		opt(s)
 	}
 
+	slog.Debug("Creating new session", "session_id", s.ID)
 	return s
 }
 
