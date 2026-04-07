@@ -3,7 +3,6 @@ package completions
 import (
 	"context"
 
-	"github.com/docker/docker-agent/pkg/app"
 	"github.com/docker/docker-agent/pkg/tui/components/completion"
 )
 
@@ -26,11 +25,4 @@ type AsyncLoader interface {
 	// LoadItemsAsync loads all items in a background goroutine with context support.
 	// It returns a channel that receives the items when loading is complete.
 	LoadItemsAsync(ctx context.Context) <-chan []completion.Item
-}
-
-func Completions(a *app.App) []Completion {
-	return []Completion{
-		NewCommandCompletion(a),
-		NewFileCompletion(),
-	}
 }

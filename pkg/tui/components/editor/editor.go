@@ -20,7 +20,6 @@ import (
 	"github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 
-	"github.com/docker/docker-agent/pkg/app"
 	"github.com/docker/docker-agent/pkg/history"
 	"github.com/docker/docker-agent/pkg/paths"
 	"github.com/docker/docker-agent/pkg/tui/components/completion"
@@ -157,8 +156,18 @@ type editor struct {
 	searchInput textinput.Model
 }
 
+// Option configures the Editor.
+type Option func(*editor)
+
+// WithCompletions sets the available completions for the editor.
+func WithCompletions(comps ...completions.Completion) Option {
+	return func(e *editor) {
+		e.completions = comps
+	}
+}
+
 // New creates a new editor component
-func New(a *app.App, hist *history.History) Editor {
+func New(hist *history.History, opts ...Option) Editor {
 	ta := textarea.New()
 	ta.SetStyles(styles.InputStyle)
 	ta.Placeholder = "Type your message here…"
@@ -185,9 +194,13 @@ func New(a *app.App, hist *history.History) Editor {
 		textarea:                      ta,
 		searchInput:                   si,
 		hist:                          hist,
-		completions:                   completions.Completions(a),
 		keyboardEnhancementsSupported: false,
 		banner:                        newAttachmentBanner(),
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(e)
 	}
 
 	e.configureNewlineKeybinding()

@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker-agent/pkg/tui/commands"
 	"github.com/docker/docker-agent/pkg/tui/components/completion"
 	"github.com/docker/docker-agent/pkg/tui/components/editor"
+	"github.com/docker/docker-agent/pkg/tui/components/editor/completions"
 	"github.com/docker/docker-agent/pkg/tui/components/notification"
 	"github.com/docker/docker-agent/pkg/tui/components/spinner"
 	"github.com/docker/docker-agent/pkg/tui/components/statusbar"
@@ -159,6 +160,9 @@ type appModel struct {
 
 	// leanMode enables a simplified TUI with minimal chrome.
 	leanMode bool
+
+	// buildCommandCategories is a function that returns the list of command categories.
+	buildCommandCategories func(context.Context, tea.Model) []commands.Category
 }
 
 // Option configures the TUI.
@@ -169,6 +173,23 @@ type Option func(*appModel)
 func WithLeanMode() Option {
 	return func(m *appModel) {
 		m.leanMode = true
+	}
+}
+
+// WithCommandBuilder builds the command categories shown in the command
+// palette from the given function. It overrides the default command category
+// builder. To include the default commands, the given function should call
+// commands.BuildCommandCategories and merge the result with its own.
+//
+// The tea.Model passed to the builder function must not be accessed during
+// the build call itself - it should only be captured for use within command
+// Execute functions. There is no guarantee that the tea.Model holds all
+// dependencies during the build phase, which may cause [core.Resolve] to panic.
+func WithCommandBuilder(
+	fn func(context.Context, tea.Model) []commands.Category,
+) Option {
+	return func(m *appModel) {
+		m.buildCommandCategories = fn
 	}
 }
 
@@ -196,19 +217,20 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 	}
 
 	initialSessionState := service.NewSessionState(initialApp.Session())
-	initialEditor := editor.New(initialApp, historyStore)
 	sessID := initialApp.Session().ID
 
 	m := &appModel{
+		buildCommandCategories: func(ctx context.Context, _ tea.Model) []commands.Category {
+			return commands.BuildCommandCategories(ctx, initialApp)
+		},
 		supervisor:              sv,
 		tabBar:                  tb,
 		tuiStore:                ts,
 		chatPages:               map[string]chat.Page{},
+		editors:                 map[string]editor.Editor{},
 		sessionStates:           map[string]*service.SessionState{sessID: initialSessionState},
-		editors:                 map[string]editor.Editor{sessID: initialEditor},
 		application:             initialApp,
 		sessionState:            initialSessionState,
-		editor:                  initialEditor,
 		history:                 historyStore,
 		pendingRestores:         make(map[string]string),
 		pendingSidebarCollapsed: make(map[string]bool),
@@ -226,6 +248,11 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 	for _, opt := range opts {
 		opt(m)
 	}
+
+	// Create initial editor (after options are applied so command builder is set)
+	initialEditor := editor.New(historyStore, m.editorOpts()...)
+	m.editors[sessID] = initialEditor
+	m.editor = initialEditor
 
 	// Create initial chat page (after options are applied so leanMode is set)
 	initialChatPage := chat.New(initialApp, initialSessionState, m.chatPageOpts()...)
@@ -261,6 +288,23 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 	return m
 }
 
+// Resolve implements dependency resolution for the appModel.
+// See core.Resolve for additional information.
+func (m *appModel) Resolve(v any) any {
+	switch v.(type) {
+	case **app.App:
+		return m.application
+	case **service.SessionState:
+		return m.sessionState
+	case *chat.Page:
+		return m.chatPage
+	case *editor.Editor:
+		return m.editor
+	}
+
+	return nil
+}
+
 // SetProgram sets the tea.Program for the supervisor to send routed messages.
 func (m *appModel) SetProgram(p *tea.Program) {
 	m.program = p
@@ -280,14 +324,31 @@ func (m *appModel) reapplyKeyboardEnhancements() {
 	m.editor = editorModel.(editor.Editor)
 }
 
+func (m *appModel) commandCategories() []commands.Category {
+	return m.buildCommandCategories(context.Background(), m)
+}
+
 // chatPageOpts returns the chat.PageOption slice derived from the current
 // appModel configuration (e.g. lean mode).
 func (m *appModel) chatPageOpts() []chat.PageOption {
-	var opts []chat.PageOption
+	opts := []chat.PageOption{
+		chat.WithCommandParser(commands.NewParser(m.commandCategories()...)),
+	}
+
 	if m.leanMode {
 		opts = append(opts, chat.WithLeanMode())
 	}
 	return opts
+}
+
+// editorOpts returns the editor.Option slice derived from the current appModel.
+func (m *appModel) editorOpts() []editor.Option {
+	return []editor.Option{
+		editor.WithCompletions(
+			completions.NewCommandCompletion(m.commandCategories()),
+			completions.NewFileCompletion(),
+		),
+	}
 }
 
 // initSessionComponents creates a new chat page, session state, and editor for
@@ -296,7 +357,7 @@ func (m *appModel) chatPageOpts() []chat.PageOption {
 func (m *appModel) initSessionComponents(tabID string, a *app.App, sess *session.Session) {
 	ss := service.NewSessionState(sess)
 	cp := chat.New(a, ss, m.chatPageOpts()...)
-	ed := editor.New(a, m.history)
+	ed := editor.New(m.history, m.editorOpts()...)
 
 	m.chatPages[tabID] = cp
 	m.sessionStates[tabID] = ss
@@ -1747,7 +1808,7 @@ func (m *appModel) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Suspend
 
 	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+k"))):
-		categories := commands.BuildCommandCategories(context.Background(), m.application)
+		categories := m.commandCategories()
 		return m, core.CmdHandler(dialog.OpenDialogMsg{
 			Model: dialog.NewCommandPaletteDialog(categories),
 		})
