@@ -34,8 +34,8 @@ type Model struct {
 func New() *Model {
 	return &Model{
 		width:     Width,
-		trackChar: "⎪",
-		thumbChar: "⎪",
+		trackChar: "│",
+		thumbChar: "│",
 	}
 }
 

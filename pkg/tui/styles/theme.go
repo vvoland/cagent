@@ -1161,8 +1161,8 @@ func rebuildStyles() {
 
 	// Scrollbar styles
 	TrackStyle = lipgloss.NewStyle().Foreground(BorderSecondary)
-	ThumbStyle = lipgloss.NewStyle().Foreground(Info).Background(BackgroundAlt).Bold(true)
-	ThumbActiveStyle = lipgloss.NewStyle().Foreground(White).Background(BackgroundAlt).Bold(true)
+	ThumbStyle = lipgloss.NewStyle().Foreground(Info).Background(BackgroundAlt)
+	ThumbActiveStyle = lipgloss.NewStyle().Foreground(White).Background(BackgroundAlt)
 
 	// Resize handle styles
 	ResizeHandleStyle = BaseStyle.Foreground(BorderSecondary)
