@@ -672,6 +672,15 @@ func (s *BM25Strategy) addPathToWatcher(ctx context.Context, path string) error 
 }
 
 func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string) {
+	// Capture watcher reference at goroutine start to avoid racing with Close()
+	// which sets s.watcher = nil under watcherMu.
+	s.watcherMu.Lock()
+	watcher := s.watcher
+	s.watcherMu.Unlock()
+	if watcher == nil {
+		return
+	}
+
 	var debounceTimer *time.Timer
 	debounceDuration := 2 * time.Second
 	pendingChanges := make(map[string]bool)
@@ -735,7 +744,7 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string) {
 			}
 			return
 
-		case event, ok := <-s.watcher.Events:
+		case event, ok := <-watcher.Events:
 			if !ok {
 				return
 			}
@@ -746,7 +755,9 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string) {
 
 			if event.Op&fsnotify.Create != 0 {
 				s.watcherMu.Lock()
-				_ = s.addPathToWatcher(ctx, event.Name)
+				if s.watcher != nil {
+					_ = s.addPathToWatcher(ctx, event.Name)
+				}
 				s.watcherMu.Unlock()
 			}
 
@@ -769,7 +780,7 @@ func (s *BM25Strategy) watchLoop(ctx context.Context, docPaths []string) {
 			}
 			debounceTimer = time.AfterFunc(debounceDuration, processChanges)
 
-		case err, ok := <-s.watcher.Errors:
+		case err, ok := <-watcher.Errors:
 			if !ok {
 				return
 			}
