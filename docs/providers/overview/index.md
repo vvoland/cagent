@@ -38,8 +38,8 @@ _docker-agent supports multiple AI model providers. Choose the right one for you
   </a>
   <a class="card" href="{{ '/providers/custom/' | relative_url }}">
     <div class="card-icon">🔧</div>
-    <h3>Custom Providers</h3>
-    <p>Connect to any OpenAI-compatible API endpoint.</p>
+    <h3>Provider Definitions</h3>
+    <p>Define reusable provider configurations with shared defaults for any provider type.</p>
   </a>
 </div>
 
