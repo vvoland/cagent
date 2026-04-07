@@ -10,7 +10,11 @@ case "$OSTYPE" in
   msys*|cygwin*) BINARY_NAME="${BINARY_NAME}.exe" ;;
 esac
 
-go build -ldflags "$LDFLAGS" -o ./bin/${BINARY_NAME} ./main.go
+(
+  set -x
+  go build -v -ldflags "$LDFLAGS" -o ./bin/${BINARY_NAME} ./main.go
+)
+echo "Built ./bin/${BINARY_NAME}"
 
 if [ "${CI:-}" != "true" ]; then
   ln -sf "$(pwd)/bin/${BINARY_NAME}" "${HOME}/bin/${BINARY_NAME}" 2>/dev/null || true
