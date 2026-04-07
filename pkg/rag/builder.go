@@ -5,12 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
-	"slices"
 
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/environment"
 	"github.com/docker/docker-agent/pkg/model/provider"
+	"github.com/docker/docker-agent/pkg/model/provider/options"
 	"github.com/docker/docker-agent/pkg/rag/rerank"
 	"github.com/docker/docker-agent/pkg/rag/strategy"
 	"github.com/docker/docker-agent/pkg/rag/types"
@@ -21,7 +20,16 @@ type ManagersBuildConfig struct {
 	ParentDir     string
 	ModelsGateway string
 	Env           environment.Provider
-	Models        map[string]latest.ModelConfig // Model configurations from config
+	Models        map[string]latest.ModelConfig    // Model configurations from config
+	Providers     map[string]latest.ProviderConfig // Custom provider configurations from config
+}
+
+// NewProvider creates a model provider using the build config's environment,
+// gateway, and custom provider settings.
+func (c ManagersBuildConfig) NewProvider(ctx context.Context, cfg *latest.ModelConfig) (provider.Provider, error) {
+	return provider.New(ctx, cfg, c.Env,
+		options.WithGateway(c.ModelsGateway),
+		options.WithProviders(c.Providers))
 }
 
 // NewManager constructs a single RAG manager from a RAGConfig.
@@ -46,6 +54,7 @@ func NewManager(
 		ParentDir:     buildCfg.ParentDir,
 		SharedDocs:    GetAbsolutePaths(buildCfg.ParentDir, ragCfg.Docs),
 		Models:        buildCfg.Models,
+		Providers:     buildCfg.Providers,
 		Env:           buildCfg.Env,
 		ModelsGateway: buildCfg.ModelsGateway,
 		RespectVCS:    ragCfg.GetRespectVCS(),
@@ -146,20 +155,21 @@ func buildRerankingConfig(
 		"model_ref", rerankCfg.Model)
 
 	// Resolve model config - check if it's a reference to a defined model or inline
-	modelCfg, err := resolveModelConfig(rerankCfg.Model, buildCfg)
+	modelCfgVal, err := strategy.ResolveModelConfig(rerankCfg.Model, buildCfg.Models)
 	if err != nil {
 		slog.Error("Failed to resolve reranking model",
 			"model_ref", rerankCfg.Model,
 			"error", err)
 		return nil, fmt.Errorf("failed to resolve reranking model %q: %w", rerankCfg.Model, err)
 	}
+	modelCfg := &modelCfgVal
 
 	slog.Debug("Resolved reranking model config",
 		"provider", modelCfg.Provider,
 		"model", modelCfg.Model)
 
 	// Create provider for reranking model
-	rerankProvider, err := provider.New(ctx, modelCfg, buildCfg.Env)
+	rerankProvider, err := buildCfg.NewProvider(ctx, modelCfg)
 	if err != nil {
 		slog.Error("Failed to create reranking provider",
 			"provider", modelCfg.Provider,
@@ -204,55 +214,6 @@ func buildRerankingConfig(
 		TopK:      effectiveTopK,
 		Threshold: rerankCfg.Threshold,
 	}, nil
-}
-
-// resolveModelConfig resolves a model name to a ModelConfig
-// Handles both inline model references (e.g., "dmr/model-name") and defined model names
-func resolveModelConfig(modelName string, buildCfg ManagersBuildConfig) (*latest.ModelConfig, error) {
-	// Check if it's an inline model reference (contains a '/')
-	if modelName != "" {
-		parts := splitModelRef(modelName)
-		if len(parts) == 2 {
-			// Inline model reference like "dmr/hf.co/model" or "openai/gpt-5"
-			slog.Debug("Using inline model reference",
-				"provider", parts[0],
-				"model", parts[1])
-			return &latest.ModelConfig{
-				Provider: parts[0],
-				Model:    parts[1],
-			}, nil
-		}
-	}
-
-	// Try to find model in defined models
-	if modelCfg, exists := buildCfg.Models[modelName]; exists {
-		slog.Debug("Using defined model from config",
-			"model_name", modelName,
-			"provider", modelCfg.Provider,
-			"model", modelCfg.Model)
-		return &modelCfg, nil
-	}
-
-	slog.Error("Model not found in configuration",
-		"model_name", modelName,
-		"available_models", getModelNames(buildCfg.Models))
-	return nil, fmt.Errorf("model %q not found in configuration", modelName)
-}
-
-// getModelNames extracts model names from the models map for logging
-func getModelNames(models map[string]latest.ModelConfig) []string {
-	return slices.Collect(maps.Keys(models))
-}
-
-// splitModelRef splits a model reference into provider and model parts
-func splitModelRef(ref string) []string {
-	// Handle common patterns: "provider/model"
-	for i := range len(ref) {
-		if ref[i] == '/' {
-			return []string{ref[:i], ref[i+1:]}
-		}
-	}
-	return []string{ref}
 }
 
 // buildStrategyConfigs builds the strategy configs for the RAG.
