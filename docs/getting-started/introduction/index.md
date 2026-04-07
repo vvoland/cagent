@@ -30,7 +30,7 @@ their model, personality, tools, and how they collaborate — and docker-agent h
   <div class="feature">
     <div class="feature-icon">🧠</div>
     <h3>Multi-Model Support</h3>
-    <p>OpenAI, Anthropic, Google Gemini, AWS Bedrock, Docker Model Runner, and custom OpenAI-compatible providers.</p>
+    <p>OpenAI, Anthropic, Google Gemini, AWS Bedrock, Docker Model Runner, and reusable provider definitions with shared defaults.</p>
 
   </div>
   <div class="feature">

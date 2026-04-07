@@ -1,43 +1,43 @@
 ---
-title: "Custom Providers"
-description: "Connect docker-agent to any OpenAI-compatible API endpoint — without modifying docker-agent's source code."
+title: "Provider Definitions"
+description: "Define reusable provider configurations with shared defaults for any provider type — OpenAI, Anthropic, Google, Bedrock, and more."
 permalink: /providers/custom/
 ---
 
-# Custom Providers
+# Provider Definitions
 
-_Connect docker-agent to any OpenAI-compatible API endpoint — without modifying docker-agent's source code._
+_Define reusable provider configurations with shared defaults for any provider type — OpenAI, Anthropic, Google, Bedrock, and more._
 
 ## Overview
 
-The `providers` section in your agent YAML lets you define custom providers that work with any OpenAI-compatible API. This is useful for:
+The `providers` section in your agent YAML lets you define named provider configurations that models can reference. This is useful for:
 
-- Self-hosted models (vLLM, Ollama, LocalAI, etc.)
-- API proxies and routers (Requesty, LiteLLM, etc.)
-- Enterprise deployments with custom endpoints
-- Any service with an OpenAI-compatible chat completions API
+- **Grouping shared defaults** — Set temperature, max_tokens, thinking_budget once and share across models
+- **Custom endpoints** — Connect to self-hosted models, API proxies, or gateways
+- **Centralizing credentials** — Define token_key once for all models using a provider
+- **Any provider type** — Works with OpenAI, Anthropic, Google, Bedrock, and any OpenAI-compatible API
 
 <div class="callout callout-info" markdown="1">
-<div class="callout-title">ℹ️ Works with any OpenAI-compatible API
+<div class="callout-title">ℹ️ Works with any provider
 </div>
-  <p>If a service supports the <code>/v1/chat/completions</code> endpoint, you can use it with docker-agent. No source code changes needed.</p>
+  <p>The <code>providers</code> section supports all provider types: <code>openai</code>, <code>anthropic</code>, <code>google</code>, <code>amazon-bedrock</code>, <code>dmr</code>, and any built-in alias. When the <code>provider</code> field is not set, it defaults to <code>openai</code> for backward compatibility.</p>
 
 </div>
 
 ## Configuration
 
+### OpenAI-compatible endpoint
+
 ```yaml
 providers:
-  my_provider:
-    api_type: openai_chatcompletions # or openai_responses
+  my_gateway:
     base_url: https://api.example.com/v1
-    token_key: MY_API_KEY # env var name
+    token_key: MY_API_KEY
 
 models:
   my_model:
-    provider: my_provider
+    provider: my_gateway
     model: gpt-4o
-    max_tokens: 32768
 
 agents:
   root:
@@ -45,25 +45,113 @@ agents:
     instruction: You are a helpful assistant.
 ```
 
+### Anthropic with shared defaults
+
+```yaml
+providers:
+  my_anthropic:
+    provider: anthropic
+    token_key: MY_ANTHROPIC_KEY
+    max_tokens: 16384
+    thinking_budget: high
+
+models:
+  claude_smart:
+    provider: my_anthropic
+    model: claude-sonnet-4-5
+    # Inherits max_tokens: 16384, thinking_budget: high
+
+  claude_fast:
+    provider: my_anthropic
+    model: claude-haiku-4-5
+    thinking_budget: low  # Overrides provider default
+
+agents:
+  root:
+    model: claude_smart
+    instruction: You are a helpful assistant.
+```
+
+### Google with shared temperature
+
+```yaml
+providers:
+  my_google:
+    provider: google
+    temperature: 0.3
+
+models:
+  gemini:
+    provider: my_google
+    model: gemini-2.5-flash
+    # Inherits temperature: 0.3
+
+agents:
+  root:
+    model: gemini
+    instruction: You are a helpful assistant.
+```
+
 ## Provider Properties
 
-| Property    | Description                                                | Default                  |
-| ----------- | ---------------------------------------------------------- | ------------------------ |
-| `api_type`  | API schema: `openai_chatcompletions` or `openai_responses` | `openai_chatcompletions` |
-| `base_url`  | Base URL for the API endpoint                              | —                        |
-| `token_key` | Name of the environment variable containing the API token  | —                        |
+| Property              | Type       | Description                                                                           | Default                  |
+| --------------------- | ---------- | ------------------------------------------------------------------------------------- | ------------------------ |
+| `provider`            | string     | Underlying provider type: `openai`, `anthropic`, `google`, `amazon-bedrock`, `dmr`, etc. | `openai`                 |
+| `api_type`            | string     | API schema: `openai_chatcompletions` or `openai_responses`. Only for OpenAI-compatible providers. | `openai_chatcompletions` |
+| `base_url`            | string     | Base URL for the API endpoint. Required for OpenAI-compatible providers, optional for native providers. | —                        |
+| `token_key`           | string     | Environment variable name containing the API token.                                   | —                        |
+| `temperature`         | float      | Default sampling temperature (0.0–2.0).                                               | —                        |
+| `max_tokens`          | int        | Default maximum response tokens.                                                      | —                        |
+| `top_p`               | float      | Default nucleus sampling threshold (0.0–1.0).                                         | —                        |
+| `frequency_penalty`   | float      | Default frequency penalty (-2.0–2.0).                                                 | —                        |
+| `presence_penalty`    | float      | Default presence penalty (-2.0–2.0).                                                  | —                        |
+| `parallel_tool_calls` | boolean    | Whether to enable parallel tool calls by default.                                     | —                        |
+| `track_usage`         | boolean    | Whether to track token usage by default.                                              | —                        |
+| `thinking_budget`     | string/int | Default reasoning effort/budget.                                                      | —                        |
+| `provider_opts`       | object     | Provider-specific options passed through to the client.                               | —                        |
+
+## Default Inheritance
+
+Models referencing a provider inherit all its defaults. Model-level settings always take precedence:
+
+```yaml
+providers:
+  my_anthropic:
+    provider: anthropic
+    token_key: MY_ANTHROPIC_KEY
+    max_tokens: 16384
+    temperature: 0.7
+    thinking_budget: high
+
+models:
+  # Inherits everything from provider
+  claude_default:
+    provider: my_anthropic
+    model: claude-sonnet-4-5
+
+  # Overrides temperature and thinking_budget, inherits the rest
+  claude_custom:
+    provider: my_anthropic
+    model: claude-sonnet-4-5
+    temperature: 0.2
+    thinking_budget: low
+```
 
 ## Shorthand Syntax
 
-Once a custom provider is defined, you can use the shorthand `provider/model` syntax:
+Once a provider is defined, you can use the shorthand `provider_name/model` syntax:
 
 ```yaml
 agents:
   root:
-    model: my_provider/gpt-4o-mini # uses the provider's base_url and token
+    model: my_gateway/gpt-4o-mini  # uses the provider's defaults
+  researcher:
+    model: my_anthropic/claude-sonnet-4-5  # uses anthropic provider defaults
 ```
 
 ## API Types
+
+Only applicable for OpenAI-compatible providers (when `provider` is `openai` or unset):
 
 - **`openai_chatcompletions`** — Standard OpenAI Chat Completions API. Works with most OpenAI-compatible endpoints.
 - **`openai_responses`** — OpenAI Responses API. For newer models that require the Responses API format.
@@ -75,7 +163,6 @@ agents:
 ```yaml
 providers:
   local_llm:
-    api_type: openai_chatcompletions
     base_url: http://localhost:8000/v1
 
 agents:
@@ -88,7 +175,6 @@ agents:
 ```yaml
 providers:
   router:
-    api_type: openai_chatcompletions
     base_url: https://router.requesty.ai/v1
     token_key: REQUESTY_API_KEY
 
@@ -109,11 +195,65 @@ models:
       api_version: 2024-12-01-preview
 ```
 
+### Anthropic Team Setup
+
+```yaml
+providers:
+  team_anthropic:
+    provider: anthropic
+    token_key: TEAM_ANTHROPIC_KEY
+    max_tokens: 32768
+    thinking_budget: high
+    temperature: 0.5
+
+models:
+  architect:
+    provider: team_anthropic
+    model: claude-sonnet-4-5
+
+  reviewer:
+    provider: team_anthropic
+    model: claude-haiku-4-5
+    thinking_budget: low  # faster reviews
+
+agents:
+  root:
+    model: architect
+    sub_agents: [code_reviewer]
+  code_reviewer:
+    model: reviewer
+```
+
+### Multi-Provider with Shared Defaults
+
+```yaml
+providers:
+  fast_openai:
+    base_url: https://api.openai.com/v1
+    token_key: OPENAI_API_KEY
+    temperature: 0.3
+    max_tokens: 8192
+
+  smart_anthropic:
+    provider: anthropic
+    token_key: ANTHROPIC_API_KEY
+    max_tokens: 64000
+    thinking_budget: high
+
+agents:
+  root:
+    model: smart_anthropic/claude-sonnet-4-5
+    sub_agents: [helper]
+  helper:
+    model: fast_openai/gpt-4o-mini
+```
+
 ## How It Works
 
-When you reference a custom provider:
+When you reference a provider:
 
-1. The provider's `base_url` is applied to the model (if not already set)
-2. The provider's `token_key` is applied to the model (if not already set)
-3. The provider's `api_type` is stored in `provider_opts.api_type`
-4. The model is used with the appropriate API client
+1. The provider's `provider` field determines which API client to use (defaults to `openai`)
+2. The provider's `base_url` and `token_key` are applied to the model (if not already set on the model)
+3. All model-level defaults (temperature, max_tokens, thinking_budget, etc.) are inherited (model settings take precedence)
+4. For OpenAI-compatible providers, the `api_type` is stored in `provider_opts.api_type`
+5. The model is used with the appropriate API client

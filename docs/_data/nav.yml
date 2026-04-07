@@ -119,7 +119,7 @@
       url: /providers/minimax/
     - title: Local Models
       url: /providers/local/
-    - title: Custom Providers
+    - title: Provider Definitions
       url: /providers/custom/
 
 - section: Guides

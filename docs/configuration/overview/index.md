@@ -46,12 +46,12 @@ rag:
       - type: chunked-embeddings
         model: openai/text-embedding-3-small
 
-# 6. Providers — optional custom provider definitions
+# 6. Providers — optional reusable provider definitions
 providers:
   my_provider:
-    api_type: openai_chatcompletions
-    base_url: https://api.example.com/v1
+    provider: anthropic  # or openai (default), google, amazon-bedrock, etc.
     token_key: MY_API_KEY
+    max_tokens: 16384
 
 # 7. Permissions — agent-level tool permission rules (optional)
 #    For user-wide global permissions, see ~/.config/cagent/config.yaml
@@ -220,34 +220,52 @@ See [Agent Distribution]({{ '/concepts/distribution/' | relative_url }}) for pub
 
 ## Custom Providers Section
 
-Define reusable provider configurations for custom or self-hosted endpoints:
+Define reusable provider configurations with shared defaults. Providers can wrap any provider type — not just OpenAI-compatible endpoints:
 
 ```yaml
 providers:
+  # OpenAI-compatible custom endpoint
   azure:
     api_type: openai_chatcompletions
     base_url: https://my-resource.openai.azure.com/openai/deployments/gpt-4o
     token_key: AZURE_OPENAI_API_KEY
 
-  internal_llm:
-    api_type: openai_chatcompletions
-    base_url: https://llm.internal.company.com/v1
-    token_key: INTERNAL_API_KEY
+  # Anthropic with shared model defaults
+  team_anthropic:
+    provider: anthropic
+    token_key: TEAM_ANTHROPIC_KEY
+    max_tokens: 32768
+    thinking_budget: high
 
 models:
   azure_gpt:
-    provider: azure # References the custom provider
+    provider: azure
     model: gpt-4o
+
+  claude:
+    provider: team_anthropic
+    model: claude-sonnet-4-5
+    # Inherits max_tokens, thinking_budget from provider
 
 agents:
   root:
-    model: azure_gpt
+    model: claude
 ```
 
-| Field       | Description                                                          |
-| ----------- | -------------------------------------------------------------------- |
-| `api_type`  | API schema: `openai_chatcompletions` (default) or `openai_responses` |
-| `base_url`  | Base URL for the API endpoint                                        |
-| `token_key` | Environment variable name for the API token                          |
+| Field                 | Description                                                                              |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| `provider`            | Underlying provider type: `openai` (default), `anthropic`, `google`, `amazon-bedrock`, etc. |
+| `api_type`            | API schema: `openai_chatcompletions` (default) or `openai_responses`. OpenAI-only.        |
+| `base_url`            | Base URL for the API endpoint. Required for OpenAI-compatible providers.                  |
+| `token_key`           | Environment variable name for the API token.                                              |
+| `temperature`         | Default sampling temperature.                                                             |
+| `max_tokens`          | Default maximum response tokens.                                                          |
+| `thinking_budget`     | Default reasoning effort/budget.                                                          |
+| `top_p`               | Default top-p sampling parameter.                                                         |
+| `frequency_penalty`   | Default frequency penalty.                                                                |
+| `presence_penalty`    | Default presence penalty.                                                                 |
+| `parallel_tool_calls` | Enable parallel tool calls by default.                                                    |
+| `track_usage`         | Track token usage by default.                                                             |
+| `provider_opts`       | Provider-specific options.                                                                |
 
-See [Custom Providers]({{ '/providers/custom/' | relative_url }}) for more details.
+See [Provider Definitions]({{ '/providers/custom/' | relative_url }}) for more details.

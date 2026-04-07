@@ -185,23 +185,37 @@ func validateProviders(cfg *latest.Config) error {
 			return fmt.Errorf("provider '%s': %w", name, err)
 		}
 
-		// Validate api_type
+		// Validate api_type if set
 		if !providerAPITypes[provCfg.APIType] {
 			return fmt.Errorf("provider '%s': invalid api_type '%s' (must be one of: openai_chatcompletions, openai_responses)", name, provCfg.APIType)
 		}
 
-		// base_url is required for custom providers
-		if provCfg.BaseURL == "" {
-			return fmt.Errorf("provider '%s': base_url is required", name)
-		}
-		if _, err := url.Parse(provCfg.BaseURL); err != nil {
-			return fmt.Errorf("provider '%s': invalid base_url '%s': %w", name, provCfg.BaseURL, err)
+		// base_url is required for OpenAI-compatible providers (the default)
+		// but optional for native providers like anthropic, google, amazon-bedrock
+		if provCfg.BaseURL != "" {
+			if _, err := url.Parse(provCfg.BaseURL); err != nil {
+				return fmt.Errorf("provider '%s': invalid base_url '%s': %w", name, provCfg.BaseURL, err)
+			}
+		} else if isOpenAICustomProvider(provCfg) {
+			return fmt.Errorf("provider '%s': base_url is required for OpenAI-compatible providers", name)
 		}
 
 		// token_key is optional - if not set, requests will be sent without bearer token
 	}
 
 	return nil
+}
+
+// isOpenAICustomProvider returns true if the provider config describes an OpenAI-compatible
+// custom provider (i.e., Provider is empty or "openai", or api_type is explicitly set to an
+// OpenAI schema). These providers require a base_url because they don't have a built-in default.
+func isOpenAICustomProvider(cfg latest.ProviderConfig) bool {
+	// If api_type is explicitly set, it's an OpenAI-compatible provider
+	if cfg.APIType != "" {
+		return true
+	}
+	// If provider is empty (defaults to openai) or explicitly "openai"
+	return cfg.Provider == "" || cfg.Provider == "openai"
 }
 
 // validateProviderName validates that a provider name is valid

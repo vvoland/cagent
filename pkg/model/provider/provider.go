@@ -300,23 +300,72 @@ func applyProviderDefaults(cfg *latest.ModelConfig, customProviders map[string]l
 				"base_url", providerCfg.BaseURL,
 			)
 
+			// Apply the underlying provider type if set on the provider config.
+			// This allows the model to inherit the real provider type (e.g., "anthropic")
+			// so that the correct API client is selected.
+			if providerCfg.Provider != "" {
+				enhancedCfg.Provider = providerCfg.Provider
+			}
+
 			if enhancedCfg.BaseURL == "" && providerCfg.BaseURL != "" {
 				enhancedCfg.BaseURL = providerCfg.BaseURL
 			}
 			if enhancedCfg.TokenKey == "" && providerCfg.TokenKey != "" {
 				enhancedCfg.TokenKey = providerCfg.TokenKey
 			}
-
-			// Set api_type in ProviderOpts if not already set
-			if enhancedCfg.ProviderOpts == nil {
-				enhancedCfg.ProviderOpts = make(map[string]any)
+			if enhancedCfg.Temperature == nil && providerCfg.Temperature != nil {
+				enhancedCfg.Temperature = providerCfg.Temperature
 			}
-			if _, has := enhancedCfg.ProviderOpts["api_type"]; !has {
-				apiType := providerCfg.APIType
-				if apiType == "" {
-					apiType = "openai_chatcompletions"
+			if enhancedCfg.MaxTokens == nil && providerCfg.MaxTokens != nil {
+				enhancedCfg.MaxTokens = providerCfg.MaxTokens
+			}
+			if enhancedCfg.TopP == nil && providerCfg.TopP != nil {
+				enhancedCfg.TopP = providerCfg.TopP
+			}
+			if enhancedCfg.FrequencyPenalty == nil && providerCfg.FrequencyPenalty != nil {
+				enhancedCfg.FrequencyPenalty = providerCfg.FrequencyPenalty
+			}
+			if enhancedCfg.PresencePenalty == nil && providerCfg.PresencePenalty != nil {
+				enhancedCfg.PresencePenalty = providerCfg.PresencePenalty
+			}
+			if enhancedCfg.ParallelToolCalls == nil && providerCfg.ParallelToolCalls != nil {
+				enhancedCfg.ParallelToolCalls = providerCfg.ParallelToolCalls
+			}
+			if enhancedCfg.TrackUsage == nil && providerCfg.TrackUsage != nil {
+				enhancedCfg.TrackUsage = providerCfg.TrackUsage
+			}
+			if enhancedCfg.ThinkingBudget == nil && providerCfg.ThinkingBudget != nil {
+				enhancedCfg.ThinkingBudget = providerCfg.ThinkingBudget
+			}
+
+			// Merge provider_opts from provider config (model opts take precedence)
+			if len(providerCfg.ProviderOpts) > 0 {
+				if enhancedCfg.ProviderOpts == nil {
+					enhancedCfg.ProviderOpts = make(map[string]any)
 				}
-				enhancedCfg.ProviderOpts["api_type"] = apiType
+				for k, v := range providerCfg.ProviderOpts {
+					if _, has := enhancedCfg.ProviderOpts[k]; !has {
+						enhancedCfg.ProviderOpts[k] = v
+					}
+				}
+			}
+
+			// Set api_type in ProviderOpts if not already set.
+			// Only default to openai_chatcompletions for OpenAI-compatible providers.
+			if providerCfg.APIType != "" {
+				if enhancedCfg.ProviderOpts == nil {
+					enhancedCfg.ProviderOpts = make(map[string]any)
+				}
+				if _, has := enhancedCfg.ProviderOpts["api_type"]; !has {
+					enhancedCfg.ProviderOpts["api_type"] = providerCfg.APIType
+				}
+			} else if isOpenAICompatibleProvider(resolveEffectiveProvider(providerCfg)) {
+				if enhancedCfg.ProviderOpts == nil {
+					enhancedCfg.ProviderOpts = make(map[string]any)
+				}
+				if _, has := enhancedCfg.ProviderOpts["api_type"]; !has {
+					enhancedCfg.ProviderOpts["api_type"] = "openai_chatcompletions"
+				}
 			}
 
 			applyModelDefaults(enhancedCfg)
@@ -469,4 +518,27 @@ func isGeminiProModel(model string) bool {
 
 func isGeminiFlashModel(model string) bool {
 	return strings.HasPrefix(gemini3Family(model), "flash")
+}
+
+// resolveEffectiveProvider returns the effective provider type for a ProviderConfig.
+// If Provider is explicitly set, returns that. Otherwise returns "openai" (backward compat).
+func resolveEffectiveProvider(cfg latest.ProviderConfig) string {
+	if cfg.Provider != "" {
+		return cfg.Provider
+	}
+	return "openai"
+}
+
+// isOpenAICompatibleProvider returns true if the provider type uses the OpenAI API protocol.
+func isOpenAICompatibleProvider(providerType string) bool {
+	switch providerType {
+	case "openai", "openai_chatcompletions", "openai_responses":
+		return true
+	default:
+		// Check if it's an alias that maps to openai
+		if alias, exists := Aliases[providerType]; exists {
+			return alias.APIType == "openai"
+		}
+		return false
+	}
 }

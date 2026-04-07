@@ -189,3 +189,30 @@ models:
 ```
 
 See [Local Models]({{ '/providers/local/' | relative_url }}) for more examples of custom endpoints.
+
+## Inheriting from Provider Definitions
+
+Models can reference a named provider to inherit shared defaults. Model-level settings always take precedence:
+
+```yaml
+providers:
+  my_anthropic:
+    provider: anthropic
+    token_key: MY_ANTHROPIC_KEY
+    max_tokens: 16384
+    thinking_budget: high
+    temperature: 0.5
+
+models:
+  claude:
+    provider: my_anthropic
+    model: claude-sonnet-4-5
+    # Inherits max_tokens, thinking_budget, temperature from provider
+
+  claude_fast:
+    provider: my_anthropic
+    model: claude-haiku-4-5
+    thinking_budget: low  # Overrides provider default
+```
+
+See [Provider Definitions]({{ '/providers/custom/' | relative_url }}) for the full list of inheritable properties.
