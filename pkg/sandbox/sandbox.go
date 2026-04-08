@@ -134,12 +134,18 @@ func Ensure(ctx context.Context, wd, extra, template, configDir string) (string,
 
 // BuildExecCmd assembles the `docker sandbox exec` command.
 func BuildExecCmd(ctx context.Context, name, wd string, cagentArgs, envFlags, envVars []string) *exec.Cmd {
-	execArgs := []string{"sandbox", "exec", "-it", "-w", wd}
-	execArgs = append(execArgs, envFlags...)
-	execArgs = append(execArgs, name, "docker-agent", "run")
-	execArgs = append(execArgs, cagentArgs...)
+	args := []string{"sandbox", "exec", "-it", "-w", wd}
+	args = append(args, envFlags...)
 
-	dockerCmd := exec.CommandContext(ctx, "docker", execArgs...)
+	// Improve the rendering of the TUI
+	args = append(args, "-e", "TERM=xterm-256color")
+	args = append(args, "-e", "COLORTERM=truecolor")
+	args = append(args, "-e", "LANG=en_US.UTF-8")
+
+	args = append(args, name, "docker-agent", "run")
+	args = append(args, cagentArgs...)
+
+	dockerCmd := exec.CommandContext(ctx, "docker", args...)
 	dockerCmd.Stdin = os.Stdin
 	dockerCmd.Stdout = os.Stdout
 	dockerCmd.Stderr = os.Stderr
