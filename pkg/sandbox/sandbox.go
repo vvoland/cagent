@@ -136,7 +136,7 @@ func Ensure(ctx context.Context, wd, extra, template, configDir string) (string,
 func BuildExecCmd(ctx context.Context, name, wd string, cagentArgs, envFlags, envVars []string) *exec.Cmd {
 	execArgs := []string{"sandbox", "exec", "-it", "-w", wd}
 	execArgs = append(execArgs, envFlags...)
-	execArgs = append(execArgs, name, "cagent", "run")
+	execArgs = append(execArgs, name, "docker-agent", "run")
 	execArgs = append(execArgs, cagentArgs...)
 
 	dockerCmd := exec.CommandContext(ctx, "docker", execArgs...)
