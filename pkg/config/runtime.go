@@ -25,6 +25,7 @@ type Config struct {
 	GlobalCodeMode bool
 	WorkingDir     string
 	Models         map[string]latest.ModelConfig
+	Providers      map[string]latest.ProviderConfig
 
 	// Hook overrides from CLI flags
 	HookPreToolUse   []string
@@ -40,6 +41,7 @@ func (runConfig *RuntimeConfig) Clone() *RuntimeConfig {
 	}
 	clone.EnvFiles = slices.Clone(runConfig.EnvFiles)
 	clone.Models = maps.Clone(runConfig.Models)
+	clone.Providers = maps.Clone(runConfig.Providers)
 	clone.DefaultModel = runConfig.DefaultModel.Clone()
 	clone.HookPreToolUse = slices.Clone(runConfig.HookPreToolUse)
 	clone.HookPostToolUse = slices.Clone(runConfig.HookPostToolUse)
