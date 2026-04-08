@@ -150,6 +150,19 @@ func (m *appModel) handleRegenerateTitle() (tea.Model, tea.Cmd) {
 	return m, tea.Batch(spinnerCmd, notification.SuccessCmd("Regenerating title..."))
 }
 
+func (m *appModel) handleDeleteSession(sessionID string) (tea.Model, tea.Cmd) {
+	store := m.application.SessionStore()
+	if store == nil {
+		return m, notification.ErrorCmd("No session store configured")
+	}
+
+	if err := store.DeleteSession(context.Background(), sessionID); err != nil {
+		return m, notification.ErrorCmd("Failed to delete session: " + err.Error())
+	}
+
+	return m, notification.SuccessCmd("Session deleted.")
+}
+
 func isErrTitleGenerating(err error) bool {
 	return err != nil && err.Error() == app.ErrTitleGenerating.Error()
 }
