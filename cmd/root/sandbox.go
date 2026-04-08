@@ -22,13 +22,15 @@ import (
 
 // runInSandbox delegates the current command to a Docker sandbox.
 // It ensures a sandbox exists (creating or recreating as needed), then
-// executes docker agent inside it via `docker sandbox exec`.
-func runInSandbox(ctx context.Context, cmd *cobra.Command, args []string, runConfig *config.RuntimeConfig, template string) error {
+// executes docker agent inside it via the sandbox exec command.
+func runInSandbox(ctx context.Context, cmd *cobra.Command, args []string, runConfig *config.RuntimeConfig, template string, preferSbx bool) error {
 	if environment.InSandbox() {
 		return fmt.Errorf("already running inside a Docker sandbox (VM %s)", os.Getenv("SANDBOX_VM_ID"))
 	}
 
-	if err := sandbox.CheckAvailable(ctx); err != nil {
+	backend := sandbox.NewBackend(preferSbx)
+
+	if err := backend.CheckAvailable(ctx); err != nil {
 		return err
 	}
 
@@ -52,7 +54,7 @@ func runInSandbox(ctx context.Context, cmd *cobra.Command, args []string, runCon
 		return fmt.Errorf("resolving workspace path: %w", err)
 	}
 
-	name, err := sandbox.Ensure(ctx, wd, sandbox.ExtraWorkspace(wd, agentRef), template, configDir)
+	name, err := backend.Ensure(ctx, wd, sandbox.ExtraWorkspace(wd, agentRef), template, configDir)
 	if err != nil {
 		return err
 	}
@@ -68,7 +70,7 @@ func runInSandbox(ctx context.Context, cmd *cobra.Command, args []string, runCon
 		envFlags = append(envFlags, "-e", envModelsGateway+"="+gateway)
 	}
 
-	dockerCmd := sandbox.BuildExecCmd(ctx, name, wd, dockerAgentArgs, envFlags, envVars)
+	dockerCmd := backend.BuildExecCmd(ctx, name, wd, dockerAgentArgs, envFlags, envVars)
 	slog.Debug("Executing in sandbox", "name", name, "args", dockerCmd.Args)
 
 	if err := dockerCmd.Run(); err != nil {
@@ -85,7 +87,7 @@ func dockerAgentArgs(cmd *cobra.Command, args []string, configDir string) []stri
 	var dockerAgentArgs []string
 	hasYolo := false
 	cmd.Flags().Visit(func(f *pflag.Flag) {
-		if f.Name == "sandbox" || f.Name == "config-dir" {
+		if f.Name == "sandbox" || f.Name == "sbx" || f.Name == "config-dir" {
 			return
 		}
 

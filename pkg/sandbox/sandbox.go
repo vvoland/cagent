@@ -21,12 +21,14 @@ import (
 
 // CheckAvailable returns a user-friendly error when Docker is not
 // installed or the sandbox feature is not supported.
-func CheckAvailable(ctx context.Context) error {
-	if _, err := exec.LookPath("docker"); err != nil {
+func (b *Backend) CheckAvailable(ctx context.Context) error {
+	if _, err := exec.LookPath(b.program); err != nil {
 		return fmt.Errorf("--sandbox requires Docker Desktop: %w\n\nInstall Docker Desktop from https://docs.docker.com/get-docker/", err)
 	}
 
-	if err := exec.CommandContext(ctx, "docker", "sandbox", "version").Run(); err != nil {
+	cmd := exec.CommandContext(ctx, b.program, b.args("version")...)
+	b.applyEnv(cmd)
+	if err := cmd.Run(); err != nil {
 		return errors.New("--sandbox requires Docker Desktop with sandbox support\n\n" +
 			"Make sure Docker Desktop is running and up to date.\n" +
 			"For more information, see https://docs.docker.com/ai/sandboxes/")
@@ -51,22 +53,34 @@ func (s *Existing) HasWorkspace(dir string) bool {
 
 // ForWorkspace returns the existing sandbox whose primary workspace
 // matches wd, or nil if none exists.
-func ForWorkspace(ctx context.Context, wd string) *Existing {
-	out, err := exec.CommandContext(ctx, "docker", "sandbox", "ls", "--json").Output()
+func (b *Backend) ForWorkspace(ctx context.Context, wd string) *Existing {
+	cmd := exec.CommandContext(ctx, b.program, b.args("ls", "--json")...)
+	b.applyEnv(cmd)
+	out, err := cmd.Output()
 	if err != nil {
 		return nil
 	}
 
-	var result struct {
-		VMs []Existing `json:"vms"`
-	}
-	if err := json.Unmarshal(out, &result); err != nil {
+	// The JSON key differs between backends: "vms" for docker sandbox,
+	// "sandboxes" for sbx.
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(out, &raw); err != nil {
 		return nil
 	}
 
-	for _, vm := range result.VMs {
-		if len(vm.Workspaces) > 0 && vm.Workspaces[0] == wd {
-			return &vm
+	listJSON, ok := raw[b.vmListKey]
+	if !ok {
+		return nil
+	}
+
+	var entries []Existing
+	if err := json.Unmarshal(listJSON, &entries); err != nil {
+		return nil
+	}
+
+	for _, entry := range entries {
+		if len(entry.Workspaces) > 0 && entry.Workspaces[0] == wd {
+			return &entry
 		}
 	}
 	return nil
@@ -75,7 +89,7 @@ func ForWorkspace(ctx context.Context, wd string) *Existing {
 // Ensure makes sure a sandbox exists for the given workspace,
 // creating or recreating it as needed. When template is non-empty it is
 // passed to `docker sandbox create -t`. Returns the sandbox name.
-func Ensure(ctx context.Context, wd, extra, template, configDir string) (string, error) {
+func (b *Backend) Ensure(ctx context.Context, wd, extra, template, configDir string) (string, error) {
 	// Resolve wd to an absolute path so that it matches the absolute
 	// workspace paths returned by `docker sandbox ls --json`.
 	absWd, err := filepath.Abs(wd)
@@ -84,7 +98,7 @@ func Ensure(ctx context.Context, wd, extra, template, configDir string) (string,
 	}
 	wd = absWd
 
-	existing := ForWorkspace(ctx, wd)
+	existing := b.ForWorkspace(ctx, wd)
 
 	// If the sandbox exists with the right mounts, reuse it.
 	if existing != nil &&
@@ -97,34 +111,38 @@ func Ensure(ctx context.Context, wd, extra, template, configDir string) (string,
 	// Remove a stale sandbox whose mounts don't match.
 	if existing != nil {
 		slog.Debug("Removing existing sandbox to change workspace mounts", "name", existing.Name)
-		_ = exec.CommandContext(ctx, "docker", "sandbox", "rm", existing.Name).Run()
+		rmCmd := exec.CommandContext(ctx, b.program, b.args("rm", existing.Name)...)
+		b.applyEnv(rmCmd)
+		_ = rmCmd.Run()
 	}
 
-	// docker sandbox create [-t template] cagent <wd> [<extra>:ro] <dataDir> <configDir>
-	createArgs := []string{"sandbox", "create"}
+	createExtra := []string{}
 	if template != "" {
-		createArgs = append(createArgs, "-t", template)
+		createExtra = append(createExtra, "-t", template)
 	}
-	createArgs = append(createArgs, "cagent", wd)
+	createExtra = append(createExtra, "cagent", wd)
 	if extra != "" && extra != wd {
-		createArgs = append(createArgs, extra+":ro")
+		createExtra = append(createExtra, extra+":ro")
 	}
 	// Mount config directory read-only so the sandbox can
 	// read the token file and access user config.
-	createArgs = append(createArgs, configDir+":ro")
+	createExtra = append(createExtra, configDir+":ro")
+
+	createArgs := b.args("create", createExtra...)
 	slog.Debug("Creating sandbox", "args", createArgs)
 
-	createCmd := exec.CommandContext(ctx, "docker", createArgs...)
+	createCmd := exec.CommandContext(ctx, b.program, createArgs...)
+	b.applyEnv(createCmd)
 	createCmd.Stdin = os.Stdin
 	createCmd.Stdout = os.Stdout
 	createCmd.Stderr = os.Stderr
 
 	if err := createCmd.Run(); err != nil {
-		return "", fmt.Errorf("docker sandbox create failed: %w", err)
+		return "", fmt.Errorf("sandbox create failed: %w", err)
 	}
 
 	// Read back the sandbox name that was just created.
-	created := ForWorkspace(ctx, wd)
+	created := b.ForWorkspace(ctx, wd)
 	if created == nil {
 		return "", errors.New("sandbox was created but could not be found")
 	}
@@ -132,26 +150,30 @@ func Ensure(ctx context.Context, wd, extra, template, configDir string) (string,
 	return created.Name, nil
 }
 
-// BuildExecCmd assembles the `docker sandbox exec` command.
-func BuildExecCmd(ctx context.Context, name, wd string, cagentArgs, envFlags, envVars []string) *exec.Cmd {
-	args := []string{"sandbox", "exec", "-it", "-w", wd}
-	args = append(args, envFlags...)
+// BuildExecCmd assembles the sandbox exec command.
+func (b *Backend) BuildExecCmd(ctx context.Context, name, wd string, cagentArgs, envFlags, envVars []string) *exec.Cmd {
+	execExtra := []string{"-it", "-w", wd}
+	execExtra = append(execExtra, envFlags...)
 
 	// Improve the rendering of the TUI
-	args = append(args, "-e", "TERM=xterm-256color")
-	args = append(args, "-e", "COLORTERM=truecolor")
-	args = append(args, "-e", "LANG=en_US.UTF-8")
+	execExtra = append(execExtra,
+		"-e", "TERM=xterm-256color",
+		"-e", "COLORTERM=truecolor",
+		"-e", "LANG=en_US.UTF-8",
+		name, "docker-agent", "run",
+	)
+	execExtra = append(execExtra, cagentArgs...)
 
-	args = append(args, name, "docker-agent", "run")
-	args = append(args, cagentArgs...)
+	args := b.args("exec", execExtra...)
 
-	dockerCmd := exec.CommandContext(ctx, "docker", args...)
-	dockerCmd.Stdin = os.Stdin
-	dockerCmd.Stdout = os.Stdout
-	dockerCmd.Stderr = os.Stderr
-	dockerCmd.Env = append(os.Environ(), envVars...)
+	cmd := exec.CommandContext(ctx, b.program, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), envVars...)
+	b.applyEnv(cmd)
 
-	return dockerCmd
+	return cmd
 }
 
 // StartTokenWriterIfNeeded starts a background goroutine that refreshes
