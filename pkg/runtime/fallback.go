@@ -324,13 +324,17 @@ func (r *LocalRuntime) tryModelWithFallback(
 	// If the last error (or any error in the chain) was a context overflow,
 	// wrap it in a ContextOverflowError so the caller can auto-compact.
 	if lastErr != nil {
-		wrapped := fmt.Errorf("all models failed: %w", lastErr)
+		prefix := "model failed"
+		if hasFallbacks {
+			prefix = "all models failed"
+		}
+		wrapped := fmt.Errorf("%s: %w", prefix, lastErr)
 		if modelerrors.IsContextOverflowError(lastErr) {
 			return streamResult{}, nil, modelerrors.NewContextOverflowError(wrapped)
 		}
 		return streamResult{}, nil, wrapped
 	}
-	return streamResult{}, nil, errors.New("all models failed with unknown error")
+	return streamResult{}, nil, errors.New("model failed with unknown error")
 }
 
 // retryDecision is the outcome of handleModelError.
