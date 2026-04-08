@@ -1,8 +1,10 @@
 package messages
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	"gotest.tools/v3/assert"
 )
 
@@ -159,6 +161,54 @@ func TestBalanceParens(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			assert.Equal(t, tt.expected, balanceParens(tt.input))
+		})
+	}
+}
+
+func TestUnderlineLine(t *testing.T) {
+	tests := []struct {
+		name     string
+		line     string
+		startCol int
+		endCol   int
+		wantSub  string // substring that should appear underlined
+	}{
+		{
+			name:     "underlines URL portion",
+			line:     "visit https://example.com for more",
+			startCol: 6,
+			endCol:   25,
+			wantSub:  "https://example.com",
+		},
+		{
+			name:     "preserves text before and after",
+			line:     "before https://x.com after",
+			startCol: 7,
+			endCol:   19,
+			wantSub:  "https://x.com",
+		},
+		{
+			name:     "no-op when startCol >= endCol",
+			line:     "hello world",
+			startCol: 5,
+			endCol:   5,
+			wantSub:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := styleLineSegment(tt.line, tt.startCol, tt.endCol, underlineStyle)
+			if tt.wantSub != "" {
+				// The underlined text should contain the ANSI underline escape
+				assert.Assert(t, strings.Contains(result, "\x1b["), "expected ANSI escape in result: %q", result)
+				// The plain text of the result should still contain the URL
+				plain := ansi.Strip(result)
+				assert.Assert(t, strings.Contains(plain, tt.wantSub), "expected %q in plain text: %q", tt.wantSub, plain)
+			} else {
+				// No change expected
+				assert.Equal(t, tt.line, result)
+			}
 		})
 	}
 }
