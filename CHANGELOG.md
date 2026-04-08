@@ -3,6 +3,61 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.43.0] - 2026-04-08
+
+This release adds non-interactive mode capabilities, improves TUI interactions with mouse support, and includes several bug fixes for RAG tools and streaming responses.
+
+## What's New
+
+- Adds auto-stop for max iterations in non-interactive mode to prevent hanging when tools are approved
+- Adds non-interactive mode flag to distinguish from tools approval scenarios
+- Adds mouse drag-to-move support for TUI dialogs, allowing repositioning by clicking and dragging the title area
+- Adds custom session ID support through WithID option instead of relying on UUID generation
+- Adds support for custom providers in RAG embedding and reranking models
+- Adds underline styling for URLs on mouse hover
+
+## Improvements
+
+- Evolves providers config to support any provider type with shared model defaults
+- Improves mise build output to show go build command and resulting binary
+- Exempts background-agent polling from loop-termination detection to prevent false positives
+
+## Bug Fixes
+
+- Fixes agent accent color application for working spinners in sidebar
+- Fixes duplicate RAG tool names and nil pointer panic in file watcher
+- Fixes toolset startup triggering from emitToolsChanged callback to avoid spurious timeout warnings
+- Fixes missing Models map in RAG ManagersBuildConfig for model alias resolution
+- Fixes nil pointer dereference in BM25Strategy.watchLoop during session teardown
+- Fixes extraction of reasoning_content from DMR streaming responses
+- Fixes scrollbar rendering in web terminals by replacing problematic characters
+
+## Technical Changes
+
+- Adds nocgo build support for rag/treesitter
+- Updates error message display when only one model is available
+
+### Pull Requests
+
+- [#2208](https://github.com/docker/docker-agent/pull/2208) - feat(runtime): add auto-stop for max iterations in non-interactive mode
+- [#2315](https://github.com/docker/docker-agent/pull/2315) - fix: use agent accent color for working spinners in sidebar
+- [#2316](https://github.com/docker/docker-agent/pull/2316) - Underline URLs on mouse hover
+- [#2317](https://github.com/docker/docker-agent/pull/2317) - docs: update CHANGELOG.md for v1.42.0
+- [#2319](https://github.com/docker/docker-agent/pull/2319) - Exempt background-agent polling from loop-termination detection
+- [#2322](https://github.com/docker/docker-agent/pull/2322) - fix: resolve duplicate RAG tool names and nil pointer panic in file watcher
+- [#2323](https://github.com/docker/docker-agent/pull/2323) - fix: avoid triggering toolset startup from emitToolsChanged callback
+- [#2324](https://github.com/docker/docker-agent/pull/2324) - fix: pass Models map to RAG ManagersBuildConfig for model alias resolution
+- [#2331](https://github.com/docker/docker-agent/pull/2331) - session: add WithID option for custom session IDs
+- [#2334](https://github.com/docker/docker-agent/pull/2334) - Fix nil pointer dereference in BM25Strategy.watchLoop during session teardown
+- [#2335](https://github.com/docker/docker-agent/pull/2335) - fix: extract reasoning_content from DMR streaming responses
+- [#2338](https://github.com/docker/docker-agent/pull/2338) - Improve mise build output to show go build command and resulting binary
+- [#2339](https://github.com/docker/docker-agent/pull/2339) - feat: add mouse drag-to-move support for TUI dialogs
+- [#2340](https://github.com/docker/docker-agent/pull/2340) - Fix scrollbar rendering in web terminals
+- [#2343](https://github.com/docker/docker-agent/pull/2343) - Evolve providers to support any provider type with shared model defaults
+- [#2344](https://github.com/docker/docker-agent/pull/2344) - feat: support custom providers in RAG embedding and reranking models
+- [#2345](https://github.com/docker/docker-agent/pull/2345) - Nicer message
+
+
 ## [v1.42.0] - 2026-04-03
 
 This release improves evaluation output with structured JSON results and fixes several Windows compatibility issues.
@@ -1776,3 +1831,5 @@ This release improves the terminal user interface with better error handling and
 [v1.41.0]: https://github.com/docker/docker-agent/releases/tag/v1.41.0
 
 [v1.42.0]: https://github.com/docker/docker-agent/releases/tag/v1.42.0
+
+[v1.43.0]: https://github.com/docker/docker-agent/releases/tag/v1.43.0
