@@ -17,6 +17,7 @@ const (
 	TargetSidebarStar
 	TargetSidebarTitle
 	TargetSidebarWorkingDir
+	TargetSidebarAgent
 	TargetSidebarContent
 	TargetMessages
 )
@@ -25,7 +26,8 @@ const (
 // This centralizes all hit-testing logic in one place, making it easier
 // to understand the clickable regions and their priorities.
 type HitTest struct {
-	page *chatPage
+	page      *chatPage
+	AgentName string // populated when At() returns TargetSidebarAgent
 }
 
 // NewHitTest creates a hit tester for the given chat page.
@@ -119,7 +121,7 @@ func ExtractCoords(msg tea.Msg) (x, y int, ok bool) {
 
 // sidebarClickTarget determines the specific target within the sidebar area.
 func (h *HitTest) sidebarClickTarget(x, y int) MouseTarget {
-	clickResult := h.page.handleSidebarClickType(x, y)
+	clickResult, agentName := h.page.handleSidebarClickType(x, y)
 	switch clickResult {
 	case sidebar.ClickStar:
 		return TargetSidebarStar
@@ -127,6 +129,9 @@ func (h *HitTest) sidebarClickTarget(x, y int) MouseTarget {
 		return TargetSidebarTitle
 	case sidebar.ClickWorkingDir:
 		return TargetSidebarWorkingDir
+	case sidebar.ClickAgent:
+		h.AgentName = agentName
+		return TargetSidebarAgent
 	default:
 		return TargetSidebarContent
 	}
