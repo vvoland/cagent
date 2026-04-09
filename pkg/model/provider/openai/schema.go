@@ -16,7 +16,7 @@ func ConvertParametersToSchema(params any) (shared.FunctionParameters, error) {
 		return nil, err
 	}
 
-	return fixSchemaArrayItems(removeFormatFields(makeAllRequired(p))), nil
+	return fixSchemaArrayItems(removeFormatFields(ensureTypeFields(makeAllRequired(p)))), nil
 }
 
 // walkSchema calls fn on the given schema node, then recursively walks into
@@ -118,6 +118,23 @@ func makeAllRequired(schema shared.FunctionParameters) shared.FunctionParameters
 		}
 
 		node["required"] = newRequired
+	})
+
+	return schema
+}
+
+// ensureTypeFields ensures every schema node that is a map has a "type" key.
+// OpenAI Responses API requires all schema nodes to have an explicit type.
+// Nodes with "properties" default to "object"; other nodes default to "object" as well.
+func ensureTypeFields(schema shared.FunctionParameters) shared.FunctionParameters {
+	if schema == nil {
+		return nil
+	}
+
+	walkSchema(schema, func(node map[string]any) {
+		if _, hasType := node["type"]; !hasType {
+			node["type"] = "object"
+		}
 	})
 
 	return schema
