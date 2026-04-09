@@ -81,16 +81,64 @@ func ResumeReject(reason string) ResumeRequest {
 }
 
 // SteeredMessage is a user message injected mid-turn while the agent loop is
-// running. It is enqueued via Steer() and drained inside the loop between
+// running. It is enqueued via a SteerQueue and drained inside the loop between
 // tool execution and the stop-condition check.
 type SteeredMessage struct {
 	Content      string
 	MultiContent []chat.MessagePart
 }
 
-// maxSteeredMessages is the maximum number of steered messages that can be
-// buffered before Steer() starts rejecting new messages.
-const maxSteeredMessages = 5
+// SteerQueue is the interface for storing steered messages that are injected
+// into a running agent loop mid-turn. Implementations must be safe for
+// concurrent use: Enqueue is called from API handlers while Drain is called
+// from the agent loop goroutine.
+//
+// The default implementation is InMemorySteerQueue. Callers that need
+// durable or distributed storage can provide their own implementation
+// via the WithSteerQueue option.
+type SteerQueue interface {
+	// Enqueue adds a message to the queue. Returns false if the queue is
+	// full and the message was not accepted.
+	Enqueue(msg SteeredMessage) bool
+	// Drain returns all pending messages and removes them from the queue.
+	// It must not block — if the queue is empty it returns nil.
+	Drain() []SteeredMessage
+}
+
+// inMemorySteerQueue is the default SteerQueue backed by a buffered channel.
+type inMemorySteerQueue struct {
+	ch chan SteeredMessage
+}
+
+// defaultSteerQueueCapacity is the buffer size for the default in-memory queue.
+const defaultSteerQueueCapacity = 5
+
+// NewInMemorySteerQueue creates a SteerQueue backed by a buffered channel
+// with the given capacity.
+func NewInMemorySteerQueue(capacity int) SteerQueue {
+	return &inMemorySteerQueue{ch: make(chan SteeredMessage, capacity)}
+}
+
+func (q *inMemorySteerQueue) Enqueue(msg SteeredMessage) bool {
+	select {
+	case q.ch <- msg:
+		return true
+	default:
+		return false
+	}
+}
+
+func (q *inMemorySteerQueue) Drain() []SteeredMessage {
+	var msgs []SteeredMessage
+	for {
+		select {
+		case m := <-q.ch:
+			msgs = append(msgs, m)
+		default:
+			return msgs
+		}
+	}
+}
 
 // ToolHandlerFunc is a function type for handling tool calls
 type ToolHandlerFunc func(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, events chan Event) (*tools.ToolCallResult, error)
@@ -213,11 +261,10 @@ type LocalRuntime struct {
 
 	currentAgentMu sync.RWMutex
 
-	// steerCh receives user messages injected mid-turn via Steer().
-	// The agent loop drains this channel after tool execution, before
-	// checking the stop condition, so the LLM sees the new message on
-	// its next iteration.
-	steerCh chan SteeredMessage
+	// steerQueue stores user messages injected mid-turn. The agent loop
+	// drains this queue after tool execution, before checking the stop
+	// condition, so the LLM sees the new messages on its next iteration.
+	steerQueue SteerQueue
 
 	// onToolsChanged is called when an MCP toolset reports a tool list change.
 	onToolsChanged func(Event)
@@ -243,6 +290,14 @@ func WithManagedOAuth(managed bool) Opt {
 func WithTracer(t trace.Tracer) Opt {
 	return func(r *LocalRuntime) {
 		r.tracer = t
+	}
+}
+
+// WithSteerQueue sets a custom SteerQueue implementation for mid-turn message
+// injection. If not provided, an in-memory buffered queue is used.
+func WithSteerQueue(q SteerQueue) Opt {
+	return func(r *LocalRuntime) {
+		r.steerQueue = q
 	}
 }
 
@@ -309,7 +364,7 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		currentAgent:         defaultAgent.Name(),
 		resumeChan:           make(chan ResumeRequest),
 		elicitationRequestCh: make(chan ElicitationResult),
-		steerCh:              make(chan SteeredMessage, maxSteeredMessages),
+		steerQueue:           NewInMemorySteerQueue(defaultSteerQueueCapacity),
 		sessionCompaction:    true,
 		managedOAuth:         true,
 		sessionStore:         session.NewInMemorySessionStore(),
@@ -1037,29 +1092,16 @@ func (r *LocalRuntime) ResumeElicitation(ctx context.Context, action tools.Elici
 // Steer enqueues a user message for mid-turn injection into the running
 // agent loop. The message will be picked up after the current batch of tool
 // calls finishes but before the loop checks whether to stop. Returns false
-// if the steer buffer is full and the message was not enqueued.
+// if the queue is full and the message was not enqueued.
 func (r *LocalRuntime) Steer(msg SteeredMessage) bool {
-	select {
-	case r.steerCh <- msg:
-		return true
-	default:
-		return false
-	}
+	return r.steerQueue.Enqueue(msg)
 }
 
 // DrainSteeredMessages returns all pending steered messages without blocking.
 // It is called inside the agent loop to batch-inject any messages that arrived
 // while the current iteration was in progress.
 func (r *LocalRuntime) DrainSteeredMessages() []SteeredMessage {
-	var msgs []SteeredMessage
-	for {
-		select {
-		case m := <-r.steerCh:
-			msgs = append(msgs, m)
-		default:
-			return msgs
-		}
-	}
+	return r.steerQueue.Drain()
 }
 
 // Run starts the agent's interaction loop
