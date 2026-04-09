@@ -237,7 +237,7 @@ func (t *oauthTransport) getValidToken(ctx context.Context) *OAuthToken {
 		return nil
 	}
 
-	newToken, err := RefreshAccessToken(ctx, metadata.TokenEndpoint, token.RefreshToken, "", "")
+	newToken, err := RefreshAccessToken(ctx, metadata.TokenEndpoint, token.RefreshToken, token.ClientID, token.ClientSecret)
 	if err != nil {
 		slog.Debug("Token refresh failed, will require interactive auth", "error", err)
 		return nil
@@ -388,6 +388,9 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 	if err != nil {
 		return fmt.Errorf("failed to exchange code for token: %w", err)
 	}
+
+	token.ClientID = clientID
+	token.ClientSecret = clientSecret
 
 	if err := t.tokenStore.StoreToken(t.baseURL, token); err != nil {
 		return fmt.Errorf("failed to store token: %w", err)
