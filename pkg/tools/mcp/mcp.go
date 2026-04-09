@@ -111,7 +111,7 @@ func NewRemoteToolset(name, urlString, transport string, headers map[string]stri
 	desc := buildRemoteDescription(urlString, transport)
 	return &Toolset{
 		name:        name,
-		mcpClient:   newRemoteClient(urlString, transport, headers, NewInMemoryTokenStore()),
+		mcpClient:   newRemoteClient(urlString, transport, headers, NewKeyringTokenStore()),
 		logID:       urlString,
 		description: desc,
 	}
