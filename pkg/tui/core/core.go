@@ -62,11 +62,11 @@ func CmdHandler(msg tea.Msg) tea.Cmd {
 // Notice: This function is EXPERIMENTAL and may be changed or removed in a
 // later release.
 func Resolve[T any](m tea.Model) T {
-	if r, ok := m.(interface{ Resolve(any) any }); ok {
+	if r, ok := m.(interface{ Resolve(key any) any }); ok {
 		if v := r.Resolve(any((*T)(nil))); v != nil {
 			return v.(T)
 		}
 		panic(fmt.Sprintf("tui/core: model cannot provide type %T", *new(T)))
 	}
-	panic("tui/core: model does not implement Resolve(any) any")
+	panic("tui/core: model does not implement Resolve(key any) any")
 }
