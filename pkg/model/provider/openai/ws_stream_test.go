@@ -134,6 +134,70 @@ func TestWSStream_TextDelta(t *testing.T) {
 	assert.ErrorIs(t, err, io.EOF)
 }
 
+func TestWSStream_IgnoresEmptyFrames(t *testing.T) {
+	t.Parallel()
+
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("WebSocket upgrade failed: %v", err)
+			return
+		}
+		defer conn.Close()
+
+		_, _, err = conn.ReadMessage()
+		if err != nil {
+			t.Errorf("Failed to read response.create: %v", err)
+			return
+		}
+
+		assert.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte("   ")))
+		assert.NoError(t, conn.WriteJSON(map[string]any{
+			"type":    "response.output_text.delta",
+			"delta":   "Hi from OVH",
+			"item_id": "item_1",
+		}))
+		assert.NoError(t, conn.WriteJSON(map[string]any{
+			"type": "response.completed",
+			"response": map[string]any{
+				"id":     "resp_ovh",
+				"output": []any{},
+				"usage": map[string]any{
+					"input_tokens":          4,
+					"output_tokens":         3,
+					"total_tokens":          7,
+					"input_tokens_details":  map[string]any{"cached_tokens": 0},
+					"output_tokens_details": map[string]any{"reasoning_tokens": 0},
+				},
+			},
+		}))
+	}))
+	defer srv.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+	stream, err := dialWebSocket(t.Context(), wsURL, http.Header{}, defaultTestParams())
+	require.NoError(t, err)
+	defer stream.Close()
+
+	adapter := newResponseStreamAdapter(stream, true)
+
+	resp, err := adapter.Recv()
+	require.NoError(t, err)
+	require.Len(t, resp.Choices, 1)
+	assert.Equal(t, "Hi from OVH", resp.Choices[0].Delta.Content)
+
+	resp, err = adapter.Recv()
+	require.NoError(t, err)
+	require.Len(t, resp.Choices, 1)
+	assert.Equal(t, chat.FinishReasonStop, resp.Choices[0].FinishReason)
+	assert.NotNil(t, resp.Usage)
+	assert.Equal(t, int64(3), resp.Usage.OutputTokens)
+
+	_, err = adapter.Recv()
+	assert.ErrorIs(t, err, io.EOF)
+}
+
 func TestWSStream_ToolCall(t *testing.T) {
 	t.Parallel()
 

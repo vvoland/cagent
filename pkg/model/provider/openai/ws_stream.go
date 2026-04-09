@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -124,30 +125,39 @@ func (s *wsStream) Next() bool {
 		return false
 	}
 
-	_, data, err := s.conn.ReadMessage()
-	if err != nil {
-		if websocket.IsCloseError(err,
-			websocket.CloseNormalClosure,
-			websocket.CloseGoingAway,
-			websocket.CloseNoStatusReceived,
-		) {
+	for {
+		_, data, err := s.conn.ReadMessage()
+		if err != nil {
+			if websocket.IsCloseError(err,
+				websocket.CloseNormalClosure,
+				websocket.CloseGoingAway,
+				websocket.CloseNoStatusReceived,
+			) {
+				s.done = true
+				return false
+			}
+			s.err = fmt.Errorf("websocket read: %w", err)
 			s.done = true
 			return false
 		}
-		s.err = fmt.Errorf("websocket read: %w", err)
-		s.done = true
-		return false
+
+		if len(bytes.TrimSpace(data)) == 0 {
+			slog.Debug("Ignoring empty WebSocket frame")
+			continue
+		}
+
+		var event responses.ResponseStreamEventUnion
+		if err := json.Unmarshal(data, &event); err != nil {
+			s.err = fmt.Errorf("websocket unmarshal event: %w", err)
+			s.done = true
+			return false
+		}
+
+		s.current = event
+		break
 	}
 
-	var event responses.ResponseStreamEventUnion
-	if err := json.Unmarshal(data, &event); err != nil {
-		s.err = fmt.Errorf("websocket unmarshal event: %w", err)
-		s.done = true
-		return false
-	}
-
-	s.current = event
-
+	event := s.current
 	slog.Debug("WebSocket event received", "type", event.Type)
 
 	// Check for server-side error events.
