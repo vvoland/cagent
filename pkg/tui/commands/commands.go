@@ -33,6 +33,9 @@ type Item struct {
 	SlashCommand string
 	Execute      ExecuteFunc
 	Hidden       bool // Hidden commands work as slash commands but don't appear in the palette
+	// Immediate marks that the command can be executed immediately as it does not
+	// interrupt any ongoing stream.
+	Immediate bool
 }
 
 func builtInSessionCommands() []Item {
@@ -43,6 +46,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/clear",
 			Description:  "Clear the current tab and start a new session",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.ClearSessionMsg{})
 			},
@@ -53,6 +57,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/attach",
 			Description:  "Attach a file to your message (usage: /attach [path])",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(arg string) tea.Cmd {
 				return core.CmdHandler(messages.AttachFileMsg{FilePath: arg})
 			},
@@ -63,6 +68,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/compact",
 			Description:  "Summarize the current conversation (usage: /compact [additional instructions])",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(arg string) tea.Cmd {
 				return core.CmdHandler(messages.CompactSessionMsg{AdditionalPrompt: arg})
 			},
@@ -73,6 +79,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/copy",
 			Description:  "Copy the current conversation to the clipboard",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.CopySessionToClipboardMsg{})
 			},
@@ -83,6 +90,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/copy-last",
 			Description:  "Copy the last assistant message to the clipboard",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.CopyLastResponseToClipboardMsg{})
 			},
@@ -93,6 +101,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/cost",
 			Description:  "Show detailed cost breakdown for this session",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.ShowCostDialogMsg{})
 			},
@@ -103,6 +112,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/eval",
 			Description:  "Create an evaluation report (usage: /eval [filename])",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(arg string) tea.Cmd {
 				return core.CmdHandler(messages.EvalSessionMsg{Filename: arg})
 			},
@@ -113,6 +123,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/exit",
 			Description:  "Exit the application",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.ExitSessionMsg{})
 			},
@@ -123,6 +134,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/quit",
 			Description:  "Quit the application (alias for /exit)",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.ExitSessionMsg{})
 			},
@@ -134,6 +146,7 @@ func builtInSessionCommands() []Item {
 			Hidden:       true,
 			Description:  "Quit the application (alias for /exit)",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.ExitSessionMsg{})
 			},
@@ -144,6 +157,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/export",
 			Description:  "Export the session as HTML (usage: /export [filename])",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(arg string) tea.Cmd {
 				return core.CmdHandler(messages.ExportSessionMsg{Filename: arg})
 			},
@@ -154,6 +168,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/model",
 			Description:  "Change the model for the current agent",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.OpenModelPickerMsg{})
 			},
@@ -164,6 +179,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/new",
 			Description:  "Start a new conversation",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.NewSessionMsg{})
 			},
@@ -174,6 +190,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/permissions",
 			Description:  "Show tool permission rules for this session",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.ShowPermissionsDialogMsg{})
 			},
@@ -184,6 +201,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/sessions",
 			Description:  "Browse and load past sessions",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.OpenSessionBrowserMsg{})
 			},
@@ -194,6 +212,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/shell",
 			Description:  "Start a shell",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.StartShellMsg{})
 			},
@@ -204,6 +223,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/star",
 			Description:  "Toggle star on current session",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.ToggleSessionStarMsg{})
 			},
@@ -215,6 +235,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/tools",
 			Description:  "Show all tools available to the current agent",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.ShowToolsDialogMsg{})
 			},
@@ -225,6 +246,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/title",
 			Description:  "Set or regenerate session title (usage: /title [new title])",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(arg string) tea.Cmd {
 				arg = strings.TrimSpace(arg)
 				if arg == "" {
@@ -241,6 +263,7 @@ func builtInSessionCommands() []Item {
 			SlashCommand: "/yolo",
 			Description:  "Toggle automatic approval of tool calls",
 			Category:     "Session",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.ToggleYoloMsg{})
 			},
@@ -263,6 +286,7 @@ func builtInSettingsCommands() []Item {
 			SlashCommand: "/split-diff",
 			Description:  "Toggle split diff view mode",
 			Category:     "Settings",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.ToggleSplitDiffMsg{})
 			},
@@ -273,6 +297,7 @@ func builtInSettingsCommands() []Item {
 			SlashCommand: "/theme",
 			Description:  "Change the color theme",
 			Category:     "Settings",
+			Immediate:    true,
 			Execute: func(string) tea.Cmd {
 				return core.CmdHandler(messages.OpenThemePickerMsg{})
 			},
@@ -478,10 +503,17 @@ func BuildCommandCategories(ctx context.Context, application *app.App) []Categor
 	return categories
 }
 
-// ParseSlashCommand checks if the input matches a known slash command and returns
-// the tea.Cmd to execute it. Returns nil if not a slash command or not recognized.
-// This function only handles built-in session commands, not agent commands or MCP prompts.
-func ParseSlashCommand(input string) tea.Cmd {
+type Parser struct {
+	categories []Category
+}
+
+func NewParser(categories ...Category) *Parser {
+	return &Parser{
+		categories: categories,
+	}
+}
+
+func (p *Parser) Parse(input string) tea.Cmd {
 	if input == "" || input[0] != '/' {
 		return nil
 	}
@@ -489,16 +521,12 @@ func ParseSlashCommand(input string) tea.Cmd {
 	// Split into command and argument
 	cmd, arg, _ := strings.Cut(input, " ")
 
-	// Search through built-in commands
-	for _, item := range builtInSessionCommands() {
-		if item.SlashCommand == cmd {
-			return item.Execute(arg)
-		}
-	}
-
-	for _, item := range builtInSettingsCommands() {
-		if item.SlashCommand == cmd {
-			return item.Execute(arg)
+	// Search through all categories and commands
+	for _, category := range p.categories {
+		for _, item := range category.Commands {
+			if item.SlashCommand == cmd && item.Immediate {
+				return item.Execute(arg)
+			}
 		}
 	}
 

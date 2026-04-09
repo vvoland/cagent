@@ -9,13 +9,21 @@ import (
 	"github.com/docker/docker-agent/pkg/tui/messages"
 )
 
+func newTestParser() *Parser {
+	return NewParser(
+		Category{Name: "Session", Commands: builtInSessionCommands()},
+		Category{Name: "Settings", Commands: builtInSettingsCommands()},
+	)
+}
+
 func TestParseSlashCommand_Title(t *testing.T) {
 	t.Parallel()
+	parser := newTestParser()
 
 	t.Run("title with argument sets title", func(t *testing.T) {
 		t.Parallel()
 
-		cmd := ParseSlashCommand("/title My Custom Title")
+		cmd := parser.Parse("/title My Custom Title")
 		require.NotNil(t, cmd, "should return a command for /title with argument")
 
 		// Execute the command and check the message type
@@ -28,7 +36,7 @@ func TestParseSlashCommand_Title(t *testing.T) {
 	t.Run("title without argument regenerates", func(t *testing.T) {
 		t.Parallel()
 
-		cmd := ParseSlashCommand("/title")
+		cmd := parser.Parse("/title")
 		require.NotNil(t, cmd, "should return a command for /title without argument")
 
 		// Execute the command and check the message type
@@ -40,7 +48,7 @@ func TestParseSlashCommand_Title(t *testing.T) {
 	t.Run("title with only whitespace regenerates", func(t *testing.T) {
 		t.Parallel()
 
-		cmd := ParseSlashCommand("/title   ")
+		cmd := parser.Parse("/title   ")
 		require.NotNil(t, cmd, "should return a command for /title with whitespace")
 
 		// Execute the command and check the message type
@@ -52,10 +60,11 @@ func TestParseSlashCommand_Title(t *testing.T) {
 
 func TestParseSlashCommand_OtherCommands(t *testing.T) {
 	t.Parallel()
+	parser := newTestParser()
 
 	t.Run("exit command", func(t *testing.T) {
 		t.Parallel()
-		cmd := ParseSlashCommand("/exit")
+		cmd := parser.Parse("/exit")
 		require.NotNil(t, cmd)
 		msg := cmd()
 		_, ok := msg.(messages.ExitSessionMsg)
@@ -64,7 +73,7 @@ func TestParseSlashCommand_OtherCommands(t *testing.T) {
 
 	t.Run("new command", func(t *testing.T) {
 		t.Parallel()
-		cmd := ParseSlashCommand("/new")
+		cmd := parser.Parse("/new")
 		require.NotNil(t, cmd)
 		msg := cmd()
 		_, ok := msg.(messages.NewSessionMsg)
@@ -73,7 +82,7 @@ func TestParseSlashCommand_OtherCommands(t *testing.T) {
 
 	t.Run("clear command", func(t *testing.T) {
 		t.Parallel()
-		cmd := ParseSlashCommand("/clear")
+		cmd := parser.Parse("/clear")
 		require.NotNil(t, cmd)
 		msg := cmd()
 		_, ok := msg.(messages.ClearSessionMsg)
@@ -82,7 +91,7 @@ func TestParseSlashCommand_OtherCommands(t *testing.T) {
 
 	t.Run("star command", func(t *testing.T) {
 		t.Parallel()
-		cmd := ParseSlashCommand("/star")
+		cmd := parser.Parse("/star")
 		require.NotNil(t, cmd)
 		msg := cmd()
 		_, ok := msg.(messages.ToggleSessionStarMsg)
@@ -91,29 +100,30 @@ func TestParseSlashCommand_OtherCommands(t *testing.T) {
 
 	t.Run("unknown command returns nil", func(t *testing.T) {
 		t.Parallel()
-		cmd := ParseSlashCommand("/unknown")
+		cmd := parser.Parse("/unknown")
 		assert.Nil(t, cmd)
 	})
 
 	t.Run("non-slash input returns nil", func(t *testing.T) {
 		t.Parallel()
-		cmd := ParseSlashCommand("hello world")
+		cmd := parser.Parse("hello world")
 		assert.Nil(t, cmd)
 	})
 
 	t.Run("empty input returns nil", func(t *testing.T) {
 		t.Parallel()
-		cmd := ParseSlashCommand("")
+		cmd := parser.Parse("")
 		assert.Nil(t, cmd)
 	})
 }
 
 func TestParseSlashCommand_Compact(t *testing.T) {
 	t.Parallel()
+	parser := newTestParser()
 
 	t.Run("compact without argument", func(t *testing.T) {
 		t.Parallel()
-		cmd := ParseSlashCommand("/compact")
+		cmd := parser.Parse("/compact")
 		require.NotNil(t, cmd)
 		msg := cmd()
 		compactMsg, ok := msg.(messages.CompactSessionMsg)
@@ -123,7 +133,7 @@ func TestParseSlashCommand_Compact(t *testing.T) {
 
 	t.Run("compact with argument", func(t *testing.T) {
 		t.Parallel()
-		cmd := ParseSlashCommand("/compact focus on the API design")
+		cmd := parser.Parse("/compact focus on the API design")
 		require.NotNil(t, cmd)
 		msg := cmd()
 		compactMsg, ok := msg.(messages.CompactSessionMsg)

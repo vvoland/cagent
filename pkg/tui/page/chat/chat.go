@@ -164,6 +164,9 @@ type chatPage struct {
 
 	app *app.App
 
+	// Command parser for handling slash commands in the editor
+	commandParser *commands.Parser
+
 	// Sidebar drag state
 	isDraggingSidebar     bool // True while dragging the sidebar resize handle
 	sidebarDragStartX     int  // X position when drag started
@@ -313,11 +316,12 @@ func getEditorDisplayNameFromEnv(visual, editorEnv string) string {
 // New creates a new chat page
 func New(a *app.App, sessionState *service.SessionState, opts ...PageOption) Page {
 	p := &chatPage{
-		sidebar:      sidebar.New(sessionState),
-		messages:     messages.New(sessionState),
-		app:          a,
-		keyMap:       defaultKeyMap(),
-		sessionState: sessionState,
+		sidebar:       sidebar.New(sessionState),
+		messages:      messages.New(sessionState),
+		app:           a,
+		keyMap:        defaultKeyMap(),
+		commandParser: commands.NewParser(),
+		sessionState:  sessionState,
 	}
 
 	for _, opt := range opts {
@@ -334,6 +338,13 @@ type PageOption func(*chatPage)
 func WithLeanMode() PageOption {
 	return func(p *chatPage) {
 		p.leanMode = true
+	}
+}
+
+// WithCommandParser injects a command parser for handling slash commands in the editor.
+func WithCommandParser(p *commands.Parser) PageOption {
+	return func(cp *chatPage) {
+		cp.commandParser = p
 	}
 }
 
@@ -665,7 +676,7 @@ func (p *chatPage) handleSendMsg(msg msgtypes.SendMsg) (layout.Model, tea.Cmd) {
 	// Predefined slash commands (e.g., /yolo, /exit, /compact) execute immediately
 	// even while the agent is working - they're UI commands that don't interrupt the stream.
 	// Custom agent commands (defined in config) should still be queued.
-	if commands.ParseSlashCommand(msg.Content) != nil {
+	if p.commandParser.Parse(msg.Content) != nil {
 		cmd := p.processMessage(msg)
 		return p, cmd
 	}
@@ -873,7 +884,7 @@ func (p *chatPage) syncQueueToSidebar() {
 func (p *chatPage) processMessage(msg msgtypes.SendMsg) tea.Cmd {
 	// Handle slash commands (e.g., /eval, /compact, /exit) BEFORE cancelling any ongoing stream.
 	// These are UI commands that shouldn't interrupt the running agent.
-	if cmd := commands.ParseSlashCommand(msg.Content); cmd != nil {
+	if cmd := p.commandParser.Parse(msg.Content); cmd != nil {
 		return cmd
 	}
 
