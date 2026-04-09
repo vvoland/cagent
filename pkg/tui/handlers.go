@@ -595,23 +595,25 @@ func (m *appModel) handleElicitationResponse(action tools.ElicitationAction, con
 }
 
 func (m *appModel) startShell() (tea.Model, tea.Cmd) {
+	exitMsg := fmt.Sprintf("Type 'exit' to return to %s", m.appName)
+
 	var cmd *exec.Cmd
 	if goruntime.GOOS == "windows" {
 		if path, err := exec.LookPath("pwsh.exe"); err == nil {
 			cmd = exec.Command(path, "-NoLogo", "-NoExit", "-Command",
-				`Write-Host ""; Write-Host "Type 'exit' to return to docker agent 🐳"`)
+				fmt.Sprintf(`Write-Host ""; Write-Host "%s"`, exitMsg))
 		} else if path, err := exec.LookPath("powershell.exe"); err == nil {
 			cmd = exec.Command(path, "-NoLogo", "-NoExit", "-Command",
-				`Write-Host ""; Write-Host "Type 'exit' to return to docker agent 🐳"`)
+				fmt.Sprintf(`Write-Host ""; Write-Host "%s"`, exitMsg))
 		} else {
 			// Use absolute path to cmd.exe to prevent PATH hijacking (CWE-426).
 			shell := shellpath.WindowsCmdExe()
-			cmd = exec.Command(shell, "/K", `echo. & echo Type 'exit' to return to docker agent`)
+			cmd = exec.Command(shell, "/K", fmt.Sprintf(`echo. & echo %s`, exitMsg))
 		}
 	} else {
 		shell := shellpath.DetectUnixShell()
 		cmd = exec.Command(shell, "-i", "-c",
-			`echo -e "\nType 'exit' to return to docker agent 🐳"; exec `+shell)
+			fmt.Sprintf(`echo -e "\n%s"; exec %s`, exitMsg, shell))
 	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
