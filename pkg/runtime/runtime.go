@@ -80,6 +80,18 @@ func ResumeReject(reason string) ResumeRequest {
 	return ResumeRequest{Type: ResumeTypeReject, Reason: reason}
 }
 
+// SteeredMessage is a user message injected mid-turn while the agent loop is
+// running. It is enqueued via Steer() and drained inside the loop between
+// tool execution and the stop-condition check.
+type SteeredMessage struct {
+	Content      string
+	MultiContent []chat.MessagePart
+}
+
+// maxSteeredMessages is the maximum number of steered messages that can be
+// buffered before Steer() starts rejecting new messages.
+const maxSteeredMessages = 5
+
 // ToolHandlerFunc is a function type for handling tool calls
 type ToolHandlerFunc func(ctx context.Context, sess *session.Session, toolCall tools.ToolCall, events chan Event) (*tools.ToolCallResult, error)
 
@@ -201,6 +213,12 @@ type LocalRuntime struct {
 
 	currentAgentMu sync.RWMutex
 
+	// steerCh receives user messages injected mid-turn via Steer().
+	// The agent loop drains this channel after tool execution, before
+	// checking the stop condition, so the LLM sees the new message on
+	// its next iteration.
+	steerCh chan SteeredMessage
+
 	// onToolsChanged is called when an MCP toolset reports a tool list change.
 	onToolsChanged func(Event)
 
@@ -291,6 +309,7 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		currentAgent:         defaultAgent.Name(),
 		resumeChan:           make(chan ResumeRequest),
 		elicitationRequestCh: make(chan ElicitationResult),
+		steerCh:              make(chan SteeredMessage, maxSteeredMessages),
 		sessionCompaction:    true,
 		managedOAuth:         true,
 		sessionStore:         session.NewInMemorySessionStore(),
@@ -1012,6 +1031,34 @@ func (r *LocalRuntime) ResumeElicitation(ctx context.Context, action tools.Elici
 	default:
 		slog.Debug("Elicitation channel not ready")
 		return errors.New("no elicitation request in progress")
+	}
+}
+
+// Steer enqueues a user message for mid-turn injection into the running
+// agent loop. The message will be picked up after the current batch of tool
+// calls finishes but before the loop checks whether to stop. Returns false
+// if the steer buffer is full and the message was not enqueued.
+func (r *LocalRuntime) Steer(msg SteeredMessage) bool {
+	select {
+	case r.steerCh <- msg:
+		return true
+	default:
+		return false
+	}
+}
+
+// DrainSteeredMessages returns all pending steered messages without blocking.
+// It is called inside the agent loop to batch-inject any messages that arrived
+// while the current iteration was in progress.
+func (r *LocalRuntime) DrainSteeredMessages() []SteeredMessage {
+	var msgs []SteeredMessage
+	for {
+		select {
+		case m := <-r.steerCh:
+			msgs = append(msgs, m)
+		default:
+			return msgs
+		}
 	}
 }
 

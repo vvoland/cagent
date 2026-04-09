@@ -160,6 +160,13 @@ type ResumeElicitationRequest struct {
 	Content map[string]any `json:"content"` // The submitted form data (only present when action is "accept")
 }
 
+// SteerSessionRequest represents a request to inject user messages into a
+// running agent session. The messages are picked up by the agent loop between
+// tool execution and the next LLM call.
+type SteerSessionRequest struct {
+	Messages []Message `json:"messages"`
+}
+
 // UpdateSessionTitleRequest represents a request to update a session's title
 type UpdateSessionTitleRequest struct {
 	Title string `json:"title"`

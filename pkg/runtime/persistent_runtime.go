@@ -25,6 +25,21 @@ type streamingState struct {
 	messageID        int64 // ID of the current streaming message (0 if none)
 }
 
+// GetLocalRuntime extracts the underlying *LocalRuntime from a Runtime
+// implementation. It handles both *LocalRuntime and *PersistentRuntime
+// (which embeds *LocalRuntime). Returns nil if the runtime type is not
+// supported (e.g. RemoteRuntime).
+func GetLocalRuntime(rt Runtime) *LocalRuntime {
+	switch r := rt.(type) {
+	case *LocalRuntime:
+		return r
+	case *PersistentRuntime:
+		return r.LocalRuntime
+	default:
+		return nil
+	}
+}
+
 // New creates a new runtime for an agent and its team.
 // The runtime automatically persists session changes to the configured store.
 // Returns a Runtime interface which wraps LocalRuntime with persistence handling.

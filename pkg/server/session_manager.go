@@ -23,10 +23,11 @@ import (
 )
 
 type activeRuntimes struct {
-	runtime  runtime.Runtime
-	cancel   context.CancelFunc
-	session  *session.Session        // The actual session object used by the runtime
-	titleGen *sessiontitle.Generator // Title generator (includes fallback models)
+	runtime   runtime.Runtime
+	cancel    context.CancelFunc
+	session   *session.Session        // The actual session object used by the runtime
+	titleGen  *sessiontitle.Generator // Title generator (includes fallback models)
+	streaming bool                    // True while RunStream is active; prevents concurrent runs
 }
 
 // SessionManager manages sessions for HTTP and Connect-RPC servers.
@@ -160,6 +161,14 @@ func (sm *SessionManager) RunSession(ctx context.Context, sessionID, agentFilena
 	}
 
 	runtimeSession, exists := sm.runtimeSessions.Load(sessionID)
+
+	// Reject if a stream is already active for this session. The caller
+	// should use POST /sessions/:id/steer to inject follow-up messages
+	// into a running session instead of starting a second concurrent stream.
+	if exists && runtimeSession.streaming {
+		return nil, errors.New("session is already streaming; use /steer to send follow-up messages")
+	}
+
 	streamCtx, cancel := context.WithCancel(ctx)
 	var titleGen *sessiontitle.Generator
 	if !exists {
@@ -182,6 +191,8 @@ func (sm *SessionManager) RunSession(ctx context.Context, sessionID, agentFilena
 		titleGen = runtimeSession.titleGen
 	}
 
+	runtimeSession.streaming = true
+
 	streamChan := make(chan runtime.Event)
 
 	// Check if we need to generate a title
@@ -194,8 +205,17 @@ func (sm *SessionManager) RunSession(ctx context.Context, sessionID, agentFilena
 		}
 
 		stream := runtimeSession.runtime.RunStream(streamCtx, sess)
-		defer cancel()
-		defer close(streamChan)
+		// Single defer to control ordering: clear the streaming flag
+		// BEFORE closing streamChan. When the client sees the channel
+		// close it may immediately call RunSession for the next queued
+		// message; streaming must already be false by then.
+		defer func() {
+			sm.mux.Lock()
+			runtimeSession.streaming = false
+			sm.mux.Unlock()
+			close(streamChan)
+			cancel()
+		}()
 		for event := range stream {
 			if streamCtx.Err() != nil {
 				return
@@ -227,6 +247,33 @@ func (sm *SessionManager) ResumeSession(ctx context.Context, sessionID, confirma
 		Reason:   reason,
 		ToolName: toolName,
 	})
+	return nil
+}
+
+// SteerSession enqueues user messages for mid-turn injection into a running
+// session. The messages are picked up by the agent loop after the current tool
+// calls finish but before the next LLM call. Returns an error if the session
+// is not actively running or if the steer buffer is full.
+func (sm *SessionManager) SteerSession(_ context.Context, sessionID string, messages []api.Message) error {
+	rt, exists := sm.runtimeSessions.Load(sessionID)
+	if !exists {
+		return errors.New("session not found or not running")
+	}
+
+	localRT := runtime.GetLocalRuntime(rt.runtime)
+	if localRT == nil {
+		return errors.New("steering not supported for this runtime type")
+	}
+
+	for _, msg := range messages {
+		if !localRT.Steer(runtime.SteeredMessage{
+			Content:      msg.Content,
+			MultiContent: msg.MultiContent,
+		}) {
+			return errors.New("steer queue full")
+		}
+	}
+
 	return nil
 }
 

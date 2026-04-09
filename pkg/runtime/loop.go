@@ -386,13 +386,42 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			// Record per-toolset model override for the next LLM turn.
 			toolModelOverride = resolveToolCallModelOverride(res.Calls, agentTools)
 
+			// Only compact proactively when the model will continue (has
+			// tool calls to process on the next turn). If the model stopped
+			// and no steered messages override that, compaction is wasteful
+			// because no further LLM call follows.
+			if !res.Stopped {
+				r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
+			}
+
+			// Drain any steered (mid-turn) user messages that arrived while
+			// the current iteration was in progress. Injecting them here —
+			// after tool execution, before the stop check — ensures the LLM
+			// sees the new messages on the next iteration via GetMessages().
+			if steered := r.DrainSteeredMessages(); len(steered) > 0 {
+				for _, sm := range steered {
+					wrapped := fmt.Sprintf(
+						"<system-reminder>\nThe user sent the following message while you were working:\n%s\n\nPlease address this in your next response while continuing with your current tasks.\n</system-reminder>",
+						sm.Content,
+					)
+					userMsg := session.UserMessage(wrapped, sm.MultiContent...)
+					sess.AddMessage(userMsg)
+					events <- UserMessage(sm.Content, sess.ID, sm.MultiContent, len(sess.Messages)-1)
+				}
+
+				// Force the loop to continue — the model must respond to
+				// the injected messages even if it was about to stop.
+				res.Stopped = false
+
+				// Now that the loop will continue, compact if needed.
+				r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
+			}
+
 			if res.Stopped {
 				slog.Debug("Conversation stopped", "agent", a.Name())
 				r.executeStopHooks(ctx, sess, a, res.Content, events)
 				break
 			}
-
-			r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
 		}
 	}()
 
