@@ -1339,12 +1339,16 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 }
 
 func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd {
-	// First check if this tool call exists in an active reasoning block
-	if block, blockIdx := m.getActiveReasoningBlock(agentName); block != nil {
-		if block.HasToolCall(toolCall.ID) {
-			block.UpdateToolCall(toolCall.ID, status, toolCall.Function.Arguments)
-			m.invalidateItem(blockIdx)
-			return nil
+	// First check if this tool call exists in any reasoning block
+	for i := len(m.messages) - 1; i >= 0; i-- {
+		if m.messages[i].Type == types.MessageTypeAssistantReasoningBlock {
+			if block, ok := m.views[i].(*reasoningblock.Model); ok {
+				if block.HasToolCall(toolCall.ID) {
+					block.UpdateToolCall(toolCall.ID, status, toolCall.Function.Arguments)
+					m.invalidateItem(i)
+					return nil
+				}
+			}
 		}
 	}
 

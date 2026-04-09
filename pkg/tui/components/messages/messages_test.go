@@ -1114,6 +1114,50 @@ func TestBindingsIncludesEditKeyWhenUserMessageSelected(t *testing.T) {
 	assert.True(t, foundE, "Bindings should include 'e' key when user message is selected")
 }
 
+func TestAddOrUpdateToolCallFindsToolInNonActiveReasoningBlock(t *testing.T) {
+	t.Parallel()
+
+	sessionState := &service.SessionState{}
+	m := NewScrollableView(80, 24, sessionState).(*model)
+	m.SetSize(80, 24)
+
+	agentName := "root"
+	toolCall := tools.ToolCall{
+		ID:       "call_1",
+		Function: tools.FunctionCall{Name: "go_workspace", Arguments: `{}`},
+	}
+	toolDef := tools.Tool{Name: "go_workspace"}
+
+	// Step 1: Add a reasoning block and a tool call inside it (simulates PartialToolCallEvent)
+	m.AppendReasoning(agentName, "Thinking...")
+	require.Len(t, m.messages, 1)
+	assert.Equal(t, types.MessageTypeAssistantReasoningBlock, m.messages[0].Type)
+
+	m.AddOrUpdateToolCall(agentName, toolCall, toolDef, types.ToolStatusPending)
+	block, ok := m.views[0].(*reasoningblock.Model)
+	require.True(t, ok)
+	require.True(t, block.HasToolCall("call_1"))
+
+	// Step 2: Append an assistant message so the reasoning block is no longer the last message
+	m.AppendToLastMessage(agentName, "Here is the answer.")
+	require.Len(t, m.messages, 2)
+	assert.Equal(t, types.MessageTypeAssistant, m.messages[1].Type)
+
+	// Step 3: Update the tool call to Running (simulates ToolCallEvent)
+	// Before the fix, this would not find the tool in the old reasoning block
+	// and would create a duplicate standalone entry.
+	m.AddOrUpdateToolCall(agentName, toolCall, toolDef, types.ToolStatusRunning)
+
+	// Verify: still only 2 messages (no duplicate tool call created)
+	assert.Len(t, m.messages, 2, "should not create a duplicate tool call message")
+
+	// Verify the tool call in the reasoning block was updated (not duplicated)
+	block, ok = m.views[0].(*reasoningblock.Model)
+	require.True(t, ok)
+	assert.True(t, block.HasToolCall("call_1"))
+	assert.Equal(t, 1, block.ToolCount(), "reasoning block should still have exactly one tool call")
+}
+
 func TestBindingsExcludesEditKeyWhenAssistantMessageSelected(t *testing.T) {
 	t.Parallel()
 
