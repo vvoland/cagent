@@ -2,6 +2,7 @@ package dialog
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ type sessionBrowserKeyMap struct {
 	Star       key.Binding
 	FilterStar key.Binding
 	CopyID     key.Binding
+	Delete     key.Binding
 }
 
 // Session browser dialog dimension constants
@@ -82,6 +84,7 @@ func NewSessionBrowserDialog(sessions []session.Summary) Dialog {
 			Star:       key.NewBinding(key.WithKeys("ctrl+s")),
 			FilterStar: key.NewBinding(key.WithKeys("ctrl+f")),
 			CopyID:     key.NewBinding(key.WithKeys("ctrl+y")),
+			Delete:     key.NewBinding(key.WithKeys("ctrl+d")),
 		},
 		openedAt: time.Now(),
 	}
@@ -192,6 +195,17 @@ func (d *sessionBrowserDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 				sessionID := d.filtered[d.selected].ID
 				_ = clipboard.WriteAll(sessionID)
 				return d, notification.SuccessCmd("Session ID copied to clipboard.")
+			}
+			return d, nil
+
+		case key.Matches(msg, d.keyMap.Delete):
+			if d.selected >= 0 && d.selected < len(d.filtered) {
+				sessionID := d.filtered[d.selected].ID
+				d.sessions = slices.DeleteFunc(d.sessions, func(s session.Summary) bool {
+					return s.ID == sessionID
+				})
+				d.filterSessions()
+				return d, core.CmdHandler(messages.DeleteSessionMsg{SessionID: sessionID})
 			}
 			return d, nil
 
@@ -333,7 +347,8 @@ func (d *sessionBrowserDialog) View() string {
 		AddSeparator().
 		AddContent(idFooter).
 		AddSpace().
-		AddHelpKeys("↑/↓", "navigate", "ctrl+s", "star", "ctrl+f", filterDesc, "ctrl+y", "copy id", "enter", "load", "esc", "close").
+		AddHelpKeys("↑/↓", "navigate", "ctrl+s", "star", "ctrl+f", filterDesc, "ctrl+y", "copy id", "ctrl+d", "delete").
+		AddHelpKeys("enter", "load", "esc", "close").
 		Build()
 
 	return styles.DialogStyle.Width(dialogWidth).Render(content)

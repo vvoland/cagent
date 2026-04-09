@@ -836,6 +836,9 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m.handleToggleSessionStar(sessionID)
 
+	case messages.DeleteSessionMsg:
+		return m.handleDeleteSession(msg.SessionID)
+
 	case messages.SetSessionTitleMsg:
 		return m.handleSetSessionTitle(msg.Title)
 

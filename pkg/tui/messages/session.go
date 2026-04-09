@@ -59,6 +59,9 @@ type (
 	// ToggleSessionStarMsg toggles star on a session; empty ID means current session.
 	ToggleSessionStarMsg struct{ SessionID string }
 
+	// DeleteSessionMsg deletes a session by ID.
+	DeleteSessionMsg struct{ SessionID string }
+
 	// SetSessionTitleMsg sets the session title to specified value.
 	SetSessionTitleMsg struct{ Title string }
 
