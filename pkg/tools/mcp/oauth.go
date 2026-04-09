@@ -180,7 +180,8 @@ func (t *oauthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	reqClone := req.Clone(req.Context())
 
-	if token, err := t.tokenStore.GetToken(t.baseURL); err == nil && !token.IsExpired() {
+	// Attach a valid token if available, silently refreshing if expired.
+	if token := t.getValidToken(req.Context()); token != nil {
 		reqClone.Header.Set("Authorization", "Bearer "+token.AccessToken)
 	}
 
@@ -208,6 +209,46 @@ func (t *oauthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	return resp, nil
+}
+
+// getValidToken returns a non-expired token for the server, silently refreshing
+// an expired token when a refresh token is available. Returns nil if no usable
+// token can be obtained.
+func (t *oauthTransport) getValidToken(ctx context.Context) *OAuthToken {
+	token, err := t.tokenStore.GetToken(t.baseURL)
+	if err != nil {
+		return nil
+	}
+
+	if !token.IsExpired() {
+		return token
+	}
+
+	if token.RefreshToken == "" {
+		return nil
+	}
+
+	slog.Debug("Attempting silent token refresh", "url", t.baseURL)
+
+	o := &oauth{metadataClient: &http.Client{Timeout: 5 * time.Second}}
+	metadata, err := o.getAuthorizationServerMetadata(ctx, t.baseURL)
+	if err != nil {
+		slog.Debug("Failed to fetch auth server metadata for refresh", "error", err)
+		return nil
+	}
+
+	newToken, err := RefreshAccessToken(ctx, metadata.TokenEndpoint, token.RefreshToken, "", "")
+	if err != nil {
+		slog.Debug("Token refresh failed, will require interactive auth", "error", err)
+		return nil
+	}
+
+	if err := t.tokenStore.StoreToken(t.baseURL, newToken); err != nil {
+		slog.Warn("Failed to store refreshed token", "error", err)
+	}
+
+	slog.Debug("Token refreshed successfully", "url", t.baseURL)
+	return newToken
 }
 
 // handleOAuthFlow performs the OAuth flow when a 401 response is received
