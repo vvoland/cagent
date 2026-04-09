@@ -152,22 +152,22 @@ func TestWSStream_IgnoresEmptyFrames(t *testing.T) {
 			return
 		}
 
-		require.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte("   ")))
-		require.NoError(t, conn.WriteJSON(map[string]any{
+		assert.NoError(t, conn.WriteMessage(websocket.TextMessage, []byte("   ")))
+		assert.NoError(t, conn.WriteJSON(map[string]any{
 			"type":    "response.output_text.delta",
 			"delta":   "Hi from OVH",
 			"item_id": "item_1",
 		}))
-		require.NoError(t, conn.WriteJSON(map[string]any{
+		assert.NoError(t, conn.WriteJSON(map[string]any{
 			"type": "response.completed",
 			"response": map[string]any{
 				"id":     "resp_ovh",
 				"output": []any{},
 				"usage": map[string]any{
-					"input_tokens":  4,
-					"output_tokens": 3,
-					"total_tokens":  7,
-					"input_tokens_details": map[string]any{"cached_tokens": 0},
+					"input_tokens":          4,
+					"output_tokens":         3,
+					"total_tokens":          7,
+					"input_tokens_details":  map[string]any{"cached_tokens": 0},
 					"output_tokens_details": map[string]any{"reasoning_tokens": 0},
 				},
 			},
