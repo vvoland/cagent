@@ -595,25 +595,25 @@ func (m *appModel) handleElicitationResponse(action tools.ElicitationAction, con
 }
 
 func (m *appModel) startShell() (tea.Model, tea.Cmd) {
-	exitMsg := fmt.Sprintf("Type 'exit' to return to %s", m.appName)
+	exitMsg := "Type 'exit' to return to " + m.appName
 
 	var cmd *exec.Cmd
 	if goruntime.GOOS == "windows" {
 		if path, err := exec.LookPath("pwsh.exe"); err == nil {
 			cmd = exec.Command(path, "-NoLogo", "-NoExit", "-Command",
-				fmt.Sprintf(`Write-Host ""; Write-Host "%s"`, exitMsg))
+				`Write-Host ""; Write-Host "`+exitMsg+`"`)
 		} else if path, err := exec.LookPath("powershell.exe"); err == nil {
 			cmd = exec.Command(path, "-NoLogo", "-NoExit", "-Command",
-				fmt.Sprintf(`Write-Host ""; Write-Host "%s"`, exitMsg))
+				`Write-Host ""; Write-Host "`+exitMsg+`"`)
 		} else {
 			// Use absolute path to cmd.exe to prevent PATH hijacking (CWE-426).
 			shell := shellpath.WindowsCmdExe()
-			cmd = exec.Command(shell, "/K", fmt.Sprintf(`echo. & echo %s`, exitMsg))
+			cmd = exec.Command(shell, "/K", "echo. & echo "+exitMsg)
 		}
 	} else {
 		shell := shellpath.DetectUnixShell()
 		cmd = exec.Command(shell, "-i", "-c",
-			fmt.Sprintf(`echo -e "\n%s"; exec %s`, exitMsg, shell))
+			`echo -e "\n`+exitMsg+`"; exec `+shell)
 	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
