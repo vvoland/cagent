@@ -35,7 +35,7 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 		agentToolMap[t.Name] = t
 	}
 
-	for _, toolCall := range calls {
+	for i, toolCall := range calls {
 		callCtx, callSpan := r.startSpan(ctx, "runtime.tool.call", trace.WithAttributes(
 			attribute.String("tool.name", toolCall.Function.Name),
 			attribute.String("tool.type", string(toolCall.Type)),
@@ -74,6 +74,14 @@ func (r *LocalRuntime) processToolCalls(ctx context.Context, sess *session.Sessi
 		if canceled {
 			callSpan.SetStatus(codes.Ok, "tool call canceled by user")
 			callSpan.End()
+
+			// Add error results for remaining unprocessed tool calls so the
+			// conversation history doesn't contain orphaned function calls
+			// without matching outputs (which the Responses API rejects).
+			for _, remaining := range calls[i+1:] {
+				remainingTool := agentToolMap[remaining.Function.Name]
+				r.addToolErrorResponse(ctx, sess, remaining, remainingTool, events, a, "The tool call was canceled because a previous tool call in the same batch was canceled by the user.")
+			}
 			return
 		}
 

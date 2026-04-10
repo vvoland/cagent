@@ -663,6 +663,30 @@ func convertMessagesToResponseInput(messages []chat.Message) []responses.Respons
 			}
 		}
 	}
+	// Safety net: ensure every function_call has a matching function_call_output.
+	// The Responses API rejects requests with orphaned function calls.
+	// This can happen if tool execution was interrupted (e.g. user cancellation).
+	pendingCalls := make(map[string]bool)
+	for _, item := range input {
+		if item.OfFunctionCall != nil {
+			pendingCalls[item.OfFunctionCall.CallID] = true
+		}
+		if item.OfFunctionCallOutput != nil {
+			delete(pendingCalls, item.OfFunctionCallOutput.CallID)
+		}
+	}
+	for callID := range pendingCalls {
+		slog.Warn("Injecting placeholder output for orphaned function call", "call_id", callID)
+		input = append(input, responses.ResponseInputItemUnionParam{
+			OfFunctionCallOutput: &responses.ResponseInputItemFunctionCallOutputParam{
+				CallID: callID,
+				Output: responses.ResponseInputItemFunctionCallOutputOutputUnionParam{
+					OfString: param.NewOpt("(no output — tool call was not executed)"),
+				},
+			},
+		})
+	}
+
 	return input
 }
 

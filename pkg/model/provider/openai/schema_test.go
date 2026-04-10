@@ -372,6 +372,58 @@ func TestMakeAllRequired_TypeArrayWithObject(t *testing.T) {
 	assert.Equal(t, []string{"number", "null"}, age["type"])
 }
 
+func TestEnsureTypeFields_AdditionalPropertiesMissingType(t *testing.T) {
+	// Reproduces the Notion MCP notion-search tool schema where
+	// filters.additionalProperties is an object schema without a "type" key.
+	// OpenAI Responses API rejects schemas missing "type".
+	schema := shared.FunctionParameters{
+		"type": "object",
+		"properties": map[string]any{
+			"filters": map[string]any{
+				"type": "object",
+				"additionalProperties": map[string]any{
+					// No "type" key here — this is the bug
+					"properties": map[string]any{
+						"property": map[string]any{"type": "string"},
+					},
+				},
+			},
+		},
+		"required": []any{"filters"},
+	}
+
+	updated := ensureTypeFields(schema)
+
+	filters := updated["properties"].(map[string]any)["filters"].(map[string]any)
+	additionalProps := filters["additionalProperties"].(map[string]any)
+	assert.Equal(t, "object", additionalProps["type"], "additionalProperties should have type added")
+}
+
+func TestConvertParametersToSchema_AdditionalPropertiesMissingType(t *testing.T) {
+	// End-to-end test: the full pipeline should produce a valid schema
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"filters": map[string]any{
+				"type": "object",
+				"additionalProperties": map[string]any{
+					"properties": map[string]any{
+						"property": map[string]any{"type": "string"},
+					},
+				},
+			},
+		},
+		"required": []any{"filters"},
+	}
+
+	result, err := ConvertParametersToSchema(schema)
+	require.NoError(t, err)
+
+	filters := result["properties"].(map[string]any)["filters"].(map[string]any)
+	additionalProps := filters["additionalProperties"].(map[string]any)
+	assert.Equal(t, "object", additionalProps["type"])
+}
+
 func TestFixSchemaArrayItems(t *testing.T) {
 	schema := `{
   "properties": {
