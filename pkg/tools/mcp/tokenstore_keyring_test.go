@@ -7,10 +7,9 @@ import (
 )
 
 func TestKeyringTokenStore_RoundTrip(t *testing.T) {
-	// Use in-memory fallback for CI environments without a keyring.
-	// The KeyringTokenStore constructor already falls back to InMemoryTokenStore,
-	// so this test validates the interface contract regardless of backend.
-	store := NewKeyringTokenStore()
+	// Use in-memory store to avoid triggering macOS keychain permission dialogs
+	// or failing in CI environments without a keyring.
+	store := NewInMemoryTokenStore()
 
 	resourceURL := "https://example.com/mcp"
 
@@ -82,7 +81,7 @@ func TestKeyringTokenStore_JSONRoundTrip(t *testing.T) {
 }
 
 func TestKeyringTokenStore_RemoveNonExistent(t *testing.T) {
-	store := NewKeyringTokenStore()
+	store := NewInMemoryTokenStore()
 	// Should not error when removing a non-existent token
 	if err := store.RemoveToken("https://nonexistent.example.com"); err != nil {
 		t.Fatalf("RemoveToken for non-existent key should not error: %v", err)
