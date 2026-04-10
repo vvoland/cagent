@@ -914,6 +914,8 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		messages = truncateOldToolContent(messages, maxOldToolCallTokens)
 	}
 
+	messages = sanitizeToolCalls(messages)
+
 	systemCount := 0
 	conversationCount := 0
 	for i := range messages {
@@ -1007,6 +1009,59 @@ func trimMessages(messages []chat.Message, maxItems int) []chat.Message {
 	}
 
 	return result
+}
+
+// sanitizeToolCalls ensures every tool call in assistant messages has a
+// corresponding tool-result message. It walks the message list tracking
+// pending tool calls; when a tool-result message arrives its ID is marked
+// fulfilled. When the next assistant or user message is encountered (or the
+// end of the list is reached), any still-pending tool calls receive synthetic
+// error results injected just before that boundary. This guarantees the
+// provider always sees a valid request/response pair for every tool call.
+func sanitizeToolCalls(messages []chat.Message) []chat.Message {
+	var (
+		out              []chat.Message
+		pendingToolCalls []tools.ToolCall
+		resultIDs        = make(map[string]bool)
+	)
+
+	flushPending := func() {
+		for _, tc := range pendingToolCalls {
+			if tc.ID != "" && !resultIDs[tc.ID] {
+				out = append(out, chat.Message{
+					Role:       chat.MessageRoleTool,
+					ToolCallID: tc.ID,
+					Content:    "No result provided",
+					IsError:    true,
+				})
+			}
+		}
+		pendingToolCalls = nil
+		resultIDs = make(map[string]bool)
+	}
+
+	for _, msg := range messages {
+		switch {
+		case msg.Role == chat.MessageRoleTool:
+			if msg.ToolCallID != "" {
+				resultIDs[msg.ToolCallID] = true
+			}
+
+		case msg.Role == chat.MessageRoleAssistant && len(msg.ToolCalls) > 0:
+			flushPending()
+			out = append(out, msg)
+			pendingToolCalls = msg.ToolCalls
+			continue
+
+		case msg.Role == chat.MessageRoleUser || msg.Role == chat.MessageRoleAssistant:
+			flushPending()
+		}
+
+		out = append(out, msg)
+	}
+
+	flushPending()
+	return out
 }
 
 // truncateOldToolContent replaces tool results with placeholders for older
