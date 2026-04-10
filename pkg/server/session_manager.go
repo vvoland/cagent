@@ -27,6 +27,8 @@ type activeRuntimes struct {
 	cancel   context.CancelFunc
 	session  *session.Session        // The actual session object used by the runtime
 	titleGen *sessiontitle.Generator // Title generator (includes fallback models)
+
+	streaming sync.Mutex // Held while a RunStream is in progress; serialises concurrent requests
 }
 
 // SessionManager manages sessions for HTTP and Connect-RPC servers.
@@ -134,6 +136,9 @@ func (sm *SessionManager) DeleteSession(ctx context.Context, sessionID string) e
 	return nil
 }
 
+// ErrSessionBusy is returned when a session is already processing a request.
+var ErrSessionBusy = errors.New("session is already processing a request")
+
 // RunSession runs a session with the given messages.
 func (sm *SessionManager) RunSession(ctx context.Context, sessionID, agentFilename, currentAgent string, messages []api.Message) (<-chan runtime.Event, error) {
 	sm.mux.Lock()
@@ -145,19 +150,6 @@ func (sm *SessionManager) RunSession(ctx context.Context, sessionID, agentFilena
 
 	rc := sm.runConfig.Clone()
 	rc.WorkingDir = sess.WorkingDir
-
-	// Collect user messages for potential title generation
-	var userMessages []string
-	for _, msg := range messages {
-		sess.AddMessage(session.UserMessage(msg.Content, msg.MultiContent...))
-		if msg.Content != "" {
-			userMessages = append(userMessages, msg.Content)
-		}
-	}
-
-	if err := sm.sessionStore.UpdateSession(ctx, sess); err != nil {
-		return nil, err
-	}
 
 	runtimeSession, exists := sm.runtimeSessions.Load(sessionID)
 	streamCtx, cancel := context.WithCancel(ctx)
@@ -177,10 +169,36 @@ func (sm *SessionManager) RunSession(ctx context.Context, sessionID, agentFilena
 		}
 		sm.runtimeSessions.Store(sessionID, runtimeSession)
 	} else {
-		// Update the session pointer in case it was reloaded
-		runtimeSession.session = sess
 		titleGen = runtimeSession.titleGen
 	}
+
+	// Reject the request immediately if the session is already streaming.
+	// This prevents interleaving user messages while a tool call is in
+	// progress, which would produce a tool_use without a matching
+	// tool_result and cause provider errors.
+	if !runtimeSession.streaming.TryLock() {
+		cancel()
+		return nil, ErrSessionBusy
+	}
+
+	// Now that we hold the streaming lock, it is safe to mutate the session.
+	// Collect user messages for potential title generation
+	var userMessages []string
+	for _, msg := range messages {
+		sess.AddMessage(session.UserMessage(msg.Content, msg.MultiContent...))
+		if msg.Content != "" {
+			userMessages = append(userMessages, msg.Content)
+		}
+	}
+
+	if err := sm.sessionStore.UpdateSession(ctx, sess); err != nil {
+		runtimeSession.streaming.Unlock()
+		cancel()
+		return nil, err
+	}
+
+	// Update the session pointer so the runtime sees the latest messages.
+	runtimeSession.session = sess
 
 	streamChan := make(chan runtime.Event)
 
@@ -188,6 +206,8 @@ func (sm *SessionManager) RunSession(ctx context.Context, sessionID, agentFilena
 	needsTitle := sess.Title == "" && len(userMessages) > 0 && titleGen != nil
 
 	go func() {
+		defer runtimeSession.streaming.Unlock()
+
 		// Start title generation in parallel if needed
 		if needsTitle {
 			go sm.generateTitle(ctx, sess, titleGen, userMessages, streamChan)
