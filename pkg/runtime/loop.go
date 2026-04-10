@@ -409,12 +409,10 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 					events <- UserMessage(sm.Content, sess.ID, sm.MultiContent, len(sess.Messages)-1)
 				}
 
-				// Force the loop to continue — the model must respond to
-				// the injected messages even if it was about to stop.
-				res.Stopped = false
-
-				// Now that the loop will continue, compact if needed.
+				// The model must respond to the injected messages — compact
+				// if needed and re-enter the loop for the next LLM call.
 				r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
+				continue
 			}
 
 			if res.Stopped {
