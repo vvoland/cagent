@@ -965,8 +965,8 @@ func (p *chatPage) SetSidebarSettings(settings SidebarSettings) {
 }
 
 // handleSidebarClickType checks what was clicked in the sidebar area.
-// Returns the type of click (star, title, working dir, or none).
-func (p *chatPage) handleSidebarClickType(x, y int) sidebar.ClickResult {
+// Returns the click type and, for ClickAgent, the agent name.
+func (p *chatPage) handleSidebarClickType(x, y int) (sidebar.ClickResult, string) {
 	adjustedX := x - styles.AppPadding
 	sl := p.computeSidebarLayout()
 
@@ -979,7 +979,7 @@ func (p *chatPage) handleSidebarClickType(x, y int) sidebar.ClickResult {
 		}
 	}
 
-	return sidebar.ClickNone
+	return sidebar.ClickNone, ""
 }
 
 // routeMouseEvent routes mouse events to the appropriate component based on coordinates.

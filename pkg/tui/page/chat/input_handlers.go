@@ -148,6 +148,14 @@ func (p *chatPage) handleMouseClick(msg tea.MouseClickMsg) (layout.Model, tea.Cm
 			return p, copyWorkingDirToClipboard(p.sidebar.WorkingDirectory())
 		}
 
+	case TargetSidebarAgent:
+		if msg.Button == tea.MouseLeft {
+			if hit.AgentName != "" {
+				return p, core.CmdHandler(msgtypes.SwitchAgentMsg{AgentName: hit.AgentName})
+			}
+			return p, nil
+		}
+
 	case TargetMessages:
 		if !p.messages.IsMouseOnScrollbar(msg.X, msg.Y) {
 			cmd := p.routeMouseEvent(msg, msg.Y)
