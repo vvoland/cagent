@@ -60,6 +60,8 @@ func (m *mockRuntime) ExecuteMCPPrompt(context.Context, string, map[string]strin
 func (m *mockRuntime) UpdateSessionTitle(context.Context, *session.Session, string) error    { return nil }
 func (m *mockRuntime) TitleGenerator() *sessiontitle.Generator                               { return nil }
 func (m *mockRuntime) Close() error                                                          { return nil }
+func (m *mockRuntime) Steer(runtime.QueuedMessage) error                                     { return nil }
+func (m *mockRuntime) FollowUp(runtime.QueuedMessage) error                                  { return nil }
 func (m *mockRuntime) RegenerateTitle(context.Context, *session.Session, chan runtime.Event) {}
 
 func (m *mockRuntime) Resume(_ context.Context, req runtime.ResumeRequest) {
