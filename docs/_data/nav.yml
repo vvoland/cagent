@@ -69,6 +69,8 @@
       url: /tools/background-agents/
     - title: Handoff
       url: /tools/handoff/
+    - title: OpenAPI
+      url: /tools/openapi/
     - title: A2A
       url: /tools/a2a/
 
