@@ -79,6 +79,9 @@ func ExchangeCodeForToken(ctx context.Context, tokenEndpoint, code, codeVerifier
 		token.ExpiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
 	}
 
+	token.ClientID = clientID
+	token.ClientSecret = clientSecret
+
 	return &token, nil
 }
 
@@ -201,6 +204,10 @@ func RefreshAccessToken(ctx context.Context, tokenEndpoint, refreshToken, client
 	if token.RefreshToken == "" {
 		token.RefreshToken = refreshToken
 	}
+
+	// Preserve client credentials so subsequent refreshes work
+	token.ClientID = clientID
+	token.ClientSecret = clientSecret
 
 	return &token, nil
 }
