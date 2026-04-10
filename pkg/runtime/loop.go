@@ -427,9 +427,14 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				// a new turn — the model sees them as fresh input, not a
 				// mid-stream interruption. Each follow-up gets a full
 				// undivided agent turn.
+				//
+				// Dequeue locks the message; Confirm is called after
+				// AddMessage succeeds so persistent queue implementations
+				// can safely re-queue on failure.
 				if followUp, ok := r.DequeueFollowUp(ctx); ok {
 					userMsg := session.UserMessage(followUp.Content, followUp.MultiContent...)
 					sess.AddMessage(userMsg)
+					_ = r.followUpQueue.Confirm(ctx)
 					events <- UserMessage(followUp.Content, sess.ID, followUp.MultiContent, len(sess.Messages)-1)
 					r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
 					continue // re-enter the loop for a new turn
