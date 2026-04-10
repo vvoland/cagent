@@ -532,6 +532,27 @@ func (a *App) SubscribeWith(ctx context.Context, send func(tea.Msg)) {
 	}
 }
 
+// Steerer is implemented by runtimes that support mid-turn message injection.
+type Steerer interface {
+	Steer(msg runtime.SteeredMessage) bool
+}
+
+// Steer enqueues a user message for mid-turn injection into the running
+// agent loop. Works with both local runtimes (via the SteerQueue) and
+// remote runtimes (via POST /sessions/:id/steer). Returns false if
+// steering is not supported by the runtime or the queue is full.
+func (a *App) Steer(msg runtime.SteeredMessage) bool {
+	// Try unwrapping PersistentRuntime → LocalRuntime first
+	if lr := runtime.GetLocalRuntime(a.runtime); lr != nil {
+		return lr.Steer(msg)
+	}
+	// Try the Steerer interface (e.g. RemoteRuntime)
+	if s, ok := a.runtime.(Steerer); ok {
+		return s.Steer(msg)
+	}
+	return false
+}
+
 // Resume resumes the runtime with the given confirmation request
 func (a *App) Resume(req runtime.ResumeRequest) {
 	a.runtime.Resume(context.Background(), req)

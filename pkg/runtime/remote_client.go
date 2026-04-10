@@ -30,6 +30,9 @@ type RemoteClient interface {
 	// RunAgentWithAgentName executes an agent with a specific agent name
 	RunAgentWithAgentName(ctx context.Context, sessionID, agent, agentName string, messages []api.Message) (<-chan Event, error)
 
+	// SteerSession injects user messages into a running session mid-turn
+	SteerSession(ctx context.Context, sessionID string, messages []api.Message) error
+
 	// UpdateSessionTitle updates the title of a session
 	UpdateSessionTitle(ctx context.Context, sessionID, title string) error
 

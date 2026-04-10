@@ -266,6 +266,12 @@ func (c *Client) ResumeSession(ctx context.Context, id, confirmation, reason, to
 	return c.doRequest(ctx, http.MethodPost, "/api/sessions/"+id+"/resume", req, nil)
 }
 
+// SteerSession injects user messages into a running session mid-turn.
+func (c *Client) SteerSession(ctx context.Context, sessionID string, messages []api.Message) error {
+	req := api.SteerSessionRequest{Messages: messages}
+	return c.doRequest(ctx, http.MethodPost, "/api/sessions/"+sessionID+"/steer", req, nil)
+}
+
 // DeleteSession deletes a session by ID
 func (c *Client) DeleteSession(ctx context.Context, id string) error {
 	return c.doRequest(ctx, "DELETE", "/api/sessions/"+id, nil, nil)

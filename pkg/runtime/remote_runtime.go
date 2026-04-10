@@ -211,6 +211,19 @@ func (r *RemoteRuntime) Run(ctx context.Context, sess *session.Session) ([]sessi
 	return sess.GetAllMessages(), nil
 }
 
+// Steer enqueues a user message for mid-turn injection into the running
+// agent loop on the remote server. Returns false if the session is not
+// active or the steer queue is full.
+func (r *RemoteRuntime) Steer(msg SteeredMessage) bool {
+	if r.sessionID == "" {
+		return false
+	}
+	err := r.client.SteerSession(context.Background(), r.sessionID, []api.Message{
+		{Content: msg.Content, MultiContent: msg.MultiContent},
+	})
+	return err == nil
+}
+
 // Resume allows resuming execution after user confirmation
 func (r *RemoteRuntime) Resume(ctx context.Context, req ResumeRequest) {
 	slog.Debug("Resuming remote runtime", "agent", r.currentAgent, "type", req.Type, "reason", req.Reason, "tool_name", req.ToolName, "session_id", r.sessionID)
