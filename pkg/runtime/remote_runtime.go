@@ -214,11 +214,23 @@ func (r *RemoteRuntime) Run(ctx context.Context, sess *session.Session) ([]sessi
 // Steer enqueues a user message for mid-turn injection into the running
 // agent loop on the remote server. Returns false if the session is not
 // active or the steer queue is full.
-func (r *RemoteRuntime) Steer(msg SteeredMessage) bool {
+func (r *RemoteRuntime) Steer(msg QueuedMessage) bool {
 	if r.sessionID == "" {
 		return false
 	}
 	err := r.client.SteerSession(context.Background(), r.sessionID, []api.Message{
+		{Content: msg.Content, MultiContent: msg.MultiContent},
+	})
+	return err == nil
+}
+
+// FollowUp enqueues a message for end-of-turn processing on the remote
+// server. Returns false if the session is not active or the queue is full.
+func (r *RemoteRuntime) FollowUp(msg QueuedMessage) bool {
+	if r.sessionID == "" {
+		return false
+	}
+	err := r.client.FollowUpSession(context.Background(), r.sessionID, []api.Message{
 		{Content: msg.Content, MultiContent: msg.MultiContent},
 	})
 	return err == nil

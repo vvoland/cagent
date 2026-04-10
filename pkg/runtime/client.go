@@ -272,6 +272,12 @@ func (c *Client) SteerSession(ctx context.Context, sessionID string, messages []
 	return c.doRequest(ctx, http.MethodPost, "/api/sessions/"+sessionID+"/steer", req, nil)
 }
 
+// FollowUpSession queues messages for end-of-turn processing.
+func (c *Client) FollowUpSession(ctx context.Context, sessionID string, messages []api.Message) error {
+	req := api.SteerSessionRequest{Messages: messages}
+	return c.doRequest(ctx, http.MethodPost, "/api/sessions/"+sessionID+"/followup", req, nil)
+}
+
 // DeleteSession deletes a session by ID
 func (c *Client) DeleteSession(ctx context.Context, id string) error {
 	return c.doRequest(ctx, "DELETE", "/api/sessions/"+id, nil, nil)

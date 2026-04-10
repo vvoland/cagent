@@ -80,46 +80,57 @@ func ResumeReject(reason string) ResumeRequest {
 	return ResumeRequest{Type: ResumeTypeReject, Reason: reason}
 }
 
-// SteeredMessage is a user message injected mid-turn while the agent loop is
-// running. It is enqueued via a SteerQueue and drained inside the loop between
-// tool execution and the stop-condition check.
-type SteeredMessage struct {
+// QueuedMessage is a user message waiting to be injected into the agent loop,
+// either mid-turn (via the steer queue) or at end-of-turn (via the follow-up
+// queue).
+type QueuedMessage struct {
 	Content      string
 	MultiContent []chat.MessagePart
 }
 
-// SteerQueue is the interface for storing steered messages that are injected
-// into a running agent loop mid-turn. Implementations must be safe for
-// concurrent use: Enqueue is called from API handlers while Drain is called
-// from the agent loop goroutine.
+// MessageQueue is the interface for storing messages that are injected into
+// the agent loop. Implementations must be safe for concurrent use: Enqueue
+// is called from API handlers while Dequeue/Drain are called from the agent
+// loop goroutine.
 //
-// The default implementation is InMemorySteerQueue. Callers that need
+// The default implementation is NewInMemoryMessageQueue. Callers that need
 // durable or distributed storage can provide their own implementation
-// via the WithSteerQueue option.
-type SteerQueue interface {
+// via the WithSteerQueue or WithFollowUpQueue options.
+type MessageQueue interface {
 	// Enqueue adds a message to the queue. Returns false if the queue is
-	// full and the message was not accepted.
-	Enqueue(msg SteeredMessage) bool
+	// full or the context is cancelled.
+	Enqueue(ctx context.Context, msg QueuedMessage) bool
+	// Dequeue removes and returns the next message from the queue.
+	// Returns the message and true, or a zero value and false if the
+	// queue is empty. Must not block.
+	Dequeue(ctx context.Context) (QueuedMessage, bool)
 	// Drain returns all pending messages and removes them from the queue.
-	// It must not block — if the queue is empty it returns nil.
-	Drain() []SteeredMessage
+	// Must not block — if the queue is empty it returns nil.
+	Drain(ctx context.Context) []QueuedMessage
+	// Len returns the current number of messages in the queue.
+	Len(ctx context.Context) int
 }
 
-// inMemorySteerQueue is the default SteerQueue backed by a buffered channel.
-type inMemorySteerQueue struct {
-	ch chan SteeredMessage
+// inMemoryMessageQueue is the default MessageQueue backed by a buffered channel.
+type inMemoryMessageQueue struct {
+	ch chan QueuedMessage
 }
 
-// defaultSteerQueueCapacity is the buffer size for the default in-memory queue.
-const defaultSteerQueueCapacity = 5
+const (
+	// defaultSteerQueueCapacity is the buffer size for the default in-memory steer queue.
+	defaultSteerQueueCapacity = 5
+	// defaultFollowUpQueueCapacity is the buffer size for the default in-memory follow-up queue.
+	// Higher than steer because follow-ups accumulate while waiting for the turn to end.
+	defaultFollowUpQueueCapacity = 20
+)
 
-// NewInMemorySteerQueue creates a SteerQueue backed by a buffered channel
+// NewInMemoryMessageQueue creates a MessageQueue backed by a buffered channel
 // with the given capacity.
-func NewInMemorySteerQueue(capacity int) SteerQueue {
-	return &inMemorySteerQueue{ch: make(chan SteeredMessage, capacity)}
+func NewInMemoryMessageQueue(capacity int) MessageQueue {
+	return &inMemoryMessageQueue{ch: make(chan QueuedMessage, capacity)}
 }
 
-func (q *inMemorySteerQueue) Enqueue(msg SteeredMessage) bool {
+func (q *inMemoryMessageQueue) Enqueue(_ context.Context, msg QueuedMessage) bool {
 	select {
 	case q.ch <- msg:
 		return true
@@ -128,8 +139,17 @@ func (q *inMemorySteerQueue) Enqueue(msg SteeredMessage) bool {
 	}
 }
 
-func (q *inMemorySteerQueue) Drain() []SteeredMessage {
-	var msgs []SteeredMessage
+func (q *inMemoryMessageQueue) Dequeue(_ context.Context) (QueuedMessage, bool) {
+	select {
+	case m := <-q.ch:
+		return m, true
+	default:
+		return QueuedMessage{}, false
+	}
+}
+
+func (q *inMemoryMessageQueue) Drain(_ context.Context) []QueuedMessage {
+	var msgs []QueuedMessage
 	for {
 		select {
 		case m := <-q.ch:
@@ -138,6 +158,10 @@ func (q *inMemorySteerQueue) Drain() []SteeredMessage {
 			return msgs
 		}
 	}
+}
+
+func (q *inMemoryMessageQueue) Len(_ context.Context) int {
+	return len(q.ch)
 }
 
 // ToolHandlerFunc is a function type for handling tool calls
@@ -261,10 +285,13 @@ type LocalRuntime struct {
 
 	currentAgentMu sync.RWMutex
 
-	// steerQueue stores user messages injected mid-turn. The agent loop
-	// drains this queue after tool execution, before checking the stop
-	// condition, so the LLM sees the new messages on its next iteration.
-	steerQueue SteerQueue
+	// steerQueue stores urgent mid-turn messages. The agent loop drains
+	// ALL pending messages after tool execution, before the stop check.
+	steerQueue MessageQueue
+
+	// followUpQueue stores end-of-turn messages. The agent loop pops
+	// exactly ONE message after the model stops and stop-hooks have run.
+	followUpQueue MessageQueue
 
 	// onToolsChanged is called when an MCP toolset reports a tool list change.
 	onToolsChanged func(Event)
@@ -293,11 +320,19 @@ func WithTracer(t trace.Tracer) Opt {
 	}
 }
 
-// WithSteerQueue sets a custom SteerQueue implementation for mid-turn message
-// injection. If not provided, an in-memory buffered queue is used.
-func WithSteerQueue(q SteerQueue) Opt {
+// WithSteerQueue sets a custom MessageQueue for mid-turn message injection.
+// If not provided, an in-memory buffered queue is used.
+func WithSteerQueue(q MessageQueue) Opt {
 	return func(r *LocalRuntime) {
 		r.steerQueue = q
+	}
+}
+
+// WithFollowUpQueue sets a custom MessageQueue for end-of-turn follow-up
+// messages. If not provided, an in-memory buffered queue is used.
+func WithFollowUpQueue(q MessageQueue) Opt {
+	return func(r *LocalRuntime) {
+		r.followUpQueue = q
 	}
 }
 
@@ -364,7 +399,8 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		currentAgent:         defaultAgent.Name(),
 		resumeChan:           make(chan ResumeRequest),
 		elicitationRequestCh: make(chan ElicitationResult),
-		steerQueue:           NewInMemorySteerQueue(defaultSteerQueueCapacity),
+		steerQueue:           NewInMemoryMessageQueue(defaultSteerQueueCapacity),
+		followUpQueue:        NewInMemoryMessageQueue(defaultFollowUpQueueCapacity),
 		sessionCompaction:    true,
 		managedOAuth:         true,
 		sessionStore:         session.NewInMemorySessionStore(),
@@ -1089,19 +1125,32 @@ func (r *LocalRuntime) ResumeElicitation(ctx context.Context, action tools.Elici
 	}
 }
 
-// Steer enqueues a user message for mid-turn injection into the running
-// agent loop. The message will be picked up after the current batch of tool
-// calls finishes but before the loop checks whether to stop. Returns false
-// if the queue is full and the message was not enqueued.
-func (r *LocalRuntime) Steer(msg SteeredMessage) bool {
-	return r.steerQueue.Enqueue(msg)
+// Steer enqueues a user message for urgent mid-turn injection into the
+// running agent loop. The message will be picked up after the current batch
+// of tool calls finishes but before the loop checks whether to stop.
+// Returns false if the queue is full.
+func (r *LocalRuntime) Steer(msg QueuedMessage) bool {
+	return r.steerQueue.Enqueue(context.Background(), msg)
 }
 
 // DrainSteeredMessages returns all pending steered messages without blocking.
 // It is called inside the agent loop to batch-inject any messages that arrived
 // while the current iteration was in progress.
-func (r *LocalRuntime) DrainSteeredMessages() []SteeredMessage {
-	return r.steerQueue.Drain()
+func (r *LocalRuntime) DrainSteeredMessages(ctx context.Context) []QueuedMessage {
+	return r.steerQueue.Drain(ctx)
+}
+
+// FollowUp enqueues a message to be processed after the current agent turn
+// finishes. Unlike Steer, follow-ups are popped one at a time and each gets
+// a full undivided agent turn. Returns false if the queue is full.
+func (r *LocalRuntime) FollowUp(msg QueuedMessage) bool {
+	return r.followUpQueue.Enqueue(context.Background(), msg)
+}
+
+// DequeueFollowUp pops the next follow-up message. Called by the agent loop
+// after the model stops and stop-hooks have run.
+func (r *LocalRuntime) DequeueFollowUp(ctx context.Context) (QueuedMessage, bool) {
+	return r.followUpQueue.Dequeue(ctx)
 }
 
 // Run starts the agent's interaction loop

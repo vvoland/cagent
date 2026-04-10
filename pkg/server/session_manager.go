@@ -266,11 +266,37 @@ func (sm *SessionManager) SteerSession(_ context.Context, sessionID string, mess
 	}
 
 	for _, msg := range messages {
-		if !localRT.Steer(runtime.SteeredMessage{
+		if !localRT.Steer(runtime.QueuedMessage{
 			Content:      msg.Content,
 			MultiContent: msg.MultiContent,
 		}) {
 			return errors.New("steer queue full")
+		}
+	}
+
+	return nil
+}
+
+// FollowUpSession enqueues user messages for end-of-turn processing in a
+// running session. Each message is popped one at a time after the current
+// turn finishes, giving each follow-up a full undivided agent turn.
+func (sm *SessionManager) FollowUpSession(_ context.Context, sessionID string, messages []api.Message) error {
+	rt, exists := sm.runtimeSessions.Load(sessionID)
+	if !exists {
+		return errors.New("session not found or not running")
+	}
+
+	localRT := runtime.GetLocalRuntime(rt.runtime)
+	if localRT == nil {
+		return errors.New("follow-up not supported for this runtime type")
+	}
+
+	for _, msg := range messages {
+		if !localRT.FollowUp(runtime.QueuedMessage{
+			Content:      msg.Content,
+			MultiContent: msg.MultiContent,
+		}) {
+			return errors.New("follow-up queue full")
 		}
 	}
 

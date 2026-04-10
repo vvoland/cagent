@@ -33,6 +33,9 @@ type RemoteClient interface {
 	// SteerSession injects user messages into a running session mid-turn
 	SteerSession(ctx context.Context, sessionID string, messages []api.Message) error
 
+	// FollowUpSession queues messages for end-of-turn processing
+	FollowUpSession(ctx context.Context, sessionID string, messages []api.Message) error
+
 	// UpdateSessionTitle updates the title of a session
 	UpdateSessionTitle(ctx context.Context, sessionID, title string) error
 
