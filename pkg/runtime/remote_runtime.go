@@ -212,28 +212,24 @@ func (r *RemoteRuntime) Run(ctx context.Context, sess *session.Session) ([]sessi
 }
 
 // Steer enqueues a user message for mid-turn injection into the running
-// agent loop on the remote server. Returns false if the session is not
-// active or the steer queue is full.
-func (r *RemoteRuntime) Steer(msg QueuedMessage) bool {
+// agent loop on the remote server.
+func (r *RemoteRuntime) Steer(msg QueuedMessage) error {
 	if r.sessionID == "" {
-		return false
+		return errors.New("no active session")
 	}
-	err := r.client.SteerSession(context.Background(), r.sessionID, []api.Message{
+	return r.client.SteerSession(context.Background(), r.sessionID, []api.Message{
 		{Content: msg.Content, MultiContent: msg.MultiContent},
 	})
-	return err == nil
 }
 
-// FollowUp enqueues a message for end-of-turn processing on the remote
-// server. Returns false if the session is not active or the queue is full.
-func (r *RemoteRuntime) FollowUp(msg QueuedMessage) bool {
+// FollowUp enqueues a message for end-of-turn processing on the remote server.
+func (r *RemoteRuntime) FollowUp(msg QueuedMessage) error {
 	if r.sessionID == "" {
-		return false
+		return errors.New("no active session")
 	}
-	err := r.client.FollowUpSession(context.Background(), r.sessionID, []api.Message{
+	return r.client.FollowUpSession(context.Background(), r.sessionID, []api.Message{
 		{Content: msg.Content, MultiContent: msg.MultiContent},
 	})
-	return err == nil
 }
 
 // Resume allows resuming execution after user confirmation

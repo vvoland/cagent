@@ -25,14 +25,6 @@ type streamingState struct {
 	messageID        int64 // ID of the current streaming message (0 if none)
 }
 
-// MessageInjector is implemented by runtimes that support mid-turn steering
-// and end-of-turn follow-up message injection. Both LocalRuntime (and
-// PersistentRuntime via embedding) and RemoteRuntime satisfy this interface.
-type MessageInjector interface {
-	Steer(msg QueuedMessage) bool
-	FollowUp(msg QueuedMessage) bool
-}
-
 // New creates a new runtime for an agent and its team.
 // The runtime automatically persists session changes to the configured store.
 // Returns a Runtime interface which wraps LocalRuntime with persistence handling.

@@ -260,17 +260,12 @@ func (sm *SessionManager) SteerSession(_ context.Context, sessionID string, mess
 		return errors.New("session not found or not running")
 	}
 
-	inj, ok := rt.runtime.(runtime.MessageInjector)
-	if !ok {
-		return errors.New("steering not supported for this runtime type")
-	}
-
 	for _, msg := range messages {
-		if !inj.Steer(runtime.QueuedMessage{
+		if err := rt.runtime.Steer(runtime.QueuedMessage{
 			Content:      msg.Content,
 			MultiContent: msg.MultiContent,
-		}) {
-			return errors.New("steer queue full")
+		}); err != nil {
+			return err
 		}
 	}
 
@@ -286,17 +281,12 @@ func (sm *SessionManager) FollowUpSession(_ context.Context, sessionID string, m
 		return errors.New("session not found or not running")
 	}
 
-	inj, ok := rt.runtime.(runtime.MessageInjector)
-	if !ok {
-		return errors.New("follow-up not supported for this runtime type")
-	}
-
 	for _, msg := range messages {
-		if !inj.FollowUp(runtime.QueuedMessage{
+		if err := rt.runtime.FollowUp(runtime.QueuedMessage{
 			Content:      msg.Content,
 			MultiContent: msg.MultiContent,
-		}) {
-			return errors.New("follow-up queue full")
+		}); err != nil {
+			return err
 		}
 	}
 
