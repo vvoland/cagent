@@ -1059,13 +1059,6 @@ func (r *LocalRuntime) Steer(msg QueuedMessage) error {
 	return nil
 }
 
-// DrainSteeredMessages returns all pending steered messages without blocking.
-// It is called inside the agent loop to batch-inject any messages that arrived
-// while the current iteration was in progress.
-func (r *LocalRuntime) DrainSteeredMessages(ctx context.Context) []QueuedMessage {
-	return r.steerQueue.Drain(ctx)
-}
-
 // FollowUp enqueues a message to be processed after the current agent turn
 // finishes. Unlike Steer, follow-ups are popped one at a time and each gets
 // a full undivided agent turn.
@@ -1074,12 +1067,6 @@ func (r *LocalRuntime) FollowUp(msg QueuedMessage) error {
 		return errors.New("follow-up queue full")
 	}
 	return nil
-}
-
-// DequeueFollowUp pops the next follow-up message. Called by the agent loop
-// after the model stops and stop-hooks have run.
-func (r *LocalRuntime) DequeueFollowUp(ctx context.Context) (QueuedMessage, bool) {
-	return r.followUpQueue.Dequeue(ctx)
 }
 
 // Run starts the agent's interaction loop

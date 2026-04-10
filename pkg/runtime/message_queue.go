@@ -19,19 +19,6 @@ type QueuedMessage struct {
 // is called from API handlers while Dequeue/Drain are called from the agent
 // loop goroutine.
 //
-// Dequeue uses a Lock + Confirm/Cancel pattern: Dequeue locks the next
-// message (making it invisible to subsequent Dequeue calls), Confirm
-// permanently removes it after the message has been successfully processed,
-// and Cancel releases it back to the queue if processing fails. This
-// prevents message loss in persistent queue implementations where the
-// session store is also durable.
-//
-// Note: for the default in-memory queue, Confirm and Cancel are no-ops
-// because the message is consumed from the channel on Dequeue and the
-// session is also in-memory. The pattern exists so that persistent
-// implementations (with a durable session store) can guarantee
-// exactly-once delivery.
-//
 // The default implementation is NewInMemoryMessageQueue. Callers that need
 // durable or distributed storage can provide their own implementation
 // via the WithSteerQueue or WithFollowUpQueue options.
@@ -39,24 +26,13 @@ type MessageQueue interface {
 	// Enqueue adds a message to the queue. Returns false if the queue is
 	// full or the context is cancelled.
 	Enqueue(ctx context.Context, msg QueuedMessage) bool
-	// Dequeue locks and returns the next message from the queue. The
-	// message is invisible to subsequent Dequeue calls until Confirm or
-	// Cancel is called. Returns the message and true, or a zero value
-	// and false if the queue is empty. Must not block.
+	// Dequeue removes and returns the next message from the queue.
+	// Returns the message and true, or a zero value and false if the
+	// queue is empty. Must not block.
 	Dequeue(ctx context.Context) (QueuedMessage, bool)
-	// Confirm permanently removes the most recently dequeued message.
-	// Must be called after the message has been successfully persisted
-	// to the session. For in-memory queues this is a no-op.
-	Confirm(ctx context.Context) error
-	// Cancel releases the most recently dequeued message back to the
-	// queue. For in-memory queues this is a no-op (the message was
-	// already consumed from the channel).
-	Cancel(ctx context.Context) error
-	// Drain locks, returns, and auto-confirms all pending messages.
+	// Drain returns all pending messages and removes them from the queue.
 	// Must not block — if the queue is empty it returns nil.
 	Drain(ctx context.Context) []QueuedMessage
-	// Len returns the current number of messages in the queue.
-	Len(ctx context.Context) int
 }
 
 // inMemoryMessageQueue is the default MessageQueue backed by a buffered channel.
@@ -96,14 +72,6 @@ func (q *inMemoryMessageQueue) Dequeue(_ context.Context) (QueuedMessage, bool) 
 	}
 }
 
-// Confirm is a no-op for in-memory queues — the message was already
-// removed from the channel on Dequeue.
-func (q *inMemoryMessageQueue) Confirm(_ context.Context) error { return nil }
-
-// Cancel is a no-op for in-memory queues — the message cannot be put
-// back into a buffered channel without risking deadlock.
-func (q *inMemoryMessageQueue) Cancel(_ context.Context) error { return nil }
-
 func (q *inMemoryMessageQueue) Drain(_ context.Context) []QueuedMessage {
 	var msgs []QueuedMessage
 	for {
@@ -114,8 +82,4 @@ func (q *inMemoryMessageQueue) Drain(_ context.Context) []QueuedMessage {
 			return msgs
 		}
 	}
-}
-
-func (q *inMemoryMessageQueue) Len(_ context.Context) int {
-	return len(q.ch)
 }

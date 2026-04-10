@@ -398,7 +398,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			// Drain ALL pending steer messages. These are urgent course-
 			// corrections that the model should see on the very next
 			// iteration, wrapped in <system-reminder> tags.
-			if steered := r.DrainSteeredMessages(ctx); len(steered) > 0 {
+			if steered := r.steerQueue.Drain(ctx); len(steered) > 0 {
 				for _, sm := range steered {
 					wrapped := fmt.Sprintf(
 						"<system-reminder>\nThe user sent the following message while you were working:\n%s\n\nPlease address this in your next response while continuing with your current tasks.\n</system-reminder>",
@@ -425,7 +425,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 				// a new turn — the model sees them as fresh input, not a
 				// mid-stream interruption. Each follow-up gets a full
 				// undivided agent turn.
-				if followUp, ok := r.DequeueFollowUp(ctx); ok {
+				if followUp, ok := r.followUpQueue.Dequeue(ctx); ok {
 					userMsg := session.UserMessage(followUp.Content, followUp.MultiContent...)
 					sess.AddMessage(userMsg)
 					events <- UserMessage(followUp.Content, sess.ID, followUp.MultiContent, len(sess.Messages)-1)
