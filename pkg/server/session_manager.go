@@ -260,13 +260,13 @@ func (sm *SessionManager) SteerSession(_ context.Context, sessionID string, mess
 		return errors.New("session not found or not running")
 	}
 
-	localRT := runtime.GetLocalRuntime(rt.runtime)
-	if localRT == nil {
+	inj, ok := rt.runtime.(runtime.MessageInjector)
+	if !ok {
 		return errors.New("steering not supported for this runtime type")
 	}
 
 	for _, msg := range messages {
-		if !localRT.Steer(runtime.QueuedMessage{
+		if !inj.Steer(runtime.QueuedMessage{
 			Content:      msg.Content,
 			MultiContent: msg.MultiContent,
 		}) {
@@ -286,13 +286,13 @@ func (sm *SessionManager) FollowUpSession(_ context.Context, sessionID string, m
 		return errors.New("session not found or not running")
 	}
 
-	localRT := runtime.GetLocalRuntime(rt.runtime)
-	if localRT == nil {
+	inj, ok := rt.runtime.(runtime.MessageInjector)
+	if !ok {
 		return errors.New("follow-up not supported for this runtime type")
 	}
 
 	for _, msg := range messages {
-		if !localRT.FollowUp(runtime.QueuedMessage{
+		if !inj.FollowUp(runtime.QueuedMessage{
 			Content:      msg.Content,
 			MultiContent: msg.MultiContent,
 		}) {

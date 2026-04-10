@@ -532,19 +532,12 @@ func (a *App) SubscribeWith(ctx context.Context, send func(tea.Msg)) {
 	}
 }
 
-// MessageInjector is implemented by runtimes that support mid-turn steering
-// and end-of-turn follow-up message injection.
-type MessageInjector interface {
-	Steer(msg runtime.QueuedMessage) bool
-	FollowUp(msg runtime.QueuedMessage) bool
-}
-
 // Steer enqueues a user message for mid-turn injection into the running
 // agent loop. Works with both local runtimes (via the steer queue) and
 // remote runtimes (via POST /sessions/:id/steer). Returns false if
 // steering is not supported by the runtime or the queue is full.
 func (a *App) Steer(msg runtime.QueuedMessage) bool {
-	if inj := a.messageInjector(); inj != nil {
+	if inj, ok := a.runtime.(runtime.MessageInjector); ok {
 		return inj.Steer(msg)
 	}
 	return false
@@ -554,22 +547,10 @@ func (a *App) Steer(msg runtime.QueuedMessage) bool {
 // gets a full undivided agent turn. Returns false if the runtime does not
 // support follow-ups or the queue is full.
 func (a *App) FollowUp(msg runtime.QueuedMessage) bool {
-	if inj := a.messageInjector(); inj != nil {
+	if inj, ok := a.runtime.(runtime.MessageInjector); ok {
 		return inj.FollowUp(msg)
 	}
 	return false
-}
-
-func (a *App) messageInjector() MessageInjector {
-	// Try unwrapping PersistentRuntime → LocalRuntime first
-	if lr := runtime.GetLocalRuntime(a.runtime); lr != nil {
-		return lr
-	}
-	// Try the MessageInjector interface (e.g. RemoteRuntime)
-	if inj, ok := a.runtime.(MessageInjector); ok {
-		return inj
-	}
-	return nil
 }
 
 // Resume resumes the runtime with the given confirmation request
