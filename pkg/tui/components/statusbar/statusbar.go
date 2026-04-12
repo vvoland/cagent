@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker-agent/pkg/tui/core"
 	"github.com/docker/docker-agent/pkg/tui/styles"
-	"github.com/docker/docker-agent/pkg/version"
 )
 
 // StatusBar displays key-binding help on the left and version info on the right.
@@ -16,6 +15,7 @@ import (
 type StatusBar struct {
 	width int
 	help  core.KeyMapHelp
+	title string
 
 	showNewTab   bool
 	newTabStartX int
@@ -25,12 +25,31 @@ type StatusBar struct {
 	cacheDirty bool
 }
 
+// Option is a functional option for configuring a StatusBar.
+type Option func(*StatusBar)
+
+// WithTitle sets a custom title for the status bar.
+//
+// If not provided, defaults to "docker agent".
+func WithTitle(title string) Option {
+	return func(s *StatusBar) {
+		s.title = title
+	}
+}
+
 // New creates a new StatusBar instance
-func New(help core.KeyMapHelp) StatusBar {
-	return StatusBar{
+func New(help core.KeyMapHelp, opts ...Option) StatusBar {
+	s := StatusBar{
 		help:       help,
+		title:      "docker agent",
 		cacheDirty: true,
 	}
+
+	for _, opt := range opts {
+		opt(&s)
+	}
+
+	return s
 }
 
 // SetWidth sets the width of the status bar
@@ -76,19 +95,18 @@ func (s *StatusBar) rebuild() {
 	s.newTabStartX = 0
 	s.newTabEndX = 0
 
-	// Build the styled right side: optional new-tab button + version.
-	var right string
+	// Build the styled right side: optional new-tab button + title.
 	var rightW, newTabW int
-	ver := styles.MutedStyle.Render("docker agent " + version.Version)
+	right := styles.MutedStyle.Render(s.title)
+
 	if s.showNewTab {
 		newTab := styles.MutedStyle.Render(" \u2502 ") +
 			styles.HighlightWhiteStyle.Render("+") +
 			styles.SecondaryStyle.Render(" new tab")
 		newTabW = lipgloss.Width(newTab)
-		right = newTab + "  " + ver
+		right = newTab + "  " + right
 		rightW = lipgloss.Width(right)
 	} else {
-		right = ver
 		rightW = lipgloss.Width(right)
 	}
 

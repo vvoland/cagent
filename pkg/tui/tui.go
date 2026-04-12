@@ -42,6 +42,7 @@ import (
 	"github.com/docker/docker-agent/pkg/tui/service/tuistate"
 	"github.com/docker/docker-agent/pkg/tui/styles"
 	"github.com/docker/docker-agent/pkg/userconfig"
+	"github.com/docker/docker-agent/pkg/version"
 )
 
 // SessionSpawner creates new sessions with their own runtime.
@@ -163,6 +164,9 @@ type appModel struct {
 
 	// buildCommandCategories is a function that returns the list of command categories.
 	buildCommandCategories func(context.Context, tea.Model) []commands.Category
+
+	appName    string
+	appVersion string
 }
 
 // Option configures the TUI.
@@ -173,6 +177,24 @@ type Option func(*appModel)
 func WithLeanMode() Option {
 	return func(m *appModel) {
 		m.leanMode = true
+	}
+}
+
+// WithAppName sets the application name.
+//
+// If not provided, defaults to "docker agent".
+func WithAppName(name string) Option {
+	return func(m *appModel) {
+		m.appName = name
+	}
+}
+
+// WithVersion sets the application version.
+//
+// If not provided, defaults to version.Version.
+func WithVersion(v string) Option {
+	return func(m *appModel) {
+		m.appVersion = v
 	}
 }
 
@@ -242,6 +264,8 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 		focusedPanel:            PanelEditor,
 		editorLines:             3,
 		dockerDesktop:           os.Getenv("TERM_PROGRAM") == "docker_desktop",
+		appName:                 "docker agent",
+		appVersion:              version.Version,
 	}
 
 	// Apply options
@@ -260,7 +284,7 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 	m.chatPage = initialChatPage
 
 	// Initialize status bar (pass m as help provider)
-	m.statusBar = statusbar.New(m)
+	m.statusBar = statusbar.New(m, statusbar.WithTitle(m.appName+" "+m.appVersion))
 
 	// Add the initial session to the supervisor
 	sv.AddSession(ctx, initialApp, initialApp.Session(), initialWorkingDir, cleanup)
@@ -2320,9 +2344,9 @@ func (m *appModel) View() tea.View {
 // When the agent is working, a rotating spinner character is prepended so that
 // terminal multiplexers (tmux) can detect activity in the pane.
 func (m *appModel) windowTitle() string {
-	title := "docker agent"
+	title := m.appName
 	if sessionTitle := m.sessionState.SessionTitle(); sessionTitle != "" {
-		title = sessionTitle + " - docker agent"
+		title = sessionTitle + " - " + m.appName
 	}
 	if m.chatPage.IsWorking() {
 		title = spinner.Frame(m.animFrame) + " " + title
