@@ -3,6 +3,7 @@ package dialog
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -314,13 +315,20 @@ func (d *sessionBrowserDialog) View() string {
 		scrollableContent = d.scrollview.View()
 	}
 
-	// Build title with filter indicator
-	title := "Sessions"
+	// Build title with session count and optional star-filter indicator.
+	// Show "filtered/total" when a search or star filter reduces the list.
+	var countLabel string
+	if len(d.filtered) == len(d.sessions) {
+		countLabel = strconv.Itoa(len(d.sessions))
+	} else {
+		countLabel = fmt.Sprintf("%d/%d", len(d.filtered), len(d.sessions))
+	}
+	title := fmt.Sprintf("Sessions (%s)", countLabel)
 	switch d.starFilter {
 	case 1:
-		title = "Sessions " + styles.StarredStyle.Render("★")
+		title += " " + styles.StarredStyle.Render("★")
 	case 2:
-		title = "Sessions " + styles.UnstarredStyle.Render("☆")
+		title += " " + styles.UnstarredStyle.Render("☆")
 	}
 
 	var filterDesc string
