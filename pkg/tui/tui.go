@@ -836,6 +836,11 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// --- Exit ---
 
 	case messages.ExitSessionMsg:
+		// If multiple tabs are open, close only the current tab instead of
+		// quitting the entire application (see #2373).
+		if m.supervisor != nil && m.supervisor.Count() > 1 {
+			return m.handleCloseTab(m.supervisor.ActiveID())
+		}
 		m.cleanupAll()
 		return m, tea.Quit
 
