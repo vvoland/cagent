@@ -93,7 +93,7 @@ func (t *Toolset) validate() error {
 	if t.Ref != "" && t.Type != "mcp" && t.Type != "rag" {
 		return errors.New("ref can only be used with type 'mcp' or 'rag'")
 	}
-	if (t.Remote.URL != "" || t.Remote.TransportType != "") && t.Type != "mcp" {
+	if (t.Remote.URL != "" || t.Remote.TransportType != "" || t.Remote.OAuth != nil) && t.Type != "mcp" {
 		return errors.New("remote can only be used with type 'mcp'")
 	}
 	if (len(t.Remote.Headers) > 0) && (t.Type != "mcp" && t.Type != "a2a") {
@@ -138,6 +138,17 @@ func (t *Toolset) validate() error {
 		}
 		if count > 1 {
 			return errors.New("either command, remote or ref must be set, but only one of those")
+		}
+		if t.Remote.OAuth != nil {
+			if t.Remote.URL == "" {
+				return errors.New("oauth requires remote url to be set")
+			}
+			if t.Remote.OAuth.ClientID == "" {
+				return errors.New("oauth requires clientId to be set")
+			}
+			if t.Remote.OAuth.CallbackPort != 0 && (t.Remote.OAuth.CallbackPort < 1 || t.Remote.OAuth.CallbackPort > 65535) {
+				return errors.New("oauth callbackPort must be between 1 and 65535")
+			}
 		}
 	case "a2a":
 		if t.URL == "" {

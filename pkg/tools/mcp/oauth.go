@@ -17,6 +17,7 @@ import (
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"golang.org/x/oauth2"
 
+	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
@@ -135,7 +136,8 @@ func validateAndFillDefaults(metadata *AuthorizationServerMetadata, authServerUR
 
 	metadata.AuthorizationEndpoint = cmp.Or(metadata.AuthorizationEndpoint, authServerURL+"/authorize")
 	metadata.TokenEndpoint = cmp.Or(metadata.TokenEndpoint, authServerURL+"/token")
-	metadata.RegistrationEndpoint = cmp.Or(metadata.RegistrationEndpoint, authServerURL+"/register")
+	// Do NOT fabricate a registration_endpoint — if the server doesn't
+	// advertise one, dynamic client registration is not supported.
 
 	return metadata
 }
@@ -146,7 +148,6 @@ func createDefaultMetadata(authServerURL string) *AuthorizationServerMetadata {
 		Issuer:                                 authServerURL,
 		AuthorizationEndpoint:                  authServerURL + "/authorize",
 		TokenEndpoint:                          authServerURL + "/token",
-		RegistrationEndpoint:                   authServerURL + "/register",
 		ResponseTypesSupported:                 []string{"code"},
 		ResponseModesSupported:                 []string{"query", "fragment"},
 		GrantTypesSupported:                    []string{"authorization_code"},
@@ -168,10 +169,11 @@ func resourceMetadataFromWWWAuth(wwwAuth string) string {
 type oauthTransport struct {
 	base http.RoundTripper
 	// TODO(rumpl): remove client reference, we need to find a better way to send elicitation requests
-	client     *remoteMCPClient
-	tokenStore OAuthTokenStore
-	baseURL    string
-	managed    bool
+	client      *remoteMCPClient
+	tokenStore  OAuthTokenStore
+	baseURL     string
+	managed     bool
+	oauthConfig *latest.RemoteOAuthConfig
 
 	// mu protects refreshFailedAt from concurrent access.
 	mu sync.Mutex
@@ -331,7 +333,11 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 	}
 
 	slog.Debug("Creating OAuth callback server")
-	callbackServer, err := NewCallbackServer()
+	var callbackPort int
+	if t.oauthConfig != nil {
+		callbackPort = t.oauthConfig.CallbackPort
+	}
+	callbackServer, err := NewCallbackServerOnPort(callbackPort)
 	if err != nil {
 		return fmt.Errorf("failed to create callback server: %w", err)
 	}
@@ -352,8 +358,16 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 
 	var clientID string
 	var clientSecret string
+	var scopes []string
 
-	if authServerMetadata.RegistrationEndpoint != "" {
+	switch {
+	case t.oauthConfig != nil && t.oauthConfig.ClientID != "":
+		// Use explicit credentials from config
+		slog.Debug("Using explicit OAuth credentials from config")
+		clientID = t.oauthConfig.ClientID
+		clientSecret = t.oauthConfig.ClientSecret
+		scopes = t.oauthConfig.Scopes
+	case authServerMetadata.RegistrationEndpoint != "":
 		slog.Debug("Attempting dynamic client registration")
 		clientID, clientSecret, err = RegisterClient(ctx, authServerMetadata, redirectURI, nil)
 		if err != nil {
@@ -361,9 +375,9 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 			// TODO(rumpl): fall back to requesting client ID from user
 			return err
 		}
-	} else {
+	default:
 		// TODO(rumpl): fall back to requesting client ID from user
-		return errors.New("authorization server does not support dynamic client registration")
+		return errors.New("authorization server does not support dynamic client registration and no explicit OAuth credentials configured")
 	}
 
 	state, err := GenerateState()
@@ -381,6 +395,7 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 		state,
 		oauth2.S256ChallengeFromVerifier(verifier),
 		t.baseURL,
+		scopes,
 	)
 
 	result, err := t.client.requestElicitation(ctx, &mcpsdk.ElicitParams{

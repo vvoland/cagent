@@ -1253,6 +1253,10 @@
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "oauth": {
+          "$ref": "#/definitions/RemoteOAuthConfig",
+          "description": "Explicit OAuth credentials for servers that do not support Dynamic Client Registration"
         }
       },
       "required": [
@@ -1686,6 +1690,36 @@
         "strategies"
       ],
       "additionalProperties": false
+    },
+    "RemoteOAuthConfig": {
+      "type": "object",
+      "description": "OAuth configuration for remote MCP servers that do not support Dynamic Client Registration (RFC 7591)",
+      "properties": {
+        "clientId": {
+          "type": "string",
+          "description": "OAuth client ID"
+        },
+        "clientSecret": {
+          "type": "string",
+          "description": "OAuth client secret"
+        },
+        "callbackPort": {
+          "type": "integer",
+          "description": "Fixed port for the OAuth callback server (default: random available port)",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "scopes": {
+          "type": "array",
+          "description": "OAuth scopes to request",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "clientId"
+      ]
     }
   }
 }

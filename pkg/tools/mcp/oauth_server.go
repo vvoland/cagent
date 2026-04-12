@@ -27,10 +27,15 @@ type CallbackServer struct {
 	expectedState string
 }
 
-// NewCallbackServer creates a new OAuth callback server
+// NewCallbackServer creates a new OAuth callback server on a random available port
 func NewCallbackServer() (*CallbackServer, error) {
-	// Find an available port
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	return NewCallbackServerOnPort(0)
+}
+
+// NewCallbackServerOnPort creates a new OAuth callback server on a specific port.
+// Use port 0 to let the OS pick a random available port.
+func NewCallbackServerOnPort(port int) (*CallbackServer, error) {
+	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find available port: %w", err)
 	}
