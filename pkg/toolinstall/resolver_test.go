@@ -50,16 +50,7 @@ func TestEnsureCommand_DisabledPerToolset(t *testing.T) {
 	}
 }
 
-func TestEnsureCommand_AutoDetectFailureFallsBackToOriginalCommand(t *testing.T) {
-	t.Setenv("DOCKER_AGENT_TOOLS_DIR", t.TempDir())
-	t.Setenv("DOCKER_AGENT_AUTO_INSTALL", "")
-
-	result, err := EnsureCommand(t.Context(), "nonexistent-tool", "")
-	require.NoError(t, err)
-	assert.Equal(t, "nonexistent-tool", result)
-}
-
-func TestEnsureCommand_ExplicitVersionFailureStillErrors(t *testing.T) {
+func TestEnsureCommand_SoftFail(t *testing.T) {
 	t.Setenv("DOCKER_AGENT_TOOLS_DIR", t.TempDir())
 	t.Setenv("DOCKER_AGENT_AUTO_INSTALL", "")
 
@@ -82,7 +73,7 @@ func TestEnsureCommand_FoundInBinDir(t *testing.T) {
 	assert.Equal(t, fakeBin, result)
 }
 
-func TestEnsureCommand_NonExecutableInBinDirFallsBackToOriginalCommand(t *testing.T) {
+func TestEnsureCommand_NonExecutableInBinDirIsSkipped(t *testing.T) {
 	toolsDir := t.TempDir()
 	t.Setenv("DOCKER_AGENT_TOOLS_DIR", toolsDir)
 	t.Setenv("DOCKER_AGENT_AUTO_INSTALL", "")
@@ -91,9 +82,9 @@ func TestEnsureCommand_NonExecutableInBinDirFallsBackToOriginalCommand(t *testin
 	require.NoError(t, os.MkdirAll(binDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(binDir, "not-executable"), []byte("data"), 0o644))
 
-	result, err := EnsureCommand(t.Context(), "not-executable", "")
-	require.NoError(t, err)
-	assert.Equal(t, "not-executable", result)
+	// Falls through to auto-install → fails → returns error.
+	_, err := EnsureCommand(t.Context(), "not-executable", "")
+	require.Error(t, err)
 }
 
 // --- resolve tests ---
