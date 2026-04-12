@@ -68,6 +68,9 @@ type (
 	// RegenerateTitleMsg regenerates the session title using the AI.
 	RegenerateTitleMsg struct{}
 
+	// ForkSessionMsg requests forking the current session into a new tab.
+	ForkSessionMsg struct{}
+
 	// StreamCancelledMsg notifies components that the stream has been cancelled.
 	StreamCancelledMsg struct{ ShowMessage bool }
 

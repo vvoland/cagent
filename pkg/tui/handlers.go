@@ -97,6 +97,51 @@ func (m *appModel) handleBranchFromEdit(msg messages.BranchFromEditMsg) (tea.Mod
 	)
 }
 
+func (m *appModel) handleForkSession() (tea.Model, tea.Cmd) {
+	currentSession := m.application.Session()
+	if currentSession == nil {
+		return m, notification.ErrorCmd("No active session to fork")
+	}
+
+	store := m.application.SessionStore()
+	if store == nil {
+		return m, notification.ErrorCmd("No session store configured")
+	}
+
+	spawner := m.supervisor.Spawner()
+	if spawner == nil {
+		return m, notification.ErrorCmd("Session spawning not available")
+	}
+
+	ctx := context.Background()
+
+	// Fork the session and clone all messages.
+	forkedSession, err := session.BranchSession(currentSession, len(currentSession.Messages))
+	if err != nil {
+		return m, notification.ErrorCmd(fmt.Sprintf("Failed to fork session: %v", err))
+	}
+
+	if err := store.AddSession(ctx, forkedSession); err != nil {
+		return m, notification.ErrorCmd(fmt.Sprintf("Failed to save forked session: %v", err))
+	}
+
+	a, _, cleanup, err := spawner(ctx, forkedSession.WorkingDir)
+	if err != nil {
+		return m, notification.ErrorCmd(fmt.Sprintf("Failed to create runtime for fork: %v", err))
+	}
+
+	a.ReplaceSession(ctx, forkedSession)
+	m.supervisor.AddSession(ctx, a, forkedSession, forkedSession.WorkingDir, cleanup)
+
+	if m.tuiStore != nil {
+		if err := m.tuiStore.AddTab(ctx, forkedSession.ID, forkedSession.WorkingDir); err != nil {
+			slog.Warn("Failed to persist forked tab", "error", err)
+		}
+	}
+
+	return m.handleSwitchTab(forkedSession.ID)
+}
+
 func (m *appModel) handleToggleSessionStar(sessionID string) (tea.Model, tea.Cmd) {
 	store := m.application.SessionStore()
 	if store == nil {

@@ -111,11 +111,10 @@ func TestBranchSession(t *testing.T) {
 		assert.Contains(t, err.Error(), "out of range")
 	})
 
-	t.Run("position equal to messages length returns error", func(t *testing.T) {
+	t.Run("position equal to messages length no error", func(t *testing.T) {
 		parent := &Session{Messages: []Item{NewMessageItem(UserMessage("test"))}}
 		_, err := BranchSession(parent, 1)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "out of range")
+		require.NoError(t, err)
 	})
 
 	t.Run("valid branch copies messages up to position", func(t *testing.T) {

@@ -16,7 +16,7 @@ func BranchSession(parent *Session, branchAtPosition int) (*Session, error) {
 	if parent == nil {
 		return nil, errors.New("parent session is nil")
 	}
-	if branchAtPosition < 0 || branchAtPosition >= len(parent.Messages) {
+	if branchAtPosition < 0 || branchAtPosition > len(parent.Messages) {
 		return nil, fmt.Errorf("branch position %d out of range", branchAtPosition)
 	}
 
