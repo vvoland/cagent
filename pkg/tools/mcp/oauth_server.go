@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"log/slog"
 	"net"
 	"net/http"
@@ -101,7 +102,7 @@ func (cs *CallbackServer) handleCallback(w http.ResponseWriter, r *http.Request)
     <p>%s</p>
     <p>You can close this window.</p>
 </body>
-</html>`, errMsg)
+</html>`, html.EscapeString(errMsg))
 		return
 	}
 
