@@ -25,23 +25,14 @@ func EnsureCommand(ctx context.Context, command, version string) (string, error)
 		return command, nil
 	}
 
-	version = strings.TrimSpace(version)
-	lower := strings.ToLower(version)
+	lower := strings.ToLower(strings.TrimSpace(version))
 	if lower == "false" || lower == "off" {
 		return command, nil
 	}
 
 	resolvedPath, err := resolve(ctx, command, version)
 	if err != nil {
-		if version != "" {
-			return "", fmt.Errorf("auto-installing command %q: %w", command, err)
-		}
-
-		slog.Warn("Auto-install failed, falling back to original command",
-			"command", command,
-			"error", err,
-		)
-		return command, nil
+		return "", fmt.Errorf("auto-installing command %q: %w", command, err)
 	}
 
 	return resolvedPath, nil
