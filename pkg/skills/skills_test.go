@@ -89,7 +89,7 @@ Body`,
 				License:       "Apache-2.0",
 				Compatibility: "Requires docker and git",
 				Metadata:      map[string]string{"author": "test-org", "version": "1.0"},
-				AllowedTools:  stringOrList{"Bash(git:*)", "Read", "Write"},
+				AllowedTools:  []string{"Bash(git:*)", "Read", "Write"},
 			},
 			wantOK: true,
 		},
@@ -105,7 +105,7 @@ Body`,
 			want: Skill{
 				Name:         "csv-skill",
 				Description:  "Skill with comma-separated allowed tools",
-				AllowedTools: stringOrList{"Read", "Grep", "Write"},
+				AllowedTools: []string{"Read", "Grep", "Write"},
 			},
 			wantOK: true,
 		},
@@ -121,7 +121,7 @@ Body`,
 			want: Skill{
 				Name:         "single-tool-skill",
 				Description:  "Skill with a single allowed tool",
-				AllowedTools: stringOrList{"Read"},
+				AllowedTools: []string{"Read"},
 			},
 			wantOK: true,
 		},
@@ -155,7 +155,26 @@ Body`,
 				Name:         "scoped-fork",
 				Description:  "Fork skill with tool restrictions",
 				Context:      "fork",
-				AllowedTools: stringOrList{"Read", "Grep"},
+				AllowedTools: []string{"Read", "Grep"},
+			},
+			wantOK: true,
+		},
+		{
+			name:    "allowed-tools list with quoted items",
+			content: "---\nname: quoted-tools\ndescription: Skill with quoted tool items\nallowed-tools:\n  - \"Bash(git:*)\"\n  - 'Read'\n---\n\nBody",
+			want: Skill{
+				Name:         "quoted-tools",
+				Description:  "Skill with quoted tool items",
+				AllowedTools: []string{"Bash(git:*)", "Read"},
+			},
+			wantOK: true,
+		},
+		{
+			name:    "colon in description value",
+			content: "---\nname: node-webapp-scaffold\ndescription: scaffold a minimal Node.js project. Usage: run this\n---\n\nBody",
+			want: Skill{
+				Name:        "node-webapp-scaffold",
+				Description: "scaffold a minimal Node.js project. Usage: run this",
 			},
 			wantOK: true,
 		},
@@ -292,7 +311,7 @@ allowed-tools:
 	assert.Equal(t, "Apache-2.0", skills[0].License)
 	assert.Equal(t, "Requires docker", skills[0].Compatibility)
 	assert.Equal(t, map[string]string{"author": "test-org", "version": "2.0"}, skills[0].Metadata)
-	assert.Equal(t, stringOrList{"Bash(git:*)", "Read"}, skills[0].AllowedTools)
+	assert.Equal(t, []string{"Bash(git:*)", "Read"}, skills[0].AllowedTools)
 }
 
 func TestLoadSkillsFromDir_NonExistentDir(t *testing.T) {
