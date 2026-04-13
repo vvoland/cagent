@@ -464,46 +464,26 @@ func deleteLastGraphemeCluster(s string) string {
 // refreshSuggestion updates the cached suggestion to reflect the current
 // textarea value and available history entries.
 func (e *editor) refreshSuggestion() {
-	if e.hist == nil {
-		e.clearSuggestion()
-		return
-	}
-
-	// Don't show history suggestions when completion popup is active.
-	// The completion's selected item takes precedence.
+	// Don't overwrite completion-managed suggestions with history suggestions.
 	if e.currentCompletion != nil {
 		return
 	}
 
+	e.clearSuggestion()
+
 	current := e.textarea.Value()
-	if current == "" {
-		e.clearSuggestion()
+	if e.hist == nil || current == "" || !e.isCursorAtEnd() {
 		return
 	}
 
-	// Only show suggestions when cursor is at the end of the text.
-	// If cursor is not at the end, moving left/right would cause the
-	// suggestion overlay to overwrite existing characters.
-	if !e.isCursorAtEnd() {
-		e.clearSuggestion()
-		return
-	}
-
+	// Only show a suggestion when history has a longer match.
 	match := e.hist.LatestMatch(current)
-
-	if match == "" || match == current || len(match) <= len(current) {
-		e.clearSuggestion()
+	if len(match) <= len(current) {
 		return
 	}
 
 	e.suggestion = match[len(current):]
-	if e.suggestion == "" {
-		e.clearSuggestion()
-		return
-	}
-
 	e.hasSuggestion = true
-	// Keep cursor visible - suggestion is rendered as overlay after cursor position
 }
 
 // clearSuggestion removes any pending suggestion.
@@ -700,7 +680,6 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 	case completion.ClosedMsg:
 		e.completionWord = ""
 		e.currentCompletion = nil
-		e.clearSuggestion()
 		e.refreshSuggestion()
 		// Reset file loading state
 		e.fileLoadStarted = false
@@ -733,18 +712,14 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			itemsCmd,
 		)
 	case completion.SelectionChangedMsg:
-		// Show the selected completion item as a suggestion in the editor
+		// Show the selected completion item as a suggestion in the editor.
+		e.clearSuggestion()
 		if msg.Value != "" && e.currentCompletion != nil {
-			// Calculate the suggestion: what needs to be added after current text
 			currentText := e.textarea.Value()
 			if strings.HasPrefix(msg.Value, currentText) {
 				e.suggestion = msg.Value[len(currentText):]
 				e.hasSuggestion = e.suggestion != ""
-			} else {
-				e.clearSuggestion()
 			}
-		} else {
-			e.clearSuggestion()
 		}
 		return e, nil
 	case tea.KeyPressMsg:
@@ -1021,6 +996,7 @@ func (e *editor) updateCompletionQuery() tea.Cmd {
 	}
 
 	e.completionWord = ""
+	e.clearSuggestion()
 	return core.CmdHandler(completion.CloseMsg{})
 }
 
