@@ -3,14 +3,12 @@ package completions
 import (
 	"context"
 
-	"github.com/docker/docker-agent/pkg/app"
 	"github.com/docker/docker-agent/pkg/tui/components/completion"
 )
 
 type Completion interface {
 	Trigger() string
 	Items() []completion.Item
-	AutoSubmit() bool
 	RequiresEmptyEditor() bool
 	// MatchMode returns how items should be filtered (fuzzy or prefix)
 	MatchMode() completion.MatchMode
@@ -26,11 +24,4 @@ type AsyncLoader interface {
 	// LoadItemsAsync loads all items in a background goroutine with context support.
 	// It returns a channel that receives the items when loading is complete.
 	LoadItemsAsync(ctx context.Context) <-chan []completion.Item
-}
-
-func Completions(a *app.App) []Completion {
-	return []Completion{
-		NewCommandCompletion(a),
-		NewFileCompletion(),
-	}
 }

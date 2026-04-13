@@ -69,6 +69,8 @@
       url: /tools/background-agents/
     - title: Handoff
       url: /tools/handoff/
+    - title: OpenAPI
+      url: /tools/openapi/
     - title: A2A
       url: /tools/a2a/
 
@@ -119,7 +121,7 @@
       url: /providers/minimax/
     - title: Local Models
       url: /providers/local/
-    - title: Custom Providers
+    - title: Provider Definitions
       url: /providers/custom/
 
 - section: Guides

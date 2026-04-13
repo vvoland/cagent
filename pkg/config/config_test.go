@@ -680,6 +680,46 @@ func TestProviders_Validation(t *testing.T) {
 			},
 			wantErr: "name cannot contain '/'",
 		},
+		{
+			name: "valid anthropic provider without base_url",
+			providers: map[string]latest.ProviderConfig{
+				"my_anthropic": {
+					Provider: "anthropic",
+					TokenKey: "MY_ANTHROPIC_KEY",
+				},
+			},
+			wantErr: "",
+		},
+		{
+			name: "valid google provider with defaults",
+			providers: map[string]latest.ProviderConfig{
+				"my_google": {
+					Provider: "google",
+				},
+			},
+			wantErr: "",
+		},
+		{
+			name: "openai provider without base_url requires it",
+			providers: map[string]latest.ProviderConfig{
+				"my_openai": {
+					Provider: "openai",
+				},
+			},
+			wantErr: "base_url is required",
+		},
+		{
+			name: "provider with model defaults",
+			providers: map[string]latest.ProviderConfig{
+				"my_anthropic": {
+					Provider:    "anthropic",
+					TokenKey:    "MY_KEY",
+					MaxTokens:   new(int64),
+					Temperature: new(float64),
+				},
+			},
+			wantErr: "",
+		},
 	}
 
 	for _, tt := range tests {

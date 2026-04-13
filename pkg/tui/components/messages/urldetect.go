@@ -3,9 +3,19 @@ package messages
 import (
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
 )
+
+var underlineStyle = lipgloss.NewStyle().Underline(true)
+
+// hoveredURL tracks the URL currently under the mouse cursor.
+type hoveredURL struct {
+	line     int // global rendered line
+	startCol int // display column where URL starts
+	endCol   int // display column where URL ends (exclusive)
+}
 
 // urlAtPosition extracts a URL from the rendered line at the given display column.
 // Returns the URL string if found, or empty string if the click position is not on a URL.
@@ -127,4 +137,45 @@ func (m *model) urlAt(line, col int) string {
 		return ""
 	}
 	return urlAtPosition(m.renderedLines[line], col)
+}
+
+// updateHoveredURL updates the hovered URL state based on mouse position.
+func (m *model) updateHoveredURL(line, col int) {
+	m.ensureAllItemsRendered()
+
+	if line >= 0 && line < len(m.renderedLines) {
+		plainLine := ansi.Strip(m.renderedLines[line])
+		for _, span := range findURLSpans(plainLine) {
+			if col >= span.startCol && col < span.endCol {
+				newHover := &hoveredURL{line: line, startCol: span.startCol, endCol: span.endCol}
+				if m.hoveredURL == nil || *m.hoveredURL != *newHover {
+					m.hoveredURL = newHover
+					m.renderDirty = true
+				}
+				return
+			}
+		}
+	}
+
+	if m.hoveredURL != nil {
+		m.hoveredURL = nil
+		m.renderDirty = true
+	}
+}
+
+// applyURLUnderline underlines the hovered URL in the visible lines.
+func (m *model) applyURLUnderline(lines []string, viewportStartLine int) []string {
+	if m.hoveredURL == nil {
+		return lines
+	}
+
+	viewIdx := m.hoveredURL.line - viewportStartLine
+	if viewIdx < 0 || viewIdx >= len(lines) {
+		return lines
+	}
+
+	result := make([]string, len(lines))
+	copy(result, lines)
+	result[viewIdx] = styleLineSegment(lines[viewIdx], m.hoveredURL.startCol, m.hoveredURL.endCol, underlineStyle)
+	return result
 }

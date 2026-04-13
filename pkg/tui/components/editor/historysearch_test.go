@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/docker/docker-agent/pkg/app"
 	"github.com/docker/docker-agent/pkg/history"
 )
 
@@ -30,7 +29,7 @@ func TestHistorySearch(t *testing.T) {
 			require.NoError(t, h.Add(msg))
 		}
 
-		e := New(&app.App{}, h).(*editor)
+		e := New(h).(*editor)
 		e.textarea.SetWidth(80)
 		return e
 	}

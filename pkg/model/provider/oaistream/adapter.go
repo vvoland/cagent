@@ -5,6 +5,7 @@ This is a shared adapter for OpenAI-compatible streams.
 */
 
 import (
+	"encoding/json"
 	"io"
 
 	"github.com/openai/openai-go/v3"
@@ -66,13 +67,24 @@ func (a *StreamAdapter) Recv() (chat.MessageStreamResponse, error) {
 			a.lastFinishReason = finishReason
 		}
 
+		// Extract reasoning_content from ExtraFields since the OpenAI SDK
+		// does not yet have a dedicated field for it. Providers like DMR
+		// send reasoning tokens as a "reasoning_content" JSON field in the
+		// chat completion chunk delta.
+		var reasoningContent string
+		if ef, ok := choice.Delta.JSON.ExtraFields["reasoning_content"]; ok && ef.Raw() != "" {
+			// ef.Raw() returns the raw JSON value (e.g. `"some text"`), so
+			// we unmarshal it to get the plain Go string.
+			_ = json.Unmarshal([]byte(ef.Raw()), &reasoningContent)
+		}
+
 		response.Choices[i] = chat.MessageStreamChoice{
 			Index:        int(choice.Index),
 			FinishReason: finishReason,
 			Delta: chat.MessageDelta{
-				Role:    choice.Delta.Role,
-				Content: choice.Delta.Content,
-				// ReasoningContent not available in this SDK version
+				Role:             choice.Delta.Role,
+				Content:          choice.Delta.Content,
+				ReasoningContent: reasoningContent,
 			},
 		}
 

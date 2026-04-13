@@ -84,18 +84,20 @@ const (
 	taskFailed
 )
 
-var taskStatusStrings = map[taskStatus]string{
-	taskRunning:   "running",
-	taskCompleted: "completed",
-	taskStopped:   "stopped",
-	taskFailed:    "failed",
-}
-
-func statusToString(s taskStatus) string {
-	if str, ok := taskStatusStrings[s]; ok {
-		return str
+// String returns a human-readable name for the status.
+func (s taskStatus) String() string {
+	switch s {
+	case taskRunning:
+		return "running"
+	case taskCompleted:
+		return "completed"
+	case taskStopped:
+		return "stopped"
+	case taskFailed:
+		return "failed"
+	default:
+		return "unknown"
 	}
-	return "unknown"
 }
 
 // task tracks a single background sub-agent execution.
@@ -104,18 +106,16 @@ type task struct {
 	agentName string
 	taskDesc  string
 
-	cancel      context.CancelFunc
-	outputMu    sync.RWMutex
-	output      strings.Builder
-	outputBytes int
-	startTime   time.Time
-	status      atomic.Int32
-	result      string
-	errMsg      string
+	cancel    context.CancelFunc
+	startTime time.Time
+	status    atomic.Int32
+	result    string
+	errMsg    string
 
-	// viewCount tracks how many consecutive HandleView calls observed no
-	// new output. It is reset whenever the buffered output grows.
-	// Protected by outputMu.
+	// outputMu protects output, outputBytes, viewCount, and lastViewedOutputBytes.
+	outputMu              sync.RWMutex
+	output                strings.Builder
+	outputBytes           int
 	viewCount             int
 	lastViewedOutputBytes int
 }
@@ -130,6 +130,79 @@ func (t *task) storeStatus(s taskStatus) {
 
 func (t *task) casStatus(old, next taskStatus) bool {
 	return t.status.CompareAndSwap(int32(old), int32(next))
+}
+
+// writeOutput appends content to the task's live output buffer, respecting the
+// maxOutputBytes cap. It is safe for concurrent use.
+func (t *task) writeOutput(content string) {
+	t.outputMu.Lock()
+	defer t.outputMu.Unlock()
+
+	if t.outputBytes < maxOutputBytes {
+		n, _ := t.output.WriteString(content)
+		t.outputBytes += n
+	}
+}
+
+// formatView builds the human-readable output section for HandleView.
+// It covers all terminal and in-progress states. The caller supplies the
+// pre-loaded status and elapsed duration.
+func (t *task) formatView(status taskStatus, elapsed time.Duration) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "Task ID: %s\n", t.id)
+	fmt.Fprintf(&out, "Agent:   %s\n", t.agentName)
+	fmt.Fprintf(&out, "Status:  %s\n", status)
+	fmt.Fprintf(&out, "Runtime: %s\n", elapsed)
+	out.WriteString("\n--- Output ---\n")
+
+	switch status {
+	case taskCompleted:
+		if t.result != "" {
+			out.WriteString(t.result)
+		} else {
+			out.WriteString("<no output>")
+		}
+
+	case taskFailed:
+		out.WriteString("<task failed>")
+		if t.errMsg != "" {
+			fmt.Fprintf(&out, "\nError: %s", t.errMsg)
+		}
+
+	case taskStopped:
+		out.WriteString("<task was stopped>")
+
+	default: // taskRunning (or any unexpected value)
+		t.outputMu.Lock()
+		progress := t.output.String()
+		truncated := t.outputBytes >= maxOutputBytes
+		currentBytes := t.outputBytes
+
+		if currentBytes == t.lastViewedOutputBytes {
+			t.viewCount++
+		} else {
+			t.viewCount = 1
+			t.lastViewedOutputBytes = currentBytes
+		}
+		viewCount := t.viewCount
+		t.outputMu.Unlock()
+
+		if progress != "" {
+			out.WriteString(progress)
+			if truncated {
+				out.WriteString("\n\n[output truncated at 10MB limit — still running...]")
+			} else {
+				out.WriteString("\n\n[still running...]")
+			}
+		} else {
+			out.WriteString("<no output yet — still running>")
+		}
+		if viewCount > 1 {
+			fmt.Fprintf(&out, "\n\n[No new output since last check — poll #%d]", viewCount)
+		}
+	}
+
+	return out.String()
 }
 
 // Handler owns all background agent tasks and provides tool handlers.
@@ -169,8 +242,7 @@ func (h *Handler) totalTaskCount() int {
 func (h *Handler) pruneCompleted() {
 	var toDelete []string
 	h.tasks.Range(func(id string, t *task) bool {
-		s := t.loadStatus()
-		if s == taskCompleted || s == taskStopped || s == taskFailed {
+		if s := t.loadStatus(); s != taskRunning {
 			toDelete = append(toDelete, id)
 		}
 		return true
@@ -195,8 +267,7 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 	}
 
 	subAgentNames := h.runner.CurrentAgentSubAgentNames()
-	valid := slices.Contains(subAgentNames, params.Agent)
-	if !valid {
+	if !slices.Contains(subAgentNames, params.Agent) {
 		if len(subAgentNames) > 0 {
 			return tools.ResultError(fmt.Sprintf("agent %q is not in the sub-agents list. Available: %s", params.Agent, strings.Join(subAgentNames, ", "))), nil
 		}
@@ -218,7 +289,11 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 
 	taskID := newTaskID()
 
-	taskCtx, cancel := context.WithCancel(ctx)
+	// Use WithoutCancel so the background task is not killed when the
+	// parent message context is cancelled (e.g. the user sends a new
+	// message in the TUI). The task can still be explicitly stopped
+	// via HandleStop which calls cancel().
+	taskCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 
 	t := &task{
 		id:        taskID,
@@ -240,14 +315,7 @@ func (h *Handler) HandleRun(ctx context.Context, sess *session.Session, toolCall
 			Task:           params.Task,
 			ExpectedOutput: params.ExpectedOutput,
 			ParentSession:  sess,
-			OnContent: func(content string) {
-				t.outputMu.Lock()
-				if t.outputBytes < maxOutputBytes {
-					n, _ := t.output.WriteString(content)
-					t.outputBytes += n
-				}
-				t.outputMu.Unlock()
-			},
+			OnContent:      t.writeOutput,
 		})
 
 		if result.ErrMsg != "" {
@@ -283,11 +351,10 @@ func (h *Handler) HandleList(_ context.Context, _ *session.Session, _ tools.Tool
 	var count int
 	h.tasks.Range(func(_ string, t *task) bool {
 		count++
-		status := t.loadStatus()
 		elapsed := time.Since(t.startTime).Round(time.Second)
 		fmt.Fprintf(&out, "ID: %s\n", t.id)
 		fmt.Fprintf(&out, "  Agent:   %s\n", t.agentName)
-		fmt.Fprintf(&out, "  Status:  %s\n", statusToString(status))
+		fmt.Fprintf(&out, "  Status:  %s\n", t.loadStatus())
 		fmt.Fprintf(&out, "  Runtime: %s\n", elapsed)
 		out.WriteString("\n")
 		return true
@@ -315,59 +382,7 @@ func (h *Handler) HandleView(_ context.Context, _ *session.Session, toolCall too
 	status := t.loadStatus()
 	elapsed := time.Since(t.startTime).Round(time.Second)
 
-	var out strings.Builder
-	fmt.Fprintf(&out, "Task ID: %s\n", t.id)
-	fmt.Fprintf(&out, "Agent:   %s\n", t.agentName)
-	fmt.Fprintf(&out, "Status:  %s\n", statusToString(status))
-	fmt.Fprintf(&out, "Runtime: %s\n", elapsed)
-	out.WriteString("\n--- Output ---\n")
-
-	switch status {
-	case taskCompleted:
-		if t.result != "" {
-			out.WriteString(t.result)
-		} else {
-			out.WriteString("<no output>")
-		}
-	case taskFailed:
-		out.WriteString("<task failed>")
-		if t.errMsg != "" {
-			fmt.Fprintf(&out, "\nError: %s", t.errMsg)
-		}
-	case taskStopped:
-		out.WriteString("<task was stopped>")
-	default:
-		t.outputMu.Lock()
-		progress := t.output.String()
-		truncated := t.outputBytes >= maxOutputBytes
-		currentBytes := t.outputBytes
-
-		// Track whether output has changed since the last view.
-		if currentBytes == t.lastViewedOutputBytes {
-			t.viewCount++
-		} else {
-			t.viewCount = 1
-			t.lastViewedOutputBytes = currentBytes
-		}
-		viewCount := t.viewCount
-		t.outputMu.Unlock()
-
-		if progress != "" {
-			out.WriteString(progress)
-			if truncated {
-				out.WriteString("\n\n[output truncated at 10MB limit — still running...]")
-			} else {
-				out.WriteString("\n\n[still running...]")
-			}
-		} else {
-			out.WriteString("<no output yet — still running>")
-		}
-		if viewCount > 1 {
-			fmt.Fprintf(&out, "\n\n[No new output since last check — poll #%d]", viewCount)
-		}
-	}
-
-	return tools.ResultSuccess(out.String()), nil
+	return tools.ResultSuccess(t.formatView(status, elapsed)), nil
 }
 
 // HandleStop cancels a running background agent task.
@@ -383,8 +398,7 @@ func (h *Handler) HandleStop(_ context.Context, _ *session.Session, toolCall too
 	}
 
 	if !t.casStatus(taskRunning, taskStopped) {
-		current := t.loadStatus()
-		return tools.ResultError(fmt.Sprintf("task %s is not running (status: %s)", params.TaskID, statusToString(current))), nil
+		return tools.ResultError(fmt.Sprintf("task %s is not running (status: %s)", params.TaskID, t.loadStatus())), nil
 	}
 
 	t.cancel()
@@ -424,7 +438,7 @@ func NewToolSet() tools.ToolSet {
 type toolSet struct{}
 
 func (t *toolSet) Tools(context.Context) ([]tools.Tool, error) {
-	return backgroundAgentTools()
+	return backgroundAgentTools(), nil
 }
 
 func (t *toolSet) Instructions() string {
@@ -440,7 +454,7 @@ Use background agent tasks to dispatch work to sub-agents concurrently.
 **Notes**: Output capped at 10MB per task. All tasks auto-terminate when the agent stops.`
 }
 
-func backgroundAgentTools() ([]tools.Tool, error) {
+func backgroundAgentTools() []tools.Tool {
 	return []tools.Tool{
 		{
 			Name:     ToolNameRunBackgroundAgent,
@@ -480,5 +494,5 @@ view_background_agent and collect results once the task is complete.`,
 				Title: "Stop Background Agent",
 			},
 		},
-	}, nil
+	}
 }

@@ -123,6 +123,7 @@ func LoadWithConfig(ctx context.Context, agentSource config.Source, runConfig *c
 
 	// Make model definitions available to toolset creators (e.g., RAG reranking)
 	runConfig.Models = cfg.Models
+	runConfig.Providers = cfg.Providers
 
 	// Load agents
 	parentDir := cmp.Or(agentSource.ParentDir(), runConfig.WorkingDir)

@@ -57,8 +57,9 @@ type Model interface {
 	LoadFromSession(sess *session.Session)
 	// HandleClick checks if click is on the star or title and returns true if handled
 	HandleClick(x, y int) bool
-	// HandleClickType returns the type of click (star, title, or none)
-	HandleClickType(x, y int) ClickResult
+	// HandleClickType returns the type of click (star, title, agent, or none).
+	// For ClickAgent, the second return value is the agent name.
+	HandleClickType(x, y int) (ClickResult, string)
 	// IsCollapsed returns whether the sidebar is collapsed
 	IsCollapsed() bool
 	// ToggleCollapsed toggles the collapsed state
@@ -147,6 +148,9 @@ type model struct {
 	cachedWidth          int      // Width used for cached render
 	cachedNeedsScrollbar bool     // Whether scrollbar is needed for cached render
 	cacheDirty           bool     // True when cache needs rebuild
+
+	// Agent click zones: maps content line index to agent name for click detection
+	agentClickZones map[int]string // content line -> agent name
 }
 
 // Option is a functional option for configuring the sidebar.
@@ -343,21 +347,24 @@ const (
 	ClickStar
 	ClickTitle      // Click on the title area (use double-click to edit)
 	ClickWorkingDir // Click on the working directory line
+	ClickAgent      // Click on an agent name in the sidebar
 )
 
 // HandleClick checks if click is on the star or title and returns true if it was
 // x and y are coordinates relative to the sidebar's top-left corner
 // This does NOT toggle the state - caller should handle that
 func (m *model) HandleClick(x, y int) bool {
-	return m.HandleClickType(x, y) != ClickNone
+	result, _ := m.HandleClickType(x, y)
+	return result != ClickNone
 }
 
-// HandleClickType returns what was clicked (star, title, working dir, or nothing)
-func (m *model) HandleClickType(x, y int) ClickResult {
+// HandleClickType returns what was clicked (star, title, working dir, agent, or nothing).
+// For ClickAgent, the second return value is the agent name.
+func (m *model) HandleClickType(x, y int) (ClickResult, string) {
 	// Account for left padding
 	adjustedX := x - m.layoutCfg.PaddingLeft
 	if adjustedX < 0 {
-		return ClickNone
+		return ClickNone, ""
 	}
 
 	if m.mode == ModeCollapsed {
@@ -368,11 +375,11 @@ func (m *model) HandleClickType(x, y int) ClickResult {
 		if y >= 0 && y < titleLines {
 			// Check if click is on the star (first line only, first few chars)
 			if y == 0 && m.sessionHasContent && adjustedX <= starClickWidth {
-				return ClickStar
+				return ClickStar, ""
 			}
 			// Click is on title area (for double-click to edit)
 			if m.titleGenerated && !m.editingTitle {
-				return ClickTitle
+				return ClickTitle, ""
 			}
 		}
 
@@ -381,10 +388,10 @@ func (m *model) HandleClickType(x, y int) ClickResult {
 		wdStartY := vm.titleSectionLines()
 		wdLines := linesNeeded(lipgloss.Width(vm.WorkingDir), vm.ContentWidth)
 		if m.workingDirectory != "" && y >= wdStartY && y < wdStartY+wdLines {
-			return ClickWorkingDir
+			return ClickWorkingDir, ""
 		}
 
-		return ClickNone
+		return ClickNone, ""
 	}
 
 	// In vertical mode, the title starts at verticalStarY
@@ -396,20 +403,25 @@ func (m *model) HandleClickType(x, y int) ClickResult {
 	if contentY >= verticalStarY && contentY < verticalStarY+titleLines {
 		// Check if click is on the star (first line only, first few chars)
 		if contentY == verticalStarY && m.sessionHasContent && adjustedX <= starClickWidth {
-			return ClickStar
+			return ClickStar, ""
 		}
 		// Click is on title area (for double-click to edit)
 		if m.titleGenerated && !m.editingTitle {
-			return ClickTitle
+			return ClickTitle, ""
 		}
 	}
 
 	// Working dir is at: verticalStarY + titleLines (title) + 1 (empty separator)
 	if m.workingDirectory != "" && contentY == verticalStarY+titleLines+1 {
-		return ClickWorkingDir
+		return ClickWorkingDir, ""
 	}
 
-	return ClickNone
+	// Check if click is on an agent name
+	if agentName, ok := m.agentClickZones[contentY]; ok {
+		return ClickAgent, agentName
+	}
+
+	return ClickNone, ""
 }
 
 // titleLineCount returns the number of lines the title occupies when rendered.
@@ -903,7 +915,12 @@ func (m *model) renderSections(contentWidth int) []string {
 	appendSection(m.sessionInfo(contentWidth))
 	appendSection(m.tokenUsage(contentWidth))
 	appendSection(m.queueSection(contentWidth))
+
+	// Track where agent entries start so we can detect clicks on agent names
+	agentSectionStart := len(lines)
 	appendSection(m.agentInfo(contentWidth))
+	m.buildAgentClickZones(agentSectionStart, lines)
+
 	appendSection(m.toolsetInfo(contentWidth))
 
 	m.todoComp.SetSize(contentWidth)
@@ -1195,6 +1212,35 @@ func (m *model) renderAgentEntry(content *strings.Builder, agent runtime.AgentDe
 	content.WriteString("\n")
 	content.WriteString(styles.MutedStyle.Render("└ "))
 	content.WriteString(toolcommon.TruncateText("Model: "+agent.Model, maxWidth))
+}
+
+// buildAgentClickZones populates agentClickZones by scanning the rendered lines
+// to find which lines belong to which agent. It relies on the structure produced
+// by renderTab + agentInfo: a 2-line tab header, then agent blocks separated by
+// visually blank lines. Each consecutive run of non-blank lines maps to the next
+// agent in order. This avoids duplicating line-count logic from renderAgentEntry.
+func (m *model) buildAgentClickZones(agentSectionStart int, lines []string) {
+	m.agentClickZones = make(map[int]string)
+	if len(m.availableAgents) == 0 {
+		return
+	}
+
+	const tabHeaderLines = 2 // tab title + TabStyle top padding
+	agentIdx := 0
+	inBlock := false
+
+	for i := agentSectionStart + tabHeaderLines; i < len(lines) && agentIdx < len(m.availableAgents); i++ {
+		if lipgloss.Width(lines[i]) == 0 {
+			// Blank line: if we were inside a block, advance to the next agent
+			if inBlock {
+				agentIdx++
+				inBlock = false
+			}
+			continue
+		}
+		inBlock = true
+		m.agentClickZones[i] = m.availableAgents[agentIdx].Name
+	}
 }
 
 // toolsetInfo renders the current toolset status information

@@ -97,6 +97,51 @@ func (m *appModel) handleBranchFromEdit(msg messages.BranchFromEditMsg) (tea.Mod
 	)
 }
 
+func (m *appModel) handleForkSession() (tea.Model, tea.Cmd) {
+	currentSession := m.application.Session()
+	if currentSession == nil {
+		return m, notification.ErrorCmd("No active session to fork")
+	}
+
+	store := m.application.SessionStore()
+	if store == nil {
+		return m, notification.ErrorCmd("No session store configured")
+	}
+
+	spawner := m.supervisor.Spawner()
+	if spawner == nil {
+		return m, notification.ErrorCmd("Session spawning not available")
+	}
+
+	ctx := context.Background()
+
+	// Fork the session and clone all messages.
+	forkedSession, err := session.BranchSession(currentSession, len(currentSession.Messages))
+	if err != nil {
+		return m, notification.ErrorCmd(fmt.Sprintf("Failed to fork session: %v", err))
+	}
+
+	if err := store.AddSession(ctx, forkedSession); err != nil {
+		return m, notification.ErrorCmd(fmt.Sprintf("Failed to save forked session: %v", err))
+	}
+
+	a, _, cleanup, err := spawner(ctx, forkedSession.WorkingDir)
+	if err != nil {
+		return m, notification.ErrorCmd(fmt.Sprintf("Failed to create runtime for fork: %v", err))
+	}
+
+	a.ReplaceSession(ctx, forkedSession)
+	m.supervisor.AddSession(ctx, a, forkedSession, forkedSession.WorkingDir, cleanup)
+
+	if m.tuiStore != nil {
+		if err := m.tuiStore.AddTab(ctx, forkedSession.ID, forkedSession.WorkingDir); err != nil {
+			slog.Warn("Failed to persist forked tab", "error", err)
+		}
+	}
+
+	return m.handleSwitchTab(forkedSession.ID)
+}
+
 func (m *appModel) handleToggleSessionStar(sessionID string) (tea.Model, tea.Cmd) {
 	store := m.application.SessionStore()
 	if store == nil {
@@ -148,6 +193,19 @@ func (m *appModel) handleRegenerateTitle() (tea.Model, tea.Cmd) {
 	}
 	spinnerCmd := m.chatPage.SetTitleRegenerating(true)
 	return m, tea.Batch(spinnerCmd, notification.SuccessCmd("Regenerating title..."))
+}
+
+func (m *appModel) handleDeleteSession(sessionID string) (tea.Model, tea.Cmd) {
+	store := m.application.SessionStore()
+	if store == nil {
+		return m, notification.ErrorCmd("No session store configured")
+	}
+
+	if err := store.DeleteSession(context.Background(), sessionID); err != nil {
+		return m, notification.ErrorCmd("Failed to delete session: " + err.Error())
+	}
+
+	return m, notification.SuccessCmd("Session deleted.")
 }
 
 func isErrTitleGenerating(err error) bool {
@@ -582,23 +640,25 @@ func (m *appModel) handleElicitationResponse(action tools.ElicitationAction, con
 }
 
 func (m *appModel) startShell() (tea.Model, tea.Cmd) {
+	exitMsg := "Type 'exit' to return to " + m.appName
+
 	var cmd *exec.Cmd
 	if goruntime.GOOS == "windows" {
 		if path, err := exec.LookPath("pwsh.exe"); err == nil {
 			cmd = exec.Command(path, "-NoLogo", "-NoExit", "-Command",
-				`Write-Host ""; Write-Host "Type 'exit' to return to docker agent 🐳"`)
+				`Write-Host ""; Write-Host "`+exitMsg+`"`)
 		} else if path, err := exec.LookPath("powershell.exe"); err == nil {
 			cmd = exec.Command(path, "-NoLogo", "-NoExit", "-Command",
-				`Write-Host ""; Write-Host "Type 'exit' to return to docker agent 🐳"`)
+				`Write-Host ""; Write-Host "`+exitMsg+`"`)
 		} else {
 			// Use absolute path to cmd.exe to prevent PATH hijacking (CWE-426).
 			shell := shellpath.WindowsCmdExe()
-			cmd = exec.Command(shell, "/K", `echo. & echo Type 'exit' to return to docker agent`)
+			cmd = exec.Command(shell, "/K", "echo. & echo "+exitMsg)
 		}
 	} else {
 		shell := shellpath.DetectUnixShell()
 		cmd = exec.Command(shell, "-i", "-c",
-			`echo -e "\nType 'exit' to return to docker agent 🐳"; exec `+shell)
+			`echo -e "\n`+exitMsg+`"; exec `+shell)
 	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

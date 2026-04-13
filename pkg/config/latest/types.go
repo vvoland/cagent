@@ -215,17 +215,43 @@ func (c *Agents) Update(name string, update func(a *AgentConfig)) bool {
 }
 
 // ProviderConfig represents a reusable provider definition.
-// It allows users to define custom providers with default base URLs and token keys.
-// Models can reference these providers by name, inheriting the defaults.
+// It allows users to define providers with default settings that models can inherit.
+// Models referencing a provider by name will inherit any settings not explicitly overridden.
+//
+// The Provider field specifies the underlying provider type (e.g., "openai", "anthropic",
+// "google", "amazon-bedrock"). When not set, it defaults to "openai" for backward compatibility.
 type ProviderConfig struct {
-	// APIType specifies which API schema to use. Supported values:
-	// - "openai_chatcompletions" (default): Use the OpenAI Chat Completions API
+	// Provider specifies the underlying provider type. Supported values include:
+	// "openai", "anthropic", "google", "amazon-bedrock", "dmr", and any built-in alias.
+	// Defaults to "openai" when not set, preserving backward compatibility.
+	Provider string `json:"provider,omitempty"`
+	// APIType specifies which API schema to use. Only applicable for OpenAI-compatible providers.
+	// Supported values:
+	// - "openai_chatcompletions" (default for openai): Use the OpenAI Chat Completions API
 	// - "openai_responses": Use the OpenAI Responses API
 	APIType string `json:"api_type,omitempty"`
 	// BaseURL is the base URL for the provider's API endpoint
-	BaseURL string `json:"base_url"`
+	BaseURL string `json:"base_url,omitempty"`
 	// TokenKey is the environment variable name containing the API token
 	TokenKey string `json:"token_key,omitempty"`
+	// Temperature is the default sampling temperature for models using this provider
+	Temperature *float64 `json:"temperature,omitempty"`
+	// MaxTokens is the default maximum number of tokens for models using this provider
+	MaxTokens *int64 `json:"max_tokens,omitempty"`
+	// TopP is the default top-p sampling parameter
+	TopP *float64 `json:"top_p,omitempty"`
+	// FrequencyPenalty is the default frequency penalty
+	FrequencyPenalty *float64 `json:"frequency_penalty,omitempty"`
+	// PresencePenalty is the default presence penalty
+	PresencePenalty *float64 `json:"presence_penalty,omitempty"`
+	// ParallelToolCalls controls whether parallel tool calls are enabled by default
+	ParallelToolCalls *bool `json:"parallel_tool_calls,omitempty"`
+	// ProviderOpts allows provider-specific options
+	ProviderOpts map[string]any `json:"provider_opts,omitempty"`
+	// TrackUsage controls whether token usage tracking is enabled by default
+	TrackUsage *bool `json:"track_usage,omitempty"`
+	// ThinkingBudget controls reasoning effort/budget for models using this provider
+	ThinkingBudget *ThinkingBudget `json:"thinking_budget,omitempty"`
 }
 
 // FallbackConfig represents fallback model configuration for an agent.

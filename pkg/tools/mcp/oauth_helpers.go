@@ -79,6 +79,9 @@ func ExchangeCodeForToken(ctx context.Context, tokenEndpoint, code, codeVerifier
 		token.ExpiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
 	}
 
+	token.ClientID = clientID
+	token.ClientSecret = clientSecret
+
 	return &token, nil
 }
 
@@ -158,4 +161,53 @@ func RegisterClient(ctx context.Context, authMetadata *AuthorizationServerMetada
 // GeneratePKCEVerifier generates a PKCE code verifier using oauth2 library
 func GeneratePKCEVerifier() string {
 	return oauth2.GenerateVerifier()
+}
+
+// RefreshAccessToken uses a refresh token to obtain a new access token
+// without user interaction.
+func RefreshAccessToken(ctx context.Context, tokenEndpoint, refreshToken, clientID, clientSecret string) (*OAuthToken, error) {
+	data := url.Values{}
+	data.Set("grant_type", "refresh_token")
+	data.Set("refresh_token", refreshToken)
+	data.Set("client_id", clientID)
+	if clientSecret != "" {
+		data.Set("client_secret", clientSecret)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenEndpoint, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create refresh request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("token refresh failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var token OAuthToken
+	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
+		return nil, fmt.Errorf("failed to decode refresh response: %w", err)
+	}
+
+	if token.ExpiresIn > 0 {
+		token.ExpiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
+	}
+
+	// Preserve the refresh token if the server didn't issue a new one
+	if token.RefreshToken == "" {
+		token.RefreshToken = refreshToken
+	}
+
+	// Preserve client credentials so subsequent refreshes work
+	token.ClientID = clientID
+	token.ClientSecret = clientSecret
+
+	return &token, nil
 }

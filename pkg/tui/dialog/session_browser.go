@@ -2,6 +2,8 @@ package dialog
 
 import (
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,6 +31,7 @@ type sessionBrowserKeyMap struct {
 	Star       key.Binding
 	FilterStar key.Binding
 	CopyID     key.Binding
+	Delete     key.Binding
 }
 
 // Session browser dialog dimension constants
@@ -82,6 +85,7 @@ func NewSessionBrowserDialog(sessions []session.Summary) Dialog {
 			Star:       key.NewBinding(key.WithKeys("ctrl+s")),
 			FilterStar: key.NewBinding(key.WithKeys("ctrl+f")),
 			CopyID:     key.NewBinding(key.WithKeys("ctrl+y")),
+			Delete:     key.NewBinding(key.WithKeys("ctrl+d")),
 		},
 		openedAt: time.Now(),
 	}
@@ -195,6 +199,17 @@ func (d *sessionBrowserDialog) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 			}
 			return d, nil
 
+		case key.Matches(msg, d.keyMap.Delete):
+			if d.selected >= 0 && d.selected < len(d.filtered) {
+				sessionID := d.filtered[d.selected].ID
+				d.sessions = slices.DeleteFunc(d.sessions, func(s session.Summary) bool {
+					return s.ID == sessionID
+				})
+				d.filterSessions()
+				return d, core.CmdHandler(messages.DeleteSessionMsg{SessionID: sessionID})
+			}
+			return d, nil
+
 		default:
 			var cmd tea.Cmd
 			d.textInput, cmd = d.textInput.Update(msg)
@@ -300,13 +315,20 @@ func (d *sessionBrowserDialog) View() string {
 		scrollableContent = d.scrollview.View()
 	}
 
-	// Build title with filter indicator
-	title := "Sessions"
+	// Build title with session count and optional star-filter indicator.
+	// Show "filtered/total" when a search or star filter reduces the list.
+	var countLabel string
+	if len(d.filtered) == len(d.sessions) {
+		countLabel = strconv.Itoa(len(d.sessions))
+	} else {
+		countLabel = fmt.Sprintf("%d/%d", len(d.filtered), len(d.sessions))
+	}
+	title := fmt.Sprintf("Sessions (%s)", countLabel)
 	switch d.starFilter {
 	case 1:
-		title = "Sessions " + styles.StarredStyle.Render("★")
+		title += " " + styles.StarredStyle.Render("★")
 	case 2:
-		title = "Sessions " + styles.UnstarredStyle.Render("☆")
+		title += " " + styles.UnstarredStyle.Render("☆")
 	}
 
 	var filterDesc string
@@ -333,7 +355,8 @@ func (d *sessionBrowserDialog) View() string {
 		AddSeparator().
 		AddContent(idFooter).
 		AddSpace().
-		AddHelpKeys("↑/↓", "navigate", "ctrl+s", "star", "ctrl+f", filterDesc, "ctrl+y", "copy id", "enter", "load", "esc", "close").
+		AddHelpKeys("↑/↓", "navigate", "ctrl+s", "star", "ctrl+f", filterDesc, "ctrl+y", "copy id", "ctrl+d", "delete").
+		AddHelpKeys("enter", "load", "esc", "close").
 		Build()
 
 	return styles.DialogStyle.Width(dialogWidth).Render(content)

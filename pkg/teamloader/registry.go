@@ -85,6 +85,23 @@ func NewDefaultToolsetRegistry() *ToolsetRegistry {
 	return r
 }
 
+// resolveToolsetPath expands shell patterns (~, env vars) in the given path,
+// then validates it relative to the working directory or parent directory.
+func resolveToolsetPath(toolsetPath, parentDir string, runConfig *config.RuntimeConfig) (string, error) {
+	toolsetPath = path.ExpandPath(toolsetPath)
+
+	var basePath string
+	if filepath.IsAbs(toolsetPath) {
+		basePath = ""
+	} else if wd := runConfig.WorkingDir; wd != "" {
+		basePath = wd
+	} else {
+		basePath = parentDir
+	}
+
+	return path.ValidatePathInDirectory(toolsetPath, basePath)
+}
+
 func createTodoTool(_ context.Context, toolset latest.Toolset, _ string, _ *config.RuntimeConfig, _ string) (tools.ToolSet, error) {
 	if toolset.Shared {
 		return builtin.NewSharedTodoTool(), nil
@@ -98,16 +115,7 @@ func createTasksTool(_ context.Context, toolset latest.Toolset, parentDir string
 		toolsetPath = "tasks.json"
 	}
 
-	var basePath string
-	if filepath.IsAbs(toolsetPath) {
-		basePath = ""
-	} else if wd := runConfig.WorkingDir; wd != "" {
-		basePath = wd
-	} else {
-		basePath = parentDir
-	}
-
-	validatedPath, err := path.ValidatePathInDirectory(toolsetPath, basePath)
+	validatedPath, err := resolveToolsetPath(toolsetPath, parentDir, runConfig)
 	if err != nil {
 		return nil, fmt.Errorf("invalid tasks storage path: %w", err)
 	}
@@ -122,18 +130,8 @@ func createMemoryTool(_ context.Context, toolset latest.Toolset, parentDir strin
 	var validatedMemoryPath string
 
 	if toolset.Path != "" {
-		// Explicit path provided - resolve relative to working dir or parent dir
-		var basePath string
-		if filepath.IsAbs(toolset.Path) {
-			basePath = ""
-		} else if wd := runConfig.WorkingDir; wd != "" {
-			basePath = wd
-		} else {
-			basePath = parentDir
-		}
-
 		var err error
-		validatedMemoryPath, err = path.ValidatePathInDirectory(toolset.Path, basePath)
+		validatedMemoryPath, err = resolveToolsetPath(toolset.Path, parentDir, runConfig)
 		if err != nil {
 			return nil, fmt.Errorf("invalid memory database path: %w", err)
 		}
@@ -369,6 +367,7 @@ func createRAGTool(ctx context.Context, toolset latest.Toolset, parentDir string
 		ModelsGateway: runConfig.ModelsGateway,
 		Env:           runConfig.EnvProvider(),
 		Models:        runConfig.Models,
+		Providers:     runConfig.Providers,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RAG manager: %w", err)

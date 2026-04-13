@@ -271,15 +271,6 @@ func (c *Client) CreateChatCompletionStream(
 		slog.Error("Failed to convert messages for Anthropic request", "error", err)
 		return nil, err
 	}
-	// Preflight validation to ensure tool_use/tool_result sequencing is valid
-	if err := validateAnthropicSequencing(converted); err != nil {
-		slog.Warn("Invalid message sequencing for Anthropic detected, attempting self-repair", "error", err)
-		converted = repairAnthropicSequencing(converted)
-		if err2 := validateAnthropicSequencing(converted); err2 != nil {
-			slog.Error("Failed to self-repair Anthropic sequencing", "error", err2)
-			return nil, err
-		}
-	}
 	if len(converted) == 0 {
 		return nil, errors.New("no messages to send after conversion: all messages were filtered out")
 	}
@@ -735,27 +726,6 @@ func (c *Client) FileManager() *FileManager {
 	return c.fileManager
 }
 
-// validateAnthropicSequencing verifies that for every assistant message that includes
-// one or more tool_use blocks, the immediately following message is a user message
-// that includes tool_result blocks for all those tool_use IDs (grouped into that single message).
-func validateAnthropicSequencing(msgs []anthropic.MessageParam) error {
-	return validateSequencing(msgs)
-}
-
-// repairAnthropicSequencing inserts a synthetic user message containing tool_result blocks
-// immediately after any assistant message that has tool_use blocks missing a corresponding
-// tool_result in the next user message. This is a best-effort local repair to keep the
-// conversation valid for Anthropic while preserving original messages, to keep the agent loop running.
-func repairAnthropicSequencing(msgs []anthropic.MessageParam) []anthropic.MessageParam {
-	return repairSequencing(msgs, func(toolUseIDs map[string]struct{}) anthropic.MessageParam {
-		blocks := make([]anthropic.ContentBlockParamUnion, 0, len(toolUseIDs))
-		for id := range toolUseIDs {
-			blocks = append(blocks, anthropic.NewToolResultBlock(id, "(tool execution failed)", false))
-		}
-		return anthropic.NewUserMessage(blocks...)
-	})
-}
-
 // marshalToMap is a helper that converts any value to a map[string]any via JSON marshaling.
 // This is used to inspect SDK union types without depending on their internal structure.
 // It's shared by both standard and Beta API validation/repair code.
@@ -778,125 +748,6 @@ func contentArray(m map[string]any) []any {
 		return a
 	}
 	return nil
-}
-
-// validateSequencing generically validates that every assistant message with tool_use blocks
-// is immediately followed by a user message with corresponding tool_result blocks.
-// It works on both standard (MessageParam) and Beta (BetaMessageParam) types by
-// marshaling to map[string]any for inspection.
-func validateSequencing[T any](msgs []T) error {
-	for i := range msgs {
-		m, ok := marshalToMap(msgs[i])
-		if !ok || m["role"] != "assistant" {
-			continue
-		}
-
-		toolUseIDs := collectToolUseIDs(contentArray(m))
-		if len(toolUseIDs) == 0 {
-			continue
-		}
-
-		if i+1 >= len(msgs) {
-			slog.Warn("Anthropic sequencing invalid: assistant tool_use present but no next user tool_result message", "assistant_index", i)
-			return errors.New("assistant tool_use present but no subsequent user message with tool_result blocks")
-		}
-
-		next, ok := marshalToMap(msgs[i+1])
-		if !ok || next["role"] != "user" {
-			slog.Warn("Anthropic sequencing invalid: next message after assistant tool_use is not user", "assistant_index", i, "next_role", next["role"])
-			return errors.New("assistant tool_use must be followed by a user message containing corresponding tool_result blocks")
-		}
-
-		toolResultIDs := collectToolResultIDs(contentArray(next))
-		missing := differenceIDs(toolUseIDs, toolResultIDs)
-		if len(missing) > 0 {
-			slog.Warn("Anthropic sequencing invalid: missing tool_result for tool_use id in next user message", "assistant_index", i, "tool_use_id", missing[0], "missing_count", len(missing))
-			return fmt.Errorf("missing tool_result for tool_use id %s in the next user message", missing[0])
-		}
-	}
-	return nil
-}
-
-// repairSequencing generically inserts a synthetic user message after any assistant
-// tool_use message that is missing corresponding tool_result blocks. The makeSynthetic
-// callback builds the appropriate user message type for the remaining tool_use IDs.
-func repairSequencing[T any](msgs []T, makeSynthetic func(toolUseIDs map[string]struct{}) T) []T {
-	if len(msgs) == 0 {
-		return msgs
-	}
-	repaired := make([]T, 0, len(msgs)+2)
-	for i := range msgs {
-		repaired = append(repaired, msgs[i])
-
-		m, ok := marshalToMap(msgs[i])
-		if !ok || m["role"] != "assistant" {
-			continue
-		}
-
-		toolUseIDs := collectToolUseIDs(contentArray(m))
-		if len(toolUseIDs) == 0 {
-			continue
-		}
-
-		// Remove any IDs that already have results in the next user message
-		if i+1 < len(msgs) {
-			if next, ok := marshalToMap(msgs[i+1]); ok && next["role"] == "user" {
-				toolResultIDs := collectToolResultIDs(contentArray(next))
-				for id := range toolResultIDs {
-					delete(toolUseIDs, id)
-				}
-			}
-		}
-
-		if len(toolUseIDs) > 0 {
-			slog.Debug("Inserting synthetic user message for missing tool_results",
-				"assistant_index", i,
-				"missing_count", len(toolUseIDs))
-			repaired = append(repaired, makeSynthetic(toolUseIDs))
-		}
-	}
-	return repaired
-}
-
-func collectToolUseIDs(content []any) map[string]struct{} {
-	ids := make(map[string]struct{})
-	for _, c := range content {
-		if cb, ok := c.(map[string]any); ok {
-			if t, _ := cb["type"].(string); t == "tool_use" {
-				if id, _ := cb["id"].(string); id != "" {
-					ids[id] = struct{}{}
-				}
-			}
-		}
-	}
-	return ids
-}
-
-func collectToolResultIDs(content []any) map[string]struct{} {
-	ids := make(map[string]struct{})
-	for _, c := range content {
-		if cb, ok := c.(map[string]any); ok {
-			if t, _ := cb["type"].(string); t == "tool_result" {
-				if id, _ := cb["tool_use_id"].(string); id != "" {
-					ids[id] = struct{}{}
-				}
-			}
-		}
-	}
-	return ids
-}
-
-func differenceIDs(a, b map[string]struct{}) []string {
-	if len(a) == 0 {
-		return nil
-	}
-	var missing []string
-	for id := range a {
-		if _, ok := b[id]; !ok {
-			missing = append(missing, id)
-		}
-	}
-	return missing
 }
 
 // validThinkingTokens validates that the token budget is within the

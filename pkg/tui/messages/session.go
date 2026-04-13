@@ -59,11 +59,17 @@ type (
 	// ToggleSessionStarMsg toggles star on a session; empty ID means current session.
 	ToggleSessionStarMsg struct{ SessionID string }
 
+	// DeleteSessionMsg deletes a session by ID.
+	DeleteSessionMsg struct{ SessionID string }
+
 	// SetSessionTitleMsg sets the session title to specified value.
 	SetSessionTitleMsg struct{ Title string }
 
 	// RegenerateTitleMsg regenerates the session title using the AI.
 	RegenerateTitleMsg struct{}
+
+	// ForkSessionMsg requests forking the current session into a new tab.
+	ForkSessionMsg struct{}
 
 	// StreamCancelledMsg notifies components that the stream has been cancelled.
 	StreamCancelledMsg struct{ ShowMessage bool }

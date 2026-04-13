@@ -339,6 +339,203 @@ func TestEvalCriteriaUnmarshalJSON(t *testing.T) {
 	}
 }
 
+func TestSanitizeToolCalls(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no-op when all tool calls have results", func(t *testing.T) {
+		t.Parallel()
+		messages := []chat.Message{
+			{Role: chat.MessageRoleUser, Content: "hi"},
+			{
+				Role: chat.MessageRoleAssistant,
+				ToolCalls: []tools.ToolCall{
+					{ID: "tc1", Function: tools.FunctionCall{Name: "shell"}},
+				},
+			},
+			{Role: chat.MessageRoleTool, ToolCallID: "tc1", Content: "ok"},
+			{Role: chat.MessageRoleAssistant, Content: "done"},
+		}
+		result := sanitizeToolCalls(messages)
+		assert.Equal(t, messages, result)
+	})
+
+	t.Run("injects synthetic result for missing tool result", func(t *testing.T) {
+		t.Parallel()
+		messages := []chat.Message{
+			{Role: chat.MessageRoleUser, Content: "hi"},
+			{
+				Role: chat.MessageRoleAssistant,
+				ToolCalls: []tools.ToolCall{
+					{ID: "tc1", Function: tools.FunctionCall{Name: "shell"}},
+				},
+			},
+		}
+		result := sanitizeToolCalls(messages)
+
+		require.Len(t, result, 3)
+		assert.Equal(t, chat.MessageRoleTool, result[2].Role)
+		assert.Equal(t, "tc1", result[2].ToolCallID)
+		assert.True(t, result[2].IsError)
+		assert.Equal(t, "No result provided", result[2].Content)
+	})
+
+	t.Run("handles multiple tool calls with partial results", func(t *testing.T) {
+		t.Parallel()
+		messages := []chat.Message{
+			{Role: chat.MessageRoleUser, Content: "hi"},
+			{
+				Role: chat.MessageRoleAssistant,
+				ToolCalls: []tools.ToolCall{
+					{ID: "tc1", Function: tools.FunctionCall{Name: "read_file"}},
+					{ID: "tc2", Function: tools.FunctionCall{Name: "write_file"}},
+					{ID: "tc3", Function: tools.FunctionCall{Name: "shell"}},
+				},
+			},
+			{Role: chat.MessageRoleTool, ToolCallID: "tc1", Content: "file contents"},
+			// tc2 and tc3 are missing
+		}
+		result := sanitizeToolCalls(messages)
+
+		// Original 3 messages + 2 synthetic results
+		require.Len(t, result, 5)
+
+		// assistant, then existing tc1 result, then synthetics for tc2/tc3 flushed at end
+		assert.Equal(t, chat.MessageRoleAssistant, result[1].Role)
+		assert.Equal(t, "tc1", result[2].ToolCallID)
+		assert.False(t, result[2].IsError)
+		assert.Equal(t, "tc2", result[3].ToolCallID)
+		assert.True(t, result[3].IsError)
+		assert.Equal(t, "tc3", result[4].ToolCallID)
+		assert.True(t, result[4].IsError)
+	})
+
+	t.Run("no tool calls at all is a no-op", func(t *testing.T) {
+		t.Parallel()
+		messages := []chat.Message{
+			{Role: chat.MessageRoleUser, Content: "hello"},
+			{Role: chat.MessageRoleAssistant, Content: "hi there"},
+		}
+		result := sanitizeToolCalls(messages)
+		assert.Equal(t, messages, result)
+	})
+
+	t.Run("multiple assistant messages with missing results", func(t *testing.T) {
+		t.Parallel()
+		messages := []chat.Message{
+			{Role: chat.MessageRoleUser, Content: "hi"},
+			{
+				Role:      chat.MessageRoleAssistant,
+				ToolCalls: []tools.ToolCall{{ID: "tc1"}},
+			},
+			{Role: chat.MessageRoleTool, ToolCallID: "tc1", Content: "ok"},
+			{
+				Role:      chat.MessageRoleAssistant,
+				ToolCalls: []tools.ToolCall{{ID: "tc2"}},
+			},
+			// tc2 result missing (crash)
+		}
+		result := sanitizeToolCalls(messages)
+
+		require.Len(t, result, 5)
+		assert.Equal(t, "tc2", result[4].ToolCallID)
+		assert.True(t, result[4].IsError)
+	})
+
+	t.Run("flushes synthetics before next user message", func(t *testing.T) {
+		t.Parallel()
+		messages := []chat.Message{
+			{Role: chat.MessageRoleUser, Content: "hi"},
+			{
+				Role:      chat.MessageRoleAssistant,
+				ToolCalls: []tools.ToolCall{{ID: "tc1", Function: tools.FunctionCall{Name: "shell"}}},
+			},
+			// no tool result — user responds before result arrives
+			{Role: chat.MessageRoleUser, Content: "never mind"},
+			{Role: chat.MessageRoleAssistant, Content: "ok"},
+		}
+		result := sanitizeToolCalls(messages)
+
+		// synthetic tc1 result should be injected before the second user message
+		require.Len(t, result, 5)
+		assert.Equal(t, chat.MessageRoleAssistant, result[1].Role)
+		assert.Equal(t, "tc1", result[2].ToolCallID)
+		assert.True(t, result[2].IsError)
+		assert.Equal(t, chat.MessageRoleUser, result[3].Role)
+		assert.Equal(t, chat.MessageRoleAssistant, result[4].Role)
+	})
+
+	t.Run("flushes synthetics before next assistant with tool calls", func(t *testing.T) {
+		t.Parallel()
+		messages := []chat.Message{
+			{Role: chat.MessageRoleUser, Content: "hi"},
+			{
+				Role:      chat.MessageRoleAssistant,
+				ToolCalls: []tools.ToolCall{{ID: "tc1"}},
+			},
+			// no result for tc1, model immediately issues another tool call
+			{
+				Role:      chat.MessageRoleAssistant,
+				ToolCalls: []tools.ToolCall{{ID: "tc2"}},
+			},
+			{Role: chat.MessageRoleTool, ToolCallID: "tc2", Content: "ok"},
+		}
+		result := sanitizeToolCalls(messages)
+
+		require.Len(t, result, 5)
+		// synthetic for tc1 inserted before the second assistant message
+		assert.Equal(t, "tc1", result[2].ToolCallID)
+		assert.True(t, result[2].IsError)
+		assert.Len(t, result[3].ToolCalls, 1)
+		assert.Equal(t, "tc2", result[3].ToolCalls[0].ID)
+		assert.Equal(t, "tc2", result[4].ToolCallID)
+		assert.False(t, result[4].IsError)
+	})
+
+	t.Run("empty messages returns empty", func(t *testing.T) {
+		t.Parallel()
+		result := sanitizeToolCalls(nil)
+		assert.Nil(t, result)
+
+		result = sanitizeToolCalls([]chat.Message{})
+		assert.Empty(t, result)
+	})
+}
+
+func TestGetMessages_SanitizesOrphanedToolCalls(t *testing.T) {
+	testAgent := &agent.Agent{}
+
+	s := New()
+	s.AddMessage(NewAgentMessage("", &chat.Message{
+		Role:    chat.MessageRoleUser,
+		Content: "do something",
+	}))
+	s.AddMessage(NewAgentMessage("", &chat.Message{
+		Role: chat.MessageRoleAssistant,
+		ToolCalls: []tools.ToolCall{
+			{ID: "orphan1", Function: tools.FunctionCall{Name: "shell"}},
+			{ID: "orphan2", Function: tools.FunctionCall{Name: "read_file"}},
+		},
+	}))
+	// No tool result messages — simulating a crash mid-run
+
+	messages := s.GetMessages(testAgent)
+
+	// Verify every tool call ID has a matching tool result
+	callIDs := make(map[string]bool)
+	resultIDs := make(map[string]bool)
+	for _, msg := range messages {
+		for _, tc := range msg.ToolCalls {
+			callIDs[tc.ID] = true
+		}
+		if msg.Role == chat.MessageRoleTool {
+			resultIDs[msg.ToolCallID] = true
+		}
+	}
+	for id := range callIDs {
+		assert.True(t, resultIDs[id], "tool call %s should have a matching result", id)
+	}
+}
+
 func TestTransferTaskPromptExcludesParents(t *testing.T) {
 	t.Parallel()
 

@@ -130,6 +130,9 @@ type model struct {
 
 	// Hover state for showing copy button on assistant messages
 	hoveredMessageIndex int // Index of message under mouse (-1 = none)
+
+	// Hovered URL for underline-on-hover effect (nil = no URL hovered)
+	hoveredURL *hoveredURL
 }
 
 // New creates a new message list component
@@ -365,7 +368,7 @@ func (m *model) handleMouseMotion(msg tea.MouseMotionMsg) (layout.Model, tea.Cmd
 	}
 
 	// Track hovered message for showing copy button on assistant messages
-	line, _ := m.mouseToLineCol(msg.X, msg.Y)
+	line, col := m.mouseToLineCol(msg.X, msg.Y)
 	newHovered := -1
 	if msgIdx, _ := m.globalLineToMessageLine(line); msgIdx >= 0 && msgIdx < len(m.messages) {
 		if m.messages[msgIdx].Type == types.MessageTypeAssistant {
@@ -383,6 +386,9 @@ func (m *model) handleMouseMotion(msg tea.MouseMotionMsg) (layout.Model, tea.Cmd
 		}
 		m.renderDirty = true
 	}
+
+	// Track hovered URL for underline effect
+	m.updateHoveredURL(line, col)
 
 	return m, nil
 }
@@ -565,6 +571,8 @@ func (m *model) View() string {
 	if m.selection.active {
 		visibleLines = m.applySelectionHighlight(visibleLines, startLine)
 	}
+
+	visibleLines = m.applyURLUnderline(visibleLines, startLine)
 
 	// Sync scroll state and delegate rendering to scrollview which guarantees
 	// fixed-width padding, pinned scrollbar, and exact height.
@@ -1239,6 +1247,7 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 	m.bottomSlack = 0
 	m.selectedMessageIndex = -1
 	m.hoveredMessageIndex = -1
+	m.hoveredURL = nil
 
 	var cmds []tea.Cmd
 
@@ -1330,12 +1339,16 @@ func (m *model) LoadFromSession(sess *session.Session) tea.Cmd {
 }
 
 func (m *model) AddOrUpdateToolCall(agentName string, toolCall tools.ToolCall, toolDef tools.Tool, status types.ToolStatus) tea.Cmd {
-	// First check if this tool call exists in an active reasoning block
-	if block, blockIdx := m.getActiveReasoningBlock(agentName); block != nil {
-		if block.HasToolCall(toolCall.ID) {
-			block.UpdateToolCall(toolCall.ID, status, toolCall.Function.Arguments)
-			m.invalidateItem(blockIdx)
-			return nil
+	// First check if this tool call exists in any reasoning block
+	for i := len(m.messages) - 1; i >= 0; i-- {
+		if m.messages[i].Type == types.MessageTypeAssistantReasoningBlock {
+			if block, ok := m.views[i].(*reasoningblock.Model); ok {
+				if block.HasToolCall(toolCall.ID) {
+					block.UpdateToolCall(toolCall.ID, status, toolCall.Function.Arguments)
+					m.invalidateItem(i)
+					return nil
+				}
+			}
 		}
 	}
 

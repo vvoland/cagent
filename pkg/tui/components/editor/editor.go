@@ -20,7 +20,6 @@ import (
 	"github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 
-	"github.com/docker/docker-agent/pkg/app"
 	"github.com/docker/docker-agent/pkg/history"
 	"github.com/docker/docker-agent/pkg/paths"
 	"github.com/docker/docker-agent/pkg/tui/components/completion"
@@ -157,8 +156,18 @@ type editor struct {
 	searchInput textinput.Model
 }
 
+// Option configures the Editor.
+type Option func(*editor)
+
+// WithCompletions sets the available completions for the editor.
+func WithCompletions(comps ...completions.Completion) Option {
+	return func(e *editor) {
+		e.completions = comps
+	}
+}
+
 // New creates a new editor component
-func New(a *app.App, hist *history.History) Editor {
+func New(hist *history.History, opts ...Option) Editor {
 	ta := textarea.New()
 	ta.SetStyles(styles.InputStyle)
 	ta.Placeholder = "Type your message here…"
@@ -185,9 +194,13 @@ func New(a *app.App, hist *history.History) Editor {
 		textarea:                      ta,
 		searchInput:                   si,
 		hist:                          hist,
-		completions:                   completions.Completions(a),
 		keyboardEnhancementsSupported: false,
 		banner:                        newAttachmentBanner(),
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(e)
 	}
 
 	e.configureNewlineKeybinding()
@@ -638,48 +651,50 @@ func (e *editor) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		return e, cmd
 
 	case completion.SelectedMsg:
-		// If the item has an Execute function, run it instead of inserting text
-		if msg.Execute != nil {
-			// Remove the trigger character and any typed completion word from the textarea
-			// before executing. For example, typing "@" then selecting "Browse files..."
-			// should remove the "@" so AttachFile doesn't produce a double "@@".
-			if e.currentCompletion != nil {
-				triggerWord := e.currentCompletion.Trigger() + e.completionWord
-				currentValue := e.textarea.Value()
-				if idx := strings.LastIndex(currentValue, triggerWord); idx >= 0 {
-					e.textarea.SetValue(currentValue[:idx] + currentValue[idx+len(triggerWord):])
-					e.textarea.MoveToEnd()
-				}
+		if e.currentCompletion == nil {
+			return e, nil
+		}
+
+		atCompletion := e.currentCompletion.Trigger() == "@" && !strings.HasPrefix(msg.Value, "@paste-")
+		triggerWord := e.currentCompletion.Trigger() + e.completionWord
+		currentValue := e.textarea.Value()
+		idx := strings.LastIndex(currentValue, triggerWord)
+
+		// Handle Execute functions (e.g., "Browse files...")
+		// There is an execute function AND you hit enter, or there is an @ directive
+		if msg.Execute != nil && (msg.AutoSubmit || atCompletion) {
+			if idx >= 0 {
+				e.textarea.SetValue(currentValue[:idx] + currentValue[idx+len(triggerWord):])
+				e.textarea.MoveToEnd()
 			}
 			e.clearSuggestion()
 			return e, msg.Execute()
 		}
-		if e.currentCompletion.AutoSubmit() {
-			// For auto-submit completions (like commands), use the selected
-			// command value (e.g., "/exit") instead of what the user typed
-			// (e.g., "/e"). Append any extra text after the trigger word
-			// to preserve arguments (e.g., "/export /tmp/file").
-			triggerWord := e.currentCompletion.Trigger() + e.completionWord
+
+		// Handle Auto-Submit items (e.g., commands like "/exit")
+		if msg.AutoSubmit && !atCompletion {
 			extraText := ""
-			if _, after, found := strings.Cut(e.textarea.Value(), triggerWord); found {
-				extraText = after
+			if idx >= 0 {
+				extraText = currentValue[idx+len(triggerWord):]
 			}
 			cmd := e.resetAndSend(msg.Value + extraText)
 			return e, cmd
 		}
-		// For non-auto-submit completions (like file paths), replace the completion word
-		currentValue := e.textarea.Value()
-		if lastIdx := strings.LastIndex(currentValue, e.completionWord); lastIdx >= 0 {
-			newValue := currentValue[:lastIdx-1] + msg.Value + " " + currentValue[lastIdx+len(e.completionWord):]
+
+		// Insert standard completions (e.g., file paths or text pastes)
+		if idx >= 0 {
+			newValue := currentValue[:idx] + msg.Value + " " + currentValue[idx+len(triggerWord):]
 			e.textarea.SetValue(newValue)
 			e.textarea.MoveToEnd()
 		}
-		// Track file references when using @ completion (but not paste placeholders)
-		if e.currentCompletion != nil && e.currentCompletion.Trigger() == "@" && !strings.HasPrefix(msg.Value, "@paste-") {
+
+		// Track valid file references
+		if atCompletion {
 			if err := e.addFileAttachment(msg.Value); err != nil {
 				slog.Warn("failed to add file attachment from completion", "value", msg.Value, "error", err)
 			}
 		}
+
 		e.clearSuggestion()
 		return e, nil
 	case completion.ClosedMsg:

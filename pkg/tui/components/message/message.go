@@ -145,18 +145,19 @@ func (mv *messageModel) Render(width int) string {
 			prefix = mv.senderPrefix(msg.Sender)
 		}
 
-		// Always reserve a top row for the copy icon to avoid layout shifts.
-		// The icon is only visible when hovered or selected.
+		// Always reserve a top row to avoid layout shifts when the copy icon
+		// appears on hover. When not hovered, the row is filled with spaces
+		// (invisible). AssistantMessageStyle has PaddingTop=0, so this extra
+		// row acts as a stable spacer.
 		innerWidth := width - messageStyle.GetHorizontalFrameSize()
-		var topRow string
+		topRow := strings.Repeat(" ", innerWidth)
 		if mv.hovered || mv.selected {
 			copyIcon := styles.MutedStyle.Render(types.AssistantMessageCopyLabel)
 			iconWidth := ansi.StringWidth(types.AssistantMessageCopyLabel)
 			padding := max(innerWidth-iconWidth, 0)
 			topRow = strings.Repeat(" ", padding) + copyIcon
 		}
-		noTopPaddingStyle := messageStyle.PaddingTop(0)
-		return prefix + noTopPaddingStyle.Width(width).Render(topRow+"\n"+rendered)
+		return prefix + messageStyle.Width(width).Render(topRow+"\n"+rendered)
 	case types.MessageTypeShellOutput:
 		if rendered, err := markdown.NewRenderer(width).Render(fmt.Sprintf("```console\n%s\n```", msg.Content)); err == nil {
 			return rendered

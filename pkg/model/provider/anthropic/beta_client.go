@@ -44,14 +44,6 @@ func (c *Client) createBetaStream(
 		slog.Error("Failed to convert messages for Anthropic Beta request", "error", err)
 		return nil, err
 	}
-	if err := validateAnthropicSequencingBeta(converted); err != nil {
-		slog.Warn("Invalid message sequencing for Anthropic Beta API detected, attempting self-repair", "error", err)
-		converted = repairAnthropicSequencingBeta(converted)
-		if err2 := validateAnthropicSequencingBeta(converted); err2 != nil {
-			slog.Error("Failed to self-repair Anthropic Beta sequencing", "error", err2)
-			return nil, err
-		}
-	}
 	if len(converted) == 0 {
 		return nil, errors.New("no messages to send after conversion: all messages were filtered out")
 	}
@@ -146,35 +138,6 @@ func (c *Client) createBetaStream(
 
 	slog.Debug("Anthropic Beta API chat completion stream created successfully", "model", c.ModelConfig.Model)
 	return ad, nil
-}
-
-// validateAnthropicSequencingBeta performs the same validation as standard API but for Beta payloads
-func validateAnthropicSequencingBeta(msgs []anthropic.BetaMessageParam) error {
-	return validateSequencing(msgs)
-}
-
-// repairAnthropicSequencingBeta inserts a synthetic user message with tool_result blocks
-// for any assistant tool_use blocks that don't have corresponding tool_result blocks
-// in the immediate next user message.
-func repairAnthropicSequencingBeta(msgs []anthropic.BetaMessageParam) []anthropic.BetaMessageParam {
-	return repairSequencing(msgs, func(toolUseIDs map[string]struct{}) anthropic.BetaMessageParam {
-		blocks := make([]anthropic.BetaContentBlockParamUnion, 0, len(toolUseIDs))
-		for id := range toolUseIDs {
-			slog.Debug("Creating synthetic tool_result", "tool_use_id", id)
-			blocks = append(blocks, anthropic.BetaContentBlockParamUnion{
-				OfToolResult: &anthropic.BetaToolResultBlockParam{
-					ToolUseID: id,
-					Content: []anthropic.BetaToolResultBlockParamContentUnion{
-						{OfText: &anthropic.BetaTextBlockParam{Text: "(tool execution failed)"}},
-					},
-				},
-			})
-		}
-		return anthropic.BetaMessageParam{
-			Role:    anthropic.BetaMessageParamRoleUser,
-			Content: blocks,
-		}
-	})
 }
 
 // countAnthropicTokensBeta calls Anthropic's Count Tokens API for the provided Beta API payload

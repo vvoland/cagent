@@ -146,6 +146,12 @@ func New(maxTitleLen int) *TabBar {
 	}
 }
 
+// SetCloseTabEnabled enables or disables the close-tab key binding.
+// When disabled, Ctrl+W passes through to the editor for word deletion.
+func (t *TabBar) SetCloseTabEnabled(v bool) {
+	t.keyMap.CloseTab.SetEnabled(v)
+}
+
 // SetWidth sets the available width for the tab bar.
 func (t *TabBar) SetWidth(width int) {
 	t.width = width

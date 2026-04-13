@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker-agent/pkg/config"
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/model/provider"
-	"github.com/docker/docker-agent/pkg/model/provider/options"
 	"github.com/docker/docker-agent/pkg/modelsdev"
 	"github.com/docker/docker-agent/pkg/rag/embed"
 )
@@ -41,8 +40,7 @@ func CreateEmbeddingProvider(ctx context.Context, modelName string, buildCtx Bui
 			return nil, fmt.Errorf("model '%s' not found: %w", modelName, err)
 		}
 
-		embedModel, err = provider.New(ctx, &modelCfg, buildCtx.Env,
-			options.WithGateway(buildCtx.ModelsGateway))
+		embedModel, err = buildCtx.NewProvider(ctx, &modelCfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create embedding model: %w", err)
 		}
@@ -80,8 +78,7 @@ func createAutoEmbeddingModel(ctx context.Context, buildCtx BuildContext) (provi
 			Model:    autoModelCfg.Model,
 		}
 
-		model, err := provider.New(ctx, &modelCfg, buildCtx.Env,
-			options.WithGateway(buildCtx.ModelsGateway))
+		model, err := buildCtx.NewProvider(ctx, &modelCfg)
 		if err != nil {
 			lastErr = err
 			continue

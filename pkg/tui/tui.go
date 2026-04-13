@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker-agent/pkg/tui/commands"
 	"github.com/docker/docker-agent/pkg/tui/components/completion"
 	"github.com/docker/docker-agent/pkg/tui/components/editor"
+	"github.com/docker/docker-agent/pkg/tui/components/editor/completions"
 	"github.com/docker/docker-agent/pkg/tui/components/notification"
 	"github.com/docker/docker-agent/pkg/tui/components/spinner"
 	"github.com/docker/docker-agent/pkg/tui/components/statusbar"
@@ -41,6 +42,7 @@ import (
 	"github.com/docker/docker-agent/pkg/tui/service/tuistate"
 	"github.com/docker/docker-agent/pkg/tui/styles"
 	"github.com/docker/docker-agent/pkg/userconfig"
+	"github.com/docker/docker-agent/pkg/version"
 )
 
 // SessionSpawner creates new sessions with their own runtime.
@@ -159,6 +161,12 @@ type appModel struct {
 
 	// leanMode enables a simplified TUI with minimal chrome.
 	leanMode bool
+
+	// buildCommandCategories is a function that returns the list of command categories.
+	buildCommandCategories func(context.Context, tea.Model) []commands.Category
+
+	appName    string
+	appVersion string
 }
 
 // Option configures the TUI.
@@ -169,6 +177,41 @@ type Option func(*appModel)
 func WithLeanMode() Option {
 	return func(m *appModel) {
 		m.leanMode = true
+	}
+}
+
+// WithAppName sets the application name.
+//
+// If not provided, defaults to "docker agent".
+func WithAppName(name string) Option {
+	return func(m *appModel) {
+		m.appName = name
+	}
+}
+
+// WithVersion sets the application version.
+//
+// If not provided, defaults to version.Version.
+func WithVersion(v string) Option {
+	return func(m *appModel) {
+		m.appVersion = v
+	}
+}
+
+// WithCommandBuilder builds the command categories shown in the command
+// palette from the given function. It overrides the default command category
+// builder. To include the default commands, the given function should call
+// commands.BuildCommandCategories and merge the result with its own.
+//
+// The tea.Model passed to the builder function must not be accessed during
+// the build call itself - it should only be captured for use within command
+// Execute functions. There is no guarantee that the tea.Model holds all
+// dependencies during the build phase, which may cause [core.Resolve] to panic.
+func WithCommandBuilder(
+	fn func(context.Context, tea.Model) []commands.Category,
+) Option {
+	return func(m *appModel) {
+		m.buildCommandCategories = fn
 	}
 }
 
@@ -196,19 +239,20 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 	}
 
 	initialSessionState := service.NewSessionState(initialApp.Session())
-	initialEditor := editor.New(initialApp, historyStore)
 	sessID := initialApp.Session().ID
 
 	m := &appModel{
+		buildCommandCategories: func(ctx context.Context, _ tea.Model) []commands.Category {
+			return commands.BuildCommandCategories(ctx, initialApp)
+		},
 		supervisor:              sv,
 		tabBar:                  tb,
 		tuiStore:                ts,
 		chatPages:               map[string]chat.Page{},
+		editors:                 map[string]editor.Editor{},
 		sessionStates:           map[string]*service.SessionState{sessID: initialSessionState},
-		editors:                 map[string]editor.Editor{sessID: initialEditor},
 		application:             initialApp,
 		sessionState:            initialSessionState,
-		editor:                  initialEditor,
 		history:                 historyStore,
 		pendingRestores:         make(map[string]string),
 		pendingSidebarCollapsed: make(map[string]bool),
@@ -220,6 +264,8 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 		focusedPanel:            PanelEditor,
 		editorLines:             3,
 		dockerDesktop:           os.Getenv("TERM_PROGRAM") == "docker_desktop",
+		appName:                 "docker agent",
+		appVersion:              version.Version,
 	}
 
 	// Apply options
@@ -227,13 +273,18 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 		opt(m)
 	}
 
+	// Create initial editor (after options are applied so command builder is set)
+	initialEditor := editor.New(historyStore, m.editorOpts()...)
+	m.editors[sessID] = initialEditor
+	m.editor = initialEditor
+
 	// Create initial chat page (after options are applied so leanMode is set)
 	initialChatPage := chat.New(initialApp, initialSessionState, m.chatPageOpts()...)
 	m.chatPages[sessID] = initialChatPage
 	m.chatPage = initialChatPage
 
 	// Initialize status bar (pass m as help provider)
-	m.statusBar = statusbar.New(m)
+	m.statusBar = statusbar.New(m, statusbar.WithTitle(m.appName+" "+m.appVersion))
 
 	// Add the initial session to the supervisor
 	sv.AddSession(ctx, initialApp, initialApp.Session(), initialWorkingDir, cleanup)
@@ -261,6 +312,23 @@ func New(ctx context.Context, spawner SessionSpawner, initialApp *app.App, initi
 	return m
 }
 
+// Resolve implements dependency resolution for the appModel.
+// See core.Resolve for additional information.
+func (m *appModel) Resolve(v any) any {
+	switch v.(type) {
+	case **app.App:
+		return m.application
+	case **service.SessionState:
+		return m.sessionState
+	case *chat.Page:
+		return m.chatPage
+	case *editor.Editor:
+		return m.editor
+	}
+
+	return nil
+}
+
 // SetProgram sets the tea.Program for the supervisor to send routed messages.
 func (m *appModel) SetProgram(p *tea.Program) {
 	m.program = p
@@ -280,14 +348,31 @@ func (m *appModel) reapplyKeyboardEnhancements() {
 	m.editor = editorModel.(editor.Editor)
 }
 
+func (m *appModel) commandCategories() []commands.Category {
+	return m.buildCommandCategories(context.Background(), m)
+}
+
 // chatPageOpts returns the chat.PageOption slice derived from the current
 // appModel configuration (e.g. lean mode).
 func (m *appModel) chatPageOpts() []chat.PageOption {
-	var opts []chat.PageOption
+	opts := []chat.PageOption{
+		chat.WithCommandParser(commands.NewParser(m.commandCategories()...)),
+	}
+
 	if m.leanMode {
 		opts = append(opts, chat.WithLeanMode())
 	}
 	return opts
+}
+
+// editorOpts returns the editor.Option slice derived from the current appModel.
+func (m *appModel) editorOpts() []editor.Option {
+	return []editor.Option{
+		editor.WithCompletions(
+			completions.NewCommandCompletion(m.commandCategories()),
+			completions.NewFileCompletion(),
+		),
+	}
 }
 
 // initSessionComponents creates a new chat page, session state, and editor for
@@ -296,7 +381,7 @@ func (m *appModel) chatPageOpts() []chat.PageOption {
 func (m *appModel) initSessionComponents(tabID string, a *app.App, sess *session.Session) {
 	ss := service.NewSessionState(sess)
 	cp := chat.New(a, ss, m.chatPageOpts()...)
-	ed := editor.New(a, m.history)
+	ed := editor.New(m.history, m.editorOpts()...)
 
 	m.chatPages[tabID] = cp
 	m.sessionStates[tabID] = ss
@@ -751,6 +836,11 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// --- Exit ---
 
 	case messages.ExitSessionMsg:
+		// If multiple tabs are open, close only the current tab instead of
+		// quitting the entire application (see #2373).
+		if m.supervisor != nil && m.supervisor.Count() > 1 {
+			return m.handleCloseTab(m.supervisor.ActiveID())
+		}
 		m.cleanupAll()
 		return m, tea.Quit
 
@@ -794,6 +884,9 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.BranchFromEditMsg:
 		return m.handleBranchFromEdit(msg)
 
+	case messages.ForkSessionMsg:
+		return m.handleForkSession()
+
 	// --- Session commands (slash commands, command palette) ---
 
 	case messages.ToggleYoloMsg:
@@ -835,6 +928,9 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m.handleToggleSessionStar(sessionID)
+
+	case messages.DeleteSessionMsg:
+		return m.handleDeleteSession(msg.SessionID)
 
 	case messages.SetSessionTitleMsg:
 		return m.handleSetSessionTitle(msg.Title)
@@ -1711,7 +1807,10 @@ func (m *appModel) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	// Tab bar keys (Ctrl+t, Ctrl+p, Ctrl+n, Ctrl+w) are suppressed during
 	// history search so that ctrl+n/ctrl+p cycle through matches instead.
+	// Ctrl+w (close tab) is disabled when the editor is focused so that the
+	// standard "delete word" shortcut works while typing.
 	if !m.leanMode && !m.editor.IsHistorySearchActive() {
+		m.tabBar.SetCloseTabEnabled(m.focusedPanel != PanelEditor)
 		if cmd := m.tabBar.Update(msg); cmd != nil {
 			return m, cmd
 		}
@@ -1747,7 +1846,7 @@ func (m *appModel) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Suspend
 
 	case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+k"))):
-		categories := commands.BuildCommandCategories(context.Background(), m.application)
+		categories := m.commandCategories()
 		return m, core.CmdHandler(dialog.OpenDialogMsg{
 			Model: dialog.NewCommandPaletteDialog(categories),
 		})
@@ -2256,9 +2355,9 @@ func (m *appModel) View() tea.View {
 // When the agent is working, a rotating spinner character is prepended so that
 // terminal multiplexers (tmux) can detect activity in the pane.
 func (m *appModel) windowTitle() string {
-	title := "docker agent"
+	title := m.appName
 	if sessionTitle := m.sessionState.SessionTitle(); sessionTitle != "" {
-		title = sessionTitle + " - docker agent"
+		title = sessionTitle + " - " + m.appName
 	}
 	if m.chatPage.IsWorking() {
 		title = spinner.Frame(m.animFrame) + " " + title
@@ -2447,7 +2546,7 @@ func getEditorDisplayNameFromEnv(visual, editorEnv string) string {
 func toFullscreenView(content, windowTitle string, working, leanMode bool) tea.View {
 	view := tea.NewView(content)
 	view.AltScreen = !leanMode
-	view.MouseMode = tea.MouseModeCellMotion
+	view.MouseMode = tea.MouseModeAllMotion
 	view.BackgroundColor = styles.Background
 	view.WindowTitle = windowTitle
 	if working {

@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/js"
 	"github.com/docker/docker-agent/pkg/model/provider"
-	"github.com/docker/docker-agent/pkg/model/provider/options"
 	"github.com/docker/docker-agent/pkg/rag/chunk"
 	"github.com/docker/docker-agent/pkg/rag/types"
 	"github.com/docker/docker-agent/pkg/tools"
@@ -89,8 +88,7 @@ func NewSemanticEmbeddingsFromConfig(ctx context.Context, cfg latest.RAGStrategy
 		return nil, fmt.Errorf("invalid chat_model %q: %w", chatModelName, err)
 	}
 
-	chatProvider, err := provider.New(ctx, &chatModelCfg, buildCtx.Env,
-		options.WithGateway(buildCtx.ModelsGateway))
+	chatProvider, err := buildCtx.NewProvider(ctx, &chatModelCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chat model provider: %w", err)
 	}

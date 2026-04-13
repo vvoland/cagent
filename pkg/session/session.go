@@ -86,6 +86,12 @@ type Session struct {
 	// ToolsApproved is a flag to indicate if the tools have been approved
 	ToolsApproved bool `json:"tools_approved"`
 
+	// NonInteractive indicates the session is running in a non-interactive context
+	// (e.g. MCP server, A2A adapter, evaluation framework) where there is no user
+	// to provide input. This is distinct from ToolsApproved which can also be set
+	// in interactive TUI sessions when a user approves all tools.
+	NonInteractive bool `json:"non_interactive,omitempty"`
+
 	// HideToolResults is a flag to indicate if tool results should be hidden
 	HideToolResults bool `json:"hide_tool_results"`
 
@@ -544,6 +550,12 @@ func WithToolsApproved(toolsApproved bool) Opt {
 	}
 }
 
+func WithNonInteractive(nonInteractive bool) Opt {
+	return func(s *Session) {
+		s.NonInteractive = nonInteractive
+	}
+}
+
 func WithHideToolResults(hideToolResults bool) Opt {
 	return func(s *Session) {
 		s.HideToolResults = hideToolResults
@@ -576,6 +588,13 @@ func WithAgentName(name string) Opt {
 func WithParentID(parentID string) Opt {
 	return func(s *Session) {
 		s.ParentID = parentID
+	}
+}
+
+// WithID sets the session ID. If not set, a UUID will be generated.
+func WithID(id string) Opt {
+	return func(s *Session) {
+		s.ID = id
 	}
 }
 
@@ -647,11 +666,8 @@ func (s *Session) OwnCost() float64 {
 
 // New creates a new agent session
 func New(opts ...Opt) *Session {
-	sessionID := uuid.New().String()
-	slog.Debug("Creating new session", "session_id", sessionID)
-
 	s := &Session{
-		ID:              sessionID,
+		ID:              uuid.New().String(),
 		CreatedAt:       time.Now(),
 		SendUserMessage: true,
 	}
@@ -660,6 +676,7 @@ func New(opts ...Opt) *Session {
 		opt(s)
 	}
 
+	slog.Debug("Creating new session", "session_id", s.ID)
 	return s
 }
 
@@ -897,6 +914,8 @@ func (s *Session) GetMessages(a *agent.Agent) []chat.Message {
 		messages = truncateOldToolContent(messages, maxOldToolCallTokens)
 	}
 
+	messages = sanitizeToolCalls(messages)
+
 	systemCount := 0
 	conversationCount := 0
 	for i := range messages {
@@ -990,6 +1009,59 @@ func trimMessages(messages []chat.Message, maxItems int) []chat.Message {
 	}
 
 	return result
+}
+
+// sanitizeToolCalls ensures every tool call in assistant messages has a
+// corresponding tool-result message. It walks the message list tracking
+// pending tool calls; when a tool-result message arrives its ID is marked
+// fulfilled. When the next assistant or user message is encountered (or the
+// end of the list is reached), any still-pending tool calls receive synthetic
+// error results injected just before that boundary. This guarantees the
+// provider always sees a valid request/response pair for every tool call.
+func sanitizeToolCalls(messages []chat.Message) []chat.Message {
+	var (
+		out              []chat.Message
+		pendingToolCalls []tools.ToolCall
+		resultIDs        = make(map[string]bool)
+	)
+
+	flushPending := func() {
+		for _, tc := range pendingToolCalls {
+			if tc.ID != "" && !resultIDs[tc.ID] {
+				out = append(out, chat.Message{
+					Role:       chat.MessageRoleTool,
+					ToolCallID: tc.ID,
+					Content:    "No result provided",
+					IsError:    true,
+				})
+			}
+		}
+		pendingToolCalls = nil
+		resultIDs = make(map[string]bool)
+	}
+
+	for _, msg := range messages {
+		switch {
+		case msg.Role == chat.MessageRoleTool:
+			if msg.ToolCallID != "" {
+				resultIDs[msg.ToolCallID] = true
+			}
+
+		case msg.Role == chat.MessageRoleAssistant && len(msg.ToolCalls) > 0:
+			flushPending()
+			out = append(out, msg)
+			pendingToolCalls = msg.ToolCalls
+			continue
+
+		case msg.Role == chat.MessageRoleUser || msg.Role == chat.MessageRoleAssistant:
+			flushPending()
+		}
+
+		out = append(out, msg)
+	}
+
+	flushPending()
+	return out
 }
 
 // truncateOldToolContent replaces tool results with placeholders for older

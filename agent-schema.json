@@ -77,11 +77,21 @@
   "definitions": {
     "ProviderConfig": {
       "type": "object",
-      "description": "Configuration for a custom model provider. Can be used for custom gateways",
+      "description": "Configuration for a model provider. Defines reusable defaults that models can inherit by referencing the provider name. Supports any provider type (openai, anthropic, google, amazon-bedrock, etc.).",
       "properties": {
+        "provider": {
+          "type": "string",
+          "description": "The underlying provider type. Defaults to \"openai\" when not set. Supported values: openai, anthropic, google, amazon-bedrock, dmr, and any built-in alias (requesty, azure, xai, ollama, mistral, etc.).",
+          "examples": [
+            "openai",
+            "anthropic",
+            "google",
+            "amazon-bedrock"
+          ]
+        },
         "api_type": {
           "type": "string",
-          "description": "The API schema type to use. Determines which API schema to use.",
+          "description": "The API schema type to use. Only applicable for OpenAI-compatible providers.",
           "enum": [
             "openai_chatcompletions",
             "openai_responses"
@@ -94,7 +104,7 @@
         },
         "base_url": {
           "type": "string",
-          "description": "Base URL for the provider's API endpoint (required)",
+          "description": "Base URL for the provider's API endpoint. Required for OpenAI-compatible providers, optional for native providers.",
           "format": "uri",
           "examples": [
             "https://router.example.com/v1"
@@ -102,15 +112,67 @@
         },
         "token_key": {
           "type": "string",
-          "description": "Environment variable name containing the API token. If not set, requests will be sent without authentication.",
+          "description": "Environment variable name containing the API token. If not set, requests will use the default token for the provider type.",
           "examples": [
-            "CUSTOM_PROVIDER_API_KEY"
+            "CUSTOM_PROVIDER_API_KEY",
+            "ANTHROPIC_API_KEY"
+          ]
+        },
+        "temperature": {
+          "type": "number",
+          "description": "Default sampling temperature for models using this provider.",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "max_tokens": {
+          "type": "integer",
+          "description": "Default maximum number of tokens for models using this provider."
+        },
+        "top_p": {
+          "type": "number",
+          "description": "Default top-p (nucleus) sampling parameter.",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "description": "Default frequency penalty.",
+          "minimum": -2,
+          "maximum": 2
+        },
+        "presence_penalty": {
+          "type": "number",
+          "description": "Default presence penalty.",
+          "minimum": -2,
+          "maximum": 2
+        },
+        "parallel_tool_calls": {
+          "type": "boolean",
+          "description": "Whether to enable parallel tool calls by default."
+        },
+        "provider_opts": {
+          "type": "object",
+          "description": "Provider-specific options passed through to the underlying client.",
+          "additionalProperties": true
+        },
+        "track_usage": {
+          "type": "boolean",
+          "description": "Whether to track token usage by default."
+        },
+        "thinking_budget": {
+          "description": "Default reasoning effort/budget for models using this provider. Can be an integer token count or a string effort level.",
+          "oneOf": [
+            {
+              "type": "integer",
+              "description": "Token budget for reasoning"
+            },
+            {
+              "type": "string",
+              "description": "Effort level (e.g., \"low\", \"medium\", \"high\", \"none\", \"adaptive\")"
+            }
           ]
         }
       },
-      "required": [
-        "base_url"
-      ],
       "additionalProperties": false
     },
     "AgentConfig": {
@@ -359,7 +421,7 @@
         "cooldown": {
           "type": "string",
           "description": "Duration to stick with a successful fallback model before retrying the primary. Only applies after a non-retryable error (e.g., 429 rate limit). Use Go duration format (e.g., '1m', '30s', '2m30s'). Default is '1m'.",
-          "pattern": "^([0-9]+(ns|us|µs|ms|s|m|h))+$",
+          "pattern": "^([0-9]+(ns|us|\u00b5s|ms|s|m|h))+$",
           "default": "1m",
           "examples": [
             "1m",
@@ -758,7 +820,7 @@
         },
         "instruction": {
           "type": "string",
-          "description": "Custom instruction for this MCP server's tools. By default, setting this field replaces the toolset's built-in instructions entirely. To enrich (rather than replace) the original instructions, include the placeholder {ORIGINAL_INSTRUCTIONS} in your text — it will be substituted with the toolset's built-in instructions at runtime. For example: '{ORIGINAL_INSTRUCTIONS}\nAlways prefer JSON output.' will prepend the original instructions and append your extra guidance."
+          "description": "Custom instruction for this MCP server's tools. By default, setting this field replaces the toolset's built-in instructions entirely. To enrich (rather than replace) the original instructions, include the placeholder {ORIGINAL_INSTRUCTIONS} in your text \u2014 it will be substituted with the toolset's built-in instructions at runtime. For example: '{ORIGINAL_INSTRUCTIONS}\nAlways prefer JSON output.' will prepend the original instructions and append your extra guidance."
         },
         "name": {
           "type": "string",
@@ -874,7 +936,7 @@
         },
         "instruction": {
           "type": "string",
-          "description": "Custom instruction for this toolset. By default, setting this field replaces the toolset's built-in instructions entirely. To enrich (rather than replace) the original instructions, include the placeholder {ORIGINAL_INSTRUCTIONS} in your text — it will be substituted with the toolset's built-in instructions at runtime. For example: '{ORIGINAL_INSTRUCTIONS}\nAlways prefer JSON output.' will prepend the original instructions and append your extra guidance."
+          "description": "Custom instruction for this toolset. By default, setting this field replaces the toolset's built-in instructions entirely. To enrich (rather than replace) the original instructions, include the placeholder {ORIGINAL_INSTRUCTIONS} in your text \u2014 it will be substituted with the toolset's built-in instructions at runtime. For example: '{ORIGINAL_INSTRUCTIONS}\nAlways prefer JSON output.' will prepend the original instructions and append your extra guidance."
         },
         "toon": {
           "type": "string",

@@ -97,6 +97,13 @@ func addEnvVarsForModelConfig(model *latest.ModelConfig, customProviders map[str
 		if provCfg, exists := customProviders[model.Provider]; exists {
 			if provCfg.TokenKey != "" {
 				requiredEnv[provCfg.TokenKey] = true
+			} else {
+				// Fall through to check the effective provider type
+				effective := provCfg.Provider
+				if effective == "" {
+					effective = "openai"
+				}
+				addEnvVarsForCoreProvider(effective, model, requiredEnv)
 			}
 		}
 	} else if alias, exists := provider.Aliases[model.Provider]; exists {
@@ -105,20 +112,24 @@ func addEnvVarsForModelConfig(model *latest.ModelConfig, customProviders map[str
 			requiredEnv[alias.TokenEnvVar] = true
 		}
 	} else {
-		// Fallback to hardcoded mappings for core providers
-		switch model.Provider {
-		case "openai":
-			requiredEnv["OPENAI_API_KEY"] = true
-		case "anthropic":
-			requiredEnv["ANTHROPIC_API_KEY"] = true
-		case "google":
-			if model.ProviderOpts["project"] == nil && model.ProviderOpts["location"] == nil {
-				if os.Getenv("GOOGLE_GENAI_USE_VERTEXAI") != "" {
-					requiredEnv["GOOGLE_CLOUD_PROJECT"] = true
-					requiredEnv["GOOGLE_CLOUD_LOCATION"] = true
-				} else if _, exist := os.LookupEnv("GEMINI_API_KEY"); !exist {
-					requiredEnv["GOOGLE_API_KEY"] = true
-				}
+		addEnvVarsForCoreProvider(model.Provider, model, requiredEnv)
+	}
+}
+
+// addEnvVarsForCoreProvider adds the required env vars for a core provider type.
+func addEnvVarsForCoreProvider(providerType string, model *latest.ModelConfig, requiredEnv map[string]bool) {
+	switch providerType {
+	case "openai":
+		requiredEnv["OPENAI_API_KEY"] = true
+	case "anthropic":
+		requiredEnv["ANTHROPIC_API_KEY"] = true
+	case "google":
+		if model.ProviderOpts["project"] == nil && model.ProviderOpts["location"] == nil {
+			if os.Getenv("GOOGLE_GENAI_USE_VERTEXAI") != "" {
+				requiredEnv["GOOGLE_CLOUD_PROJECT"] = true
+				requiredEnv["GOOGLE_CLOUD_LOCATION"] = true
+			} else if _, exist := os.LookupEnv("GEMINI_API_KEY"); !exist {
+				requiredEnv["GOOGLE_API_KEY"] = true
 			}
 		}
 	}
