@@ -404,13 +404,7 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			// Record per-toolset model override for the next LLM turn.
 			toolModelOverride = resolveToolCallModelOverride(res.Calls, agentTools)
 
-			// Only compact proactively when the model will continue (has
-			// tool calls to process on the next turn). If the model stopped
-			// and no steered messages override that, compaction is wasteful
-			// because no further LLM call follows.
-			if !res.Stopped {
-				r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
-			}
+			r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
 
 			// --- STEERING: mid-turn injection ---
 			// Drain ALL pending steer messages. These are urgent course-
@@ -426,10 +420,6 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 					sess.AddMessage(userMsg)
 					events <- UserMessage(sm.Content, sess.ID, sm.MultiContent, len(sess.Messages)-1)
 				}
-
-				// The model must respond to the injected messages — compact
-				// if needed and re-enter the loop for the next LLM call.
-				r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
 				continue
 			}
 
