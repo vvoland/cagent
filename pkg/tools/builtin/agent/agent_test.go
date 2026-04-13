@@ -106,7 +106,7 @@ func TestStatusToString(t *testing.T) {
 		{99, "unknown"},
 	}
 	for _, tc := range cases {
-		assert.Equal(t, tc.expected, statusToString(tc.status))
+		assert.Equal(t, tc.expected, tc.status.String())
 	}
 }
 
