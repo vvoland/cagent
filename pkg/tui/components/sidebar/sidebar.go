@@ -13,6 +13,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/docker/docker-agent/pkg/paths"
 	"github.com/docker/docker-agent/pkg/runtime"
@@ -1214,6 +1215,13 @@ func (m *model) renderAgentEntry(content *strings.Builder, agent runtime.AgentDe
 	content.WriteString(toolcommon.TruncateText("Model: "+agent.Model, maxWidth))
 }
 
+// isVisuallyBlank returns true if a rendered line contains no visible content.
+// Lines may contain ANSI escape codes and whitespace padding from lipgloss styles
+// (e.g., TabStyle.Width()), so we strip ANSI sequences and check for whitespace.
+func isVisuallyBlank(line string) bool {
+	return strings.TrimSpace(ansi.Strip(line)) == ""
+}
+
 // buildAgentClickZones populates agentClickZones by scanning the rendered lines
 // to find which lines belong to which agent. It relies on the structure produced
 // by renderTab + agentInfo: a 2-line tab header, then agent blocks separated by
@@ -1230,7 +1238,7 @@ func (m *model) buildAgentClickZones(agentSectionStart int, lines []string) {
 	inBlock := false
 
 	for i := agentSectionStart + tabHeaderLines; i < len(lines) && agentIdx < len(m.availableAgents); i++ {
-		if lipgloss.Width(lines[i]) == 0 {
+		if isVisuallyBlank(lines[i]) {
 			// Blank line: if we were inside a block, advance to the next agent
 			if inBlock {
 				agentIdx++
