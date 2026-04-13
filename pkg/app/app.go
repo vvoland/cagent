@@ -532,18 +532,6 @@ func (a *App) SubscribeWith(ctx context.Context, send func(tea.Msg)) {
 	}
 }
 
-// Steer enqueues a user message for mid-turn injection into the running
-// agent loop. Works with both local and remote runtimes.
-func (a *App) Steer(msg runtime.QueuedMessage) error {
-	return a.runtime.Steer(msg)
-}
-
-// FollowUp enqueues a message for end-of-turn processing. Each follow-up
-// gets a full undivided agent turn.
-func (a *App) FollowUp(msg runtime.QueuedMessage) error {
-	return a.runtime.FollowUp(msg)
-}
-
 // Resume resumes the runtime with the given confirmation request
 func (a *App) Resume(req runtime.ResumeRequest) {
 	a.runtime.Resume(context.Background(), req)
