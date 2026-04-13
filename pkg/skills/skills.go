@@ -8,8 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/goccy/go-yaml"
-
 	"github.com/docker/docker-agent/pkg/paths"
 )
 
@@ -17,17 +15,17 @@ const skillFile = "SKILL.md"
 
 // Skill represents a loaded skill with its metadata and content location.
 type Skill struct {
-	Name          string            `yaml:"name"`
-	Description   string            `yaml:"description"`
-	FilePath      string            `yaml:"-"`
-	BaseDir       string            `yaml:"-"`
-	Files         []string          `yaml:"-"`
-	Local         bool              `yaml:"-"` // true for filesystem-loaded skills, false for remote
-	License       string            `yaml:"license"`
-	Compatibility string            `yaml:"compatibility"`
-	Metadata      map[string]string `yaml:"metadata"`
-	AllowedTools  stringOrList      `yaml:"allowed-tools"`
-	Context       string            `yaml:"context"` // "fork" to run the skill as an isolated sub-agent
+	Name          string
+	Description   string
+	FilePath      string
+	BaseDir       string
+	Files         []string
+	Local         bool // true for filesystem-loaded skills, false for remote
+	License       string
+	Compatibility string
+	Metadata      map[string]string
+	AllowedTools  []string
+	Context       string // "fork" to run the skill as an isolated sub-agent
 }
 
 // IsFork returns true when the skill should be executed in an isolated
@@ -35,33 +33,6 @@ type Skill struct {
 // This matches Claude Code's `context: fork` frontmatter syntax.
 func (s *Skill) IsFork() bool {
 	return s.Context == "fork"
-}
-
-// stringOrList is a []string that can be unmarshalled from either a YAML list
-// or a single comma-separated string (e.g. "Read, Grep").
-type stringOrList []string
-
-func (s *stringOrList) UnmarshalYAML(unmarshal func(any) error) error {
-	var list []string
-	if err := unmarshal(&list); err == nil {
-		*s = list
-		return nil
-	}
-
-	var single string
-	if err := unmarshal(&single); err != nil {
-		return err
-	}
-
-	parts := strings.Split(single, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if t := strings.TrimSpace(p); t != "" {
-			result = append(result, t)
-		}
-	}
-	*s = result
-	return nil
 }
 
 // Load discovers and loads skills from the given sources.
@@ -322,8 +293,11 @@ func loadSkillFile(path, dirName string) (Skill, bool) {
 	return skill, true
 }
 
-// parseFrontmatter extracts YAML frontmatter from a markdown file.
-// Returns the parsed Skill and whether parsing was successful.
+// parseFrontmatter extracts and parses the YAML-like frontmatter from a
+// markdown file. Instead of using a full YAML parser (which rejects unquoted
+// colons in values), we do simple line-by-line key: value splitting on the
+// first ": ". This is more robust for the simple frontmatter format used by
+// skill files.
 func parseFrontmatter(content string) (Skill, bool) {
 	content = strings.ReplaceAll(content, "\r\n", "\n")
 	content = strings.ReplaceAll(content, "\r", "\n")
@@ -337,14 +311,88 @@ func parseFrontmatter(content string) (Skill, bool) {
 		return Skill{}, false
 	}
 
-	frontmatterBlock := content[4 : endIndex+3]
+	block := content[4 : endIndex+3]
+	lines := strings.Split(block, "\n")
 
 	var skill Skill
-	if err := yaml.Unmarshal([]byte(frontmatterBlock), &skill); err != nil {
-		return Skill{}, false
+	var currentKey string // tracks multi-line keys like "metadata" or "allowed-tools"
+
+	for _, line := range lines {
+		// Indented lines belong to the current multi-line key.
+		if line != "" && (line[0] == ' ' || line[0] == '\t') {
+			trimmed := strings.TrimSpace(line)
+			switch currentKey {
+			case "metadata":
+				if k, v, ok := splitKeyValue(trimmed); ok {
+					if skill.Metadata == nil {
+						skill.Metadata = make(map[string]string)
+					}
+					skill.Metadata[k] = unquote(v)
+				}
+			case "allowed-tools":
+				if strings.HasPrefix(trimmed, "- ") {
+					skill.AllowedTools = append(skill.AllowedTools, unquote(strings.TrimSpace(trimmed[2:])))
+				}
+			}
+			continue
+		}
+
+		currentKey = ""
+		key, value, ok := splitKeyValue(line)
+		if !ok {
+			continue
+		}
+
+		switch key {
+		case "name":
+			skill.Name = unquote(value)
+		case "description":
+			skill.Description = unquote(value)
+		case "license":
+			skill.License = unquote(value)
+		case "compatibility":
+			skill.Compatibility = unquote(value)
+		case "context":
+			skill.Context = unquote(value)
+		case "metadata":
+			currentKey = "metadata"
+		case "allowed-tools":
+			if value != "" {
+				// Inline comma-separated list.
+				for item := range strings.SplitSeq(value, ",") {
+					if t := unquote(strings.TrimSpace(item)); t != "" {
+						skill.AllowedTools = append(skill.AllowedTools, t)
+					}
+				}
+			} else {
+				currentKey = "allowed-tools"
+			}
+		}
 	}
 
 	return skill, true
+}
+
+// splitKeyValue splits a line on the first ": " into key and value.
+func splitKeyValue(line string) (string, string, bool) {
+	if key, value, ok := strings.Cut(line, ": "); ok {
+		return key, value, true
+	}
+	// Handle "key:" with no value (e.g. "metadata:").
+	if strings.HasSuffix(line, ":") {
+		return line[:len(line)-1], "", true
+	}
+	return "", "", false
+}
+
+// unquote strips matching surrounding quotes from a string value.
+func unquote(s string) string {
+	if len(s) >= 2 {
+		if (s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'') {
+			return s[1 : len(s)-1]
+		}
+	}
+	return s
 }
 
 func isValidSkill(skill Skill) bool {
