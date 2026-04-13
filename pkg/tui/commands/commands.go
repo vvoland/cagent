@@ -118,6 +118,17 @@ func builtInSessionCommands() []Item {
 			},
 		},
 		{
+			ID:           "session.fork",
+			Label:        "Fork",
+			SlashCommand: "/fork",
+			Description:  "Fork the current session into a new tab",
+			Category:     "Session",
+			Immediate:    true,
+			Execute: func(string) tea.Cmd {
+				return core.CmdHandler(messages.ForkSessionMsg{})
+			},
+		},
+		{
 			ID:           "session.exit",
 			Label:        "Exit",
 			SlashCommand: "/exit",

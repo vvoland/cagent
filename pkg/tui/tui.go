@@ -884,6 +884,9 @@ func (m *appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.BranchFromEditMsg:
 		return m.handleBranchFromEdit(msg)
 
+	case messages.ForkSessionMsg:
+		return m.handleForkSession()
+
 	// --- Session commands (slash commands, command palette) ---
 
 	case messages.ToggleYoloMsg:
