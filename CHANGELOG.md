@@ -3,6 +3,95 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.44.0] - 2026-04-13
+
+This release introduces TUI customization capabilities, session management improvements, and OAuth security enhancements, along with numerous bug fixes and stability improvements.
+
+## What's New
+
+- Adds support for extending and customizing TUI with additional commands through new `Immediate` flag and `Parser` struct
+- Adds session delete functionality to session browser
+- Adds click-to-select support for agents in the sidebar
+- Adds `/fork` slash command to duplicate current session into a new tab
+- Adds mid-turn message steering for running agent sessions with new `/steer` and `/followup` API endpoints
+- Adds OAuth token storage in OS keychain with silent refresh token support
+- Adds debug OAuth commands: list, remove, and login
+- Adds support for shell expansions (~, env vars) in config paths
+- Adds total session count display in session browser dialog title
+
+## Improvements
+
+- Improves TUI rendering to match sandbox template
+- Makes Ctrl+W context-aware to preserve word deletion in editor when focused
+- Makes `/exit` close only the current tab when multiple tabs are open
+
+## Bug Fixes
+
+- Fixes crash when opening empty websocket frames in OpenAI provider
+- Fixes Gemini thinking tokens not included in output token count for cost calculation
+- Fixes tool calls getting stuck as running when moved out of active reasoning block
+- Fixes missing type in schema and orphaned function calls in Responses API
+- Fixes spurious blank line appearing in every assistant message
+- Fixes layout shift when hovering over assistant messages to reveal copy button
+- Fixes concurrent RunSession calls causing tool_use/tool_result mismatch
+- Fixes panic in code mode when tool handler is nil
+- Fixes suggestion ghost text remaining when completion dialog closes on backspace
+- Fixes skill frontmatter parsing when description contains a colon
+- Fixes sidebar agent click zones mapping all lines to first agent
+- Fixes OAuth token security vulnerabilities and infinite recursion issues
+- Fixes auto-detect tool install failures being treated as fatal
+- Fixes background agent context being cancelled with parent message lifecycle
+
+## Technical Changes
+
+- Stores OAuth tokens in OS keychain with graceful fallback to in-memory storage
+- Serializes concurrent RunSession calls to prevent race conditions
+- Sanitizes message history to ensure all tool calls have results
+- Adds regression tests for SSE comment lines from OpenRouter
+- Uses in-memory store in keyring tests to avoid macOS keychain permission dialog
+- Separates steer and follow-up into distinct queues with lock/confirm semantics
+- Adds documentation for OpenAPI toolset
+- Optimizes PR CI build process
+
+### Pull Requests
+
+- [#2346](https://github.com/docker/docker-agent/pull/2346) - Allow to extend and customize TUI with additional commands
+- [#2347](https://github.com/docker/docker-agent/pull/2347) - docs: update CHANGELOG.md for v1.43.0
+- [#2348](https://github.com/docker/docker-agent/pull/2348) - Better sandbox
+- [#2349](https://github.com/docker/docker-agent/pull/2349) - Add regression tests for SSE comment lines from OpenRouter (#2349)
+- [#2350](https://github.com/docker/docker-agent/pull/2350) - fix(openai): ignore empty websocket frames
+- [#2352](https://github.com/docker/docker-agent/pull/2352) - support session delete to session browser
+- [#2355](https://github.com/docker/docker-agent/pull/2355) - Store OAuth tokens in OS keychain and add silent refresh token support
+- [#2356](https://github.com/docker/docker-agent/pull/2356) - feat: click on agent in sidebar to switch to it
+- [#2358](https://github.com/docker/docker-agent/pull/2358) - bump direct Go dependencies
+- [#2359](https://github.com/docker/docker-agent/pull/2359) - Add regression tests for SSE comment lines from OpenRouter
+- [#2360](https://github.com/docker/docker-agent/pull/2360) - Fix tool call stuck as running when moved out of active reasoning block
+- [#2362](https://github.com/docker/docker-agent/pull/2362) - fix: handle missing type in schema and orphaned function calls in Responses API
+- [#2363](https://github.com/docker/docker-agent/pull/2363) - Add mid-turn message steering for running agent sessions
+- [#2365](https://github.com/docker/docker-agent/pull/2365) - Debug oauth
+- [#2366](https://github.com/docker/docker-agent/pull/2366) - optional title and app name
+- [#2367](https://github.com/docker/docker-agent/pull/2367) - fix: use in-memory store in keyring tests to avoid macOS keychain permission dialog
+- [#2369](https://github.com/docker/docker-agent/pull/2369) - fix(tui): remove spurious blank line from every assistant message
+- [#2371](https://github.com/docker/docker-agent/pull/2371) - docs: add documentation for OpenAPI toolset
+- [#2374](https://github.com/docker/docker-agent/pull/2374) - fix(tui): reserve stable top row for copy icon to prevent layout shift
+- [#2375](https://github.com/docker/docker-agent/pull/2375) - fix: serialize concurrent RunSession calls to prevent tool_use/tool_result mismatch
+- [#2377](https://github.com/docker/docker-agent/pull/2377) - Sanitize message history
+- [#2378](https://github.com/docker/docker-agent/pull/2378) - Faster PR CI
+- [#2385](https://github.com/docker/docker-agent/pull/2385) - Add /fork slash command to duplicate current session into a new tab
+- [#2386](https://github.com/docker/docker-agent/pull/2386) - fix(toolinstall): soft-fail auto-detect installs
+- [#2387](https://github.com/docker/docker-agent/pull/2387) - fix: /exit closes only the current tab when multiple tabs are open
+- [#2388](https://github.com/docker/docker-agent/pull/2388) - fix: prevent panic in code mode when tool handler is nil
+- [#2389](https://github.com/docker/docker-agent/pull/2389) - Add support for shell expansions (~, env vars) in config paths
+- [#2390](https://github.com/docker/docker-agent/pull/2390) - fix: make Ctrl+W context-aware to preserve word deletion in editor
+- [#2391](https://github.com/docker/docker-agent/pull/2391) - Show total session count in session browser dialog title
+- [#2392](https://github.com/docker/docker-agent/pull/2392) - fix: decouple background agent context from parent message lifecycle
+- [#2395](https://github.com/docker/docker-agent/pull/2395) - fix: OAuth token security and bug fixes
+- [#2398](https://github.com/docker/docker-agent/pull/2398) - Bump direct Go dependencies
+- [#2399](https://github.com/docker/docker-agent/pull/2399) - fix: clear suggestion ghost text when completion dialog closes on backspace
+- [#2401](https://github.com/docker/docker-agent/pull/2401) - Fix skill frontmatter parsing when description contains a colon
+- [#2402](https://github.com/docker/docker-agent/pull/2402) - Fix sidebar agent click zones mapping all lines to first agent
+
+
 ## [v1.43.0] - 2026-04-08
 
 This release adds non-interactive mode capabilities, improves TUI interactions with mouse support, and includes several bug fixes for RAG tools and streaming responses.
@@ -1833,3 +1922,5 @@ This release improves the terminal user interface with better error handling and
 [v1.42.0]: https://github.com/docker/docker-agent/releases/tag/v1.42.0
 
 [v1.43.0]: https://github.com/docker/docker-agent/releases/tag/v1.43.0
+
+[v1.44.0]: https://github.com/docker/docker-agent/releases/tag/v1.44.0
