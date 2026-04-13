@@ -5,6 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/docker/docker-agent/pkg/config/types"
+	"github.com/docker/docker-agent/pkg/tools"
 )
 
 func TestExpand(t *testing.T) {
@@ -246,4 +249,105 @@ type testEnvProvider map[string]string
 func (p *testEnvProvider) Get(_ context.Context, name string) (string, bool) {
 	val, found := (*p)[name]
 	return val, found
+}
+
+// TestExpandCommandsThenEvaluate verifies the two-phase flow that slash commands go through:
+// 1. ExpandCommands at config load time (env-only, no tools)
+// 2. Evaluate at runtime (tools available)
+// This catches regressions where one phase corrupts expressions needed by the other.
+func TestExpandCommandsThenEvaluate(t *testing.T) {
+	t.Parallel()
+
+	env := testEnvProvider(map[string]string{"USER": "alice"})
+
+	mockTools := []tools.Tool{
+		{
+			Name: "shell",
+			Handler: func(_ context.Context, tc tools.ToolCall) (*tools.ToolCallResult, error) {
+				return tools.ResultSuccess("lint output"), nil
+			},
+		},
+	}
+
+	cmds := types.Commands{
+		"fix-lint": {
+			Description: "Fix lint",
+			Instruction: "User: ${env.USER}\nLint: ${shell({cmd: \"task lint\"})}\n${unknown_mcp_tool()}",
+		},
+	}
+
+	// Phase 1: ExpandCommands with env only (no tools)
+	expander := NewJsExpander(&env)
+	expanded := expander.ExpandCommands(t.Context(), cmds)
+
+	// env.USER should be expanded, tool calls should be preserved
+	assert.Contains(t, expanded["fix-lint"].Instruction, "User: alice")
+	assert.Contains(t, expanded["fix-lint"].Instruction, "${shell({cmd: \"task lint\"})}") // preserved
+	assert.Contains(t, expanded["fix-lint"].Instruction, "${unknown_mcp_tool()}")          // preserved
+
+	// Phase 2: Evaluate with tools (no env)
+	evaluator := NewEvaluator(mockTools)
+	result := evaluator.Evaluate(t.Context(), expanded["fix-lint"].Instruction, nil)
+
+	// shell should now be expanded, unknown tool should be preserved
+	assert.Contains(t, result, "User: alice")
+	assert.Contains(t, result, "lint output")
+	assert.Contains(t, result, "${unknown_mcp_tool()}")
+	assert.NotContains(t, result, "${shell")
+}
+
+func TestFindClosingBrace(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		text     string
+		pos      int
+		expected int
+	}{
+		{
+			name:     "simple",
+			text:     "${foo}",
+			pos:      2,
+			expected: 5,
+		},
+		{
+			name:     "nested braces",
+			text:     "${shell({cmd: \"ls\"})}",
+			pos:      2,
+			expected: len("${shell({cmd: \"ls\"})}") - 1,
+		},
+		{
+			name:     "closing brace inside quotes",
+			text:     `${shell({cmd: "echo }"})}`,
+			pos:      2,
+			expected: len(`${shell({cmd: "echo }"})}`) - 1,
+		},
+		{
+			name:     "escaped quote inside string",
+			text:     `${shell({cmd: "echo \"}"})}`,
+			pos:      2,
+			expected: len(`${shell({cmd: "echo \"}"})}`) - 1,
+		},
+		{
+			name:     "unclosed",
+			text:     "${foo",
+			pos:      2,
+			expected: -1,
+		},
+		{
+			name:     "unclosed nested",
+			text:     "${foo({bar: 1}",
+			pos:      2,
+			expected: -1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := findClosingBrace(tt.text, tt.pos)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }
