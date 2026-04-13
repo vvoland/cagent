@@ -1804,7 +1804,10 @@ func (m *appModel) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	// Tab bar keys (Ctrl+t, Ctrl+p, Ctrl+n, Ctrl+w) are suppressed during
 	// history search so that ctrl+n/ctrl+p cycle through matches instead.
+	// Ctrl+w (close tab) is disabled when the editor is focused so that the
+	// standard "delete word" shortcut works while typing.
 	if !m.leanMode && !m.editor.IsHistorySearchActive() {
+		m.tabBar.SetCloseTabEnabled(m.focusedPanel != PanelEditor)
 		if cmd := m.tabBar.Update(msg); cmd != nil {
 			return m, cmd
 		}
