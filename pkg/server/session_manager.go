@@ -152,6 +152,7 @@ func (sm *SessionManager) RunSession(ctx context.Context, sessionID, agentFilena
 	rc.WorkingDir = sess.WorkingDir
 
 	runtimeSession, exists := sm.runtimeSessions.Load(sessionID)
+
 	streamCtx, cancel := context.WithCancel(ctx)
 	var titleGen *sessiontitle.Generator
 	if !exists {
@@ -247,6 +248,49 @@ func (sm *SessionManager) ResumeSession(ctx context.Context, sessionID, confirma
 		Reason:   reason,
 		ToolName: toolName,
 	})
+	return nil
+}
+
+// SteerSession enqueues user messages for mid-turn injection into a running
+// session. The messages are picked up by the agent loop after the current tool
+// calls finish but before the next LLM call. Returns an error if the session
+// is not actively running or if the steer buffer is full.
+func (sm *SessionManager) SteerSession(_ context.Context, sessionID string, messages []api.Message) error {
+	rt, exists := sm.runtimeSessions.Load(sessionID)
+	if !exists {
+		return errors.New("session not found or not running")
+	}
+
+	for _, msg := range messages {
+		if err := rt.runtime.Steer(runtime.QueuedMessage{
+			Content:      msg.Content,
+			MultiContent: msg.MultiContent,
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// FollowUpSession enqueues user messages for end-of-turn processing in a
+// running session. Each message is popped one at a time after the current
+// turn finishes, giving each follow-up a full undivided agent turn.
+func (sm *SessionManager) FollowUpSession(_ context.Context, sessionID string, messages []api.Message) error {
+	rt, exists := sm.runtimeSessions.Load(sessionID)
+	if !exists {
+		return errors.New("session not found or not running")
+	}
+
+	for _, msg := range messages {
+		if err := rt.runtime.FollowUp(runtime.QueuedMessage{
+			Content:      msg.Content,
+			MultiContent: msg.MultiContent,
+		}); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

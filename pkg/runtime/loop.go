@@ -404,9 +404,43 @@ func (r *LocalRuntime) RunStream(ctx context.Context, sess *session.Session) <-c
 			// Record per-toolset model override for the next LLM turn.
 			toolModelOverride = resolveToolCallModelOverride(res.Calls, agentTools)
 
+			// --- STEERING: mid-turn injection ---
+			// Drain ALL pending steer messages. These are urgent course-
+			// corrections that the model should see on the very next
+			// iteration, wrapped in <system-reminder> tags.
+			if steered := r.steerQueue.Drain(ctx); len(steered) > 0 {
+				for _, sm := range steered {
+					wrapped := fmt.Sprintf(
+						"<system-reminder>\nThe user sent the following message while you were working:\n%s\n\nPlease address this in your next response while continuing with your current tasks.\n</system-reminder>",
+						sm.Content,
+					)
+					userMsg := session.UserMessage(wrapped, sm.MultiContent...)
+					sess.AddMessage(userMsg)
+					events <- UserMessage(sm.Content, sess.ID, sm.MultiContent, len(sess.Messages)-1)
+				}
+
+				r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
+				continue
+			}
+
 			if res.Stopped {
 				slog.Debug("Conversation stopped", "agent", a.Name())
 				r.executeStopHooks(ctx, sess, a, res.Content, events)
+
+				// --- FOLLOW-UP: end-of-turn injection ---
+				// Pop exactly one follow-up message. Unlike steered
+				// messages, follow-ups are plain user messages that start
+				// a new turn — the model sees them as fresh input, not a
+				// mid-stream interruption. Each follow-up gets a full
+				// undivided agent turn.
+				if followUp, ok := r.followUpQueue.Dequeue(ctx); ok {
+					userMsg := session.UserMessage(followUp.Content, followUp.MultiContent...)
+					sess.AddMessage(userMsg)
+					events <- UserMessage(followUp.Content, sess.ID, followUp.MultiContent, len(sess.Messages)-1)
+					r.compactIfNeeded(ctx, sess, a, m, contextLimit, messageCountBeforeTools, events)
+					continue // re-enter the loop for a new turn
+				}
+
 				break
 			}
 

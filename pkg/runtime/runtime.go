@@ -139,6 +139,14 @@ type Runtime interface {
 	// if the runtime does not support local title generation (e.g. remote runtimes).
 	TitleGenerator() *sessiontitle.Generator
 
+	// Steer enqueues a user message for urgent mid-turn injection into the
+	// running agent loop. Returns an error if the queue is full or steering
+	// is not available.
+	Steer(msg QueuedMessage) error
+	// FollowUp enqueues a message for end-of-turn processing. Each follow-up
+	// gets a full undivided agent turn. Returns an error if the queue is full.
+	FollowUp(msg QueuedMessage) error
+
 	// Close releases resources held by the runtime (e.g., session store connections).
 	Close() error
 }
@@ -201,6 +209,14 @@ type LocalRuntime struct {
 
 	currentAgentMu sync.RWMutex
 
+	// steerQueue stores urgent mid-turn messages. The agent loop drains
+	// ALL pending messages after tool execution, before the stop check.
+	steerQueue MessageQueue
+
+	// followUpQueue stores end-of-turn messages. The agent loop pops
+	// exactly ONE message after the model stops and stop-hooks have run.
+	followUpQueue MessageQueue
+
 	// onToolsChanged is called when an MCP toolset reports a tool list change.
 	onToolsChanged func(Event)
 
@@ -225,6 +241,22 @@ func WithManagedOAuth(managed bool) Opt {
 func WithTracer(t trace.Tracer) Opt {
 	return func(r *LocalRuntime) {
 		r.tracer = t
+	}
+}
+
+// WithSteerQueue sets a custom MessageQueue for mid-turn message injection.
+// If not provided, an in-memory buffered queue is used.
+func WithSteerQueue(q MessageQueue) Opt {
+	return func(r *LocalRuntime) {
+		r.steerQueue = q
+	}
+}
+
+// WithFollowUpQueue sets a custom MessageQueue for end-of-turn follow-up
+// messages. If not provided, an in-memory buffered queue is used.
+func WithFollowUpQueue(q MessageQueue) Opt {
+	return func(r *LocalRuntime) {
+		r.followUpQueue = q
 	}
 }
 
@@ -291,6 +323,8 @@ func NewLocalRuntime(agents *team.Team, opts ...Opt) (*LocalRuntime, error) {
 		currentAgent:         defaultAgent.Name(),
 		resumeChan:           make(chan ResumeRequest),
 		elicitationRequestCh: make(chan ElicitationResult),
+		steerQueue:           NewInMemoryMessageQueue(defaultSteerQueueCapacity),
+		followUpQueue:        NewInMemoryMessageQueue(defaultFollowUpQueueCapacity),
 		sessionCompaction:    true,
 		managedOAuth:         true,
 		sessionStore:         session.NewInMemorySessionStore(),
@@ -1013,6 +1047,26 @@ func (r *LocalRuntime) ResumeElicitation(ctx context.Context, action tools.Elici
 		slog.Debug("Elicitation channel not ready")
 		return errors.New("no elicitation request in progress")
 	}
+}
+
+// Steer enqueues a user message for urgent mid-turn injection into the
+// running agent loop. The message will be picked up after the current batch
+// of tool calls finishes but before the loop checks whether to stop.
+func (r *LocalRuntime) Steer(msg QueuedMessage) error {
+	if !r.steerQueue.Enqueue(context.Background(), msg) {
+		return errors.New("steer queue full")
+	}
+	return nil
+}
+
+// FollowUp enqueues a message to be processed after the current agent turn
+// finishes. Unlike Steer, follow-ups are popped one at a time and each gets
+// a full undivided agent turn.
+func (r *LocalRuntime) FollowUp(msg QueuedMessage) error {
+	if !r.followUpQueue.Enqueue(context.Background(), msg) {
+		return errors.New("follow-up queue full")
+	}
+	return nil
 }
 
 // Run starts the agent's interaction loop

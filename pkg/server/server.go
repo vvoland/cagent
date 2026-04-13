@@ -63,6 +63,10 @@ func New(ctx context.Context, sessionStore session.Store, runConfig *config.Runt
 	group.POST("/sessions/:id/agent/:agent", s.runAgent)
 	group.POST("/sessions/:id/agent/:agent/:agent_name", s.runAgent)
 	group.POST("/sessions/:id/elicitation", s.elicitation)
+	// Steer: inject user messages into a running agent session mid-turn
+	group.POST("/sessions/:id/steer", s.steerSession)
+	// Follow-up: queue messages for end-of-turn processing
+	group.POST("/sessions/:id/followup", s.followUpSession)
 
 	// Agent tool count
 	group.GET("/agents/:id/:agent_name/tools/count", s.getAgentToolCount)
@@ -320,4 +324,40 @@ func (s *Server) elicitation(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, nil)
+}
+
+func (s *Server) steerSession(c echo.Context) error {
+	sessionID := c.Param("id")
+	var req api.SteerSessionRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
+	}
+
+	if len(req.Messages) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "at least one message is required")
+	}
+
+	if err := s.sm.SteerSession(c.Request().Context(), sessionID, req.Messages); err != nil {
+		return echo.NewHTTPError(http.StatusConflict, fmt.Sprintf("failed to steer session: %v", err))
+	}
+
+	return c.JSON(http.StatusAccepted, map[string]string{"status": "queued"})
+}
+
+func (s *Server) followUpSession(c echo.Context) error {
+	sessionID := c.Param("id")
+	var req api.SteerSessionRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
+	}
+
+	if len(req.Messages) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "at least one message is required")
+	}
+
+	if err := s.sm.FollowUpSession(c.Request().Context(), sessionID, req.Messages); err != nil {
+		return echo.NewHTTPError(http.StatusConflict, fmt.Sprintf("failed to enqueue follow-up: %v", err))
+	}
+
+	return c.JSON(http.StatusAccepted, map[string]string{"status": "queued"})
 }
