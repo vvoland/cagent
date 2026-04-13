@@ -31,7 +31,11 @@ func PerformOAuthLogin(ctx context.Context, serverURL string) error {
 
 	// Discover protected resource metadata.
 	resourceURL := baseURL + "/.well-known/oauth-protected-resource"
-	resp, err := http.Get(resourceURL) //nolint:gosec // URL is user-provided
+	resourceReq, err := http.NewRequestWithContext(ctx, http.MethodGet, resourceURL, http.NoBody)
+	if err != nil {
+		return fmt.Errorf("failed to create resource metadata request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(resourceReq)
 	if err != nil {
 		return fmt.Errorf("failed to fetch protected resource metadata: %w", err)
 	}
