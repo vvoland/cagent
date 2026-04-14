@@ -236,9 +236,14 @@ func (c *manager) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		case key.Matches(msg, c.keyMap.Up):
 			if c.selected > 0 {
 				c.selected--
+			} else if len(c.filteredItems) > 0 {
+				c.selected = len(c.filteredItems) - 1
 			}
 			if c.selected < c.scrollOffset {
 				c.scrollOffset = c.selected
+			}
+			if c.selected >= c.scrollOffset+maxItems {
+				c.scrollOffset = c.selected - maxItems + 1
 			}
 			cmd := c.notifySelectionChanged()
 			return c, cmd
@@ -246,6 +251,9 @@ func (c *manager) Update(msg tea.Msg) (layout.Model, tea.Cmd) {
 		case key.Matches(msg, c.keyMap.Down):
 			if c.selected < len(c.filteredItems)-1 {
 				c.selected++
+			} else if len(c.filteredItems) > 0 {
+				c.selected = 0
+				c.scrollOffset = 0
 			}
 			if c.selected >= c.scrollOffset+maxItems {
 				c.scrollOffset = c.selected - maxItems + 1
