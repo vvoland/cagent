@@ -274,15 +274,25 @@ func (c *Client) CreateChatCompletionStream(
 		}
 	}
 
-	// Apply thinking budget: set reasoning_effort for reasoning models (o-series, gpt-5)
-	if c.ModelConfig.ThinkingBudget != nil && isOpenAIReasoningModel(c.ModelConfig.Model) {
-		effortStr, err := openAIReasoningEffort(c.ModelConfig.ThinkingBudget)
-		if err != nil {
-			slog.Error("OpenAI request using thinking_budget failed", "error", err)
-			return nil, err
+	// Apply thinking budget: set reasoning_effort for reasoning models (o-series, gpt-5).
+	// Reasoning models always reason; omitting the param uses the default effort.
+	// When NoThinking is set we still need to send low effort so hidden
+	// reasoning tokens don't exhaust the max_completion_tokens budget.
+	// We use "low" instead of "minimal" because older models (o3-mini, o1)
+	// only accept low/medium/high.
+	if isOpenAIReasoningModel(c.ModelConfig.Model) {
+		if c.ModelOptions.NoThinking() {
+			params.ReasoningEffort = shared.ReasoningEffort("low")
+			slog.Debug("OpenAI request using low reasoning (NoThinking)")
+		} else if c.ModelConfig.ThinkingBudget != nil {
+			effortStr, err := openAIReasoningEffort(c.ModelConfig.ThinkingBudget)
+			if err != nil {
+				slog.Error("OpenAI request using thinking_budget failed", "error", err)
+				return nil, err
+			}
+			params.ReasoningEffort = shared.ReasoningEffort(effortStr)
+			slog.Debug("OpenAI request using thinking_budget", "reasoning_effort", effortStr)
 		}
-		params.ReasoningEffort = shared.ReasoningEffort(effortStr)
-		slog.Debug("OpenAI request using thinking_budget", "reasoning_effort", effortStr)
 	}
 
 	// Apply structured output configuration
@@ -384,20 +394,34 @@ func (c *Client) CreateResponseStream(
 	}
 
 	// Configure reasoning for models that support it (o-series, gpt-5).
-	// Skip reasoning entirely when NoThinking is set (e.g. title generation)
-	// to avoid wasting output tokens on internal reasoning.
-	if isOpenAIReasoningModel(c.ModelConfig.Model) && !c.ModelOptions.NoThinking() {
-		params.Reasoning = shared.ReasoningParam{
-			Summary: shared.ReasoningSummaryDetailed,
-		}
-		if c.ModelConfig.ThinkingBudget != nil {
-			effortStr, err := openAIReasoningEffort(c.ModelConfig.ThinkingBudget)
-			if err != nil {
-				slog.Error("OpenAI responses request using thinking_budget failed", "error", err)
-				return nil, err
+	// Reasoning models always reason internally; omitting the reasoning param
+	// does NOT disable reasoning — it just uses the model's default effort.
+	// Those hidden reasoning tokens still count against max_output_tokens,
+	// so with a small budget (e.g. title generation) the model can exhaust
+	// all tokens on reasoning and return empty visible text.
+	if isOpenAIReasoningModel(c.ModelConfig.Model) {
+		if c.ModelOptions.NoThinking() {
+			// Use low effort so the model spends as few output tokens as
+			// possible on reasoning, leaving room for visible text.
+			// We use "low" instead of "minimal" because older models
+			// (o3-mini, o1) only accept low/medium/high.
+			params.Reasoning = shared.ReasoningParam{
+				Effort: shared.ReasoningEffort("low"),
 			}
-			params.Reasoning.Effort = shared.ReasoningEffort(effortStr)
-			slog.Debug("OpenAI responses request using thinking_budget", "reasoning_effort", effortStr)
+			slog.Debug("OpenAI responses request using low reasoning (NoThinking)")
+		} else {
+			params.Reasoning = shared.ReasoningParam{
+				Summary: shared.ReasoningSummaryDetailed,
+			}
+			if c.ModelConfig.ThinkingBudget != nil {
+				effortStr, err := openAIReasoningEffort(c.ModelConfig.ThinkingBudget)
+				if err != nil {
+					slog.Error("OpenAI responses request using thinking_budget failed", "error", err)
+					return nil, err
+				}
+				params.Reasoning.Effort = shared.ReasoningEffort(effortStr)
+				slog.Debug("OpenAI responses request using thinking_budget", "reasoning_effort", effortStr)
+			}
 		}
 	}
 
