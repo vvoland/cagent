@@ -21,9 +21,15 @@ const (
 	systemPrompt     = "You are a helpful AI assistant that generates concise, descriptive titles for conversations. You will be given up to 2 recent user messages and asked to create a single-line title that captures the main topic. Never use newlines or line breaks in your response."
 	userPromptFormat = "Based on the following recent user messages from a conversation with an AI assistant, generate a short, descriptive title (maximum 50 characters) that captures the main topic or purpose of the conversation. Return ONLY the title text on a single line, nothing else. Do not include any newlines, explanations, or formatting.\n\nRecent user messages:\n%s\n\n"
 
+	// titleMaxTokens is the max output token budget for title generation.
+	// This must be large enough for reasoning models (o-series, gpt-5) where
+	// max_output_tokens includes hidden reasoning tokens. With minimal
+	// reasoning effort a short title needs ~200-250 tokens total.
+	titleMaxTokens = 256
+
 	// titleGenerationTimeout is the maximum time to wait for title generation.
-	// Title generation should be quick since we disable thinking and use low max_tokens.
-	// If the API is slow or hanging (e.g., due to server-side thinking), we should timeout.
+	// Title generation should be quick since we use minimal thinking and a
+	// small token budget. If the API is slow or hanging, we should timeout.
 	titleGenerationTimeout = 30 * time.Second
 )
 
@@ -103,7 +109,7 @@ func (g *Generator) Generate(ctx context.Context, sessionID string, userMessages
 			ctx,
 			baseModel,
 			options.WithStructuredOutput(nil),
-			options.WithMaxTokens(20),
+			options.WithMaxTokens(titleMaxTokens),
 			options.WithNoThinking(),
 			options.WithGeneratingTitle(),
 		)
