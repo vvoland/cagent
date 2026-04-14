@@ -99,6 +99,24 @@ func TestEvaluate(t *testing.T) {
 			tools:    nil,
 			expected: "Unclosed ${foo",
 		},
+		{
+			name:     "mixed known and unknown expressions",
+			input:    `Known: ${echo({msg: "hi"})}, Unknown: ${undefined_tool()}`,
+			tools:    mockTools,
+			expected: `Known: echoed: {"msg":"hi"}, Unknown: ${undefined_tool()}`,
+		},
+		{
+			name:     "unknown expression preserves shell calls",
+			input:    "Lint: ${shell({cmd: \"task lint\"})}\n${unknown_tool()}",
+			tools:    mockTools,
+			expected: "Lint: output: {\"cmd\":\"task lint\"}\n${unknown_tool()}",
+		},
+		{
+			name:     "nested braces in tool args",
+			input:    `${shell({cmd: "echo }"})}`,
+			tools:    mockTools,
+			expected: `output: {"cmd":"echo }"}`,
+		},
 	}
 
 	for _, tt := range tests {
