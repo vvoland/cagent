@@ -281,11 +281,15 @@ func loadSkillFile(path, dirName string) (Skill, bool) {
 	}
 
 	skill, ok := parseFrontmatter(string(content))
-	if !ok || !isValidSkill(skill) {
+	if !ok {
 		return Skill{}, false
 	}
 
 	skill.Name = cmp.Or(skill.Name, dirName)
+
+	if !isValidSkill(skill) {
+		return Skill{}, false
+	}
 	skill.FilePath = path
 	skill.BaseDir = filepath.Dir(path)
 	skill.Local = true
