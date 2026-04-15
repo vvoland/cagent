@@ -290,6 +290,69 @@ func TestFetch_RobotsMissing(t *testing.T) {
 	assert.Contains(t, result.Output, "Content without robots.txt")
 }
 
+func TestFetch_RobotsCachePerHost_MultipleURLs(t *testing.T) {
+	// Regression test: robots.txt should be fetched once per host,
+	// but each URL's path must be evaluated individually.
+	robotsContent := "User-agent: *\nDisallow: /secret\nAllow: /"
+
+	robotsRequests := 0
+	url := runHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/robots.txt":
+			robotsRequests++
+			w.Header().Set("Content-Type", "text/plain")
+			fmt.Fprint(w, robotsContent)
+		case "/public":
+			fmt.Fprint(w, "public content")
+		case "/secret/data":
+			fmt.Fprint(w, "secret content")
+		default:
+			http.NotFound(w, r)
+		}
+	})
+
+	tool := NewFetchTool()
+	result, err := tool.handler.CallTool(t.Context(), FetchToolArgs{
+		URLs:   []string{url + "/public", url + "/secret/data"},
+		Format: "text",
+	})
+	require.NoError(t, err)
+
+	var results []FetchResult
+	err = json.Unmarshal([]byte(result.Output), &results)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+
+	// First URL should succeed
+	assert.Equal(t, 200, results[0].StatusCode)
+	assert.Equal(t, "public content", results[0].Body)
+
+	// Second URL should be blocked
+	assert.Contains(t, results[1].Error, "URL blocked by robots.txt")
+
+	// robots.txt should have been fetched exactly once
+	assert.Equal(t, 1, robotsRequests, "robots.txt should be fetched once per host")
+}
+
+func TestFetch_RobotsUnexpectedStatus(t *testing.T) {
+	url := runHTTPServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprint(w, "content")
+	})
+
+	tool := NewFetchTool()
+	result, err := tool.handler.CallTool(t.Context(), FetchToolArgs{
+		URLs:   []string{url + "/page"},
+		Format: "text",
+	})
+	require.NoError(t, err)
+	assert.Contains(t, result.Output, "robots.txt check failed")
+	assert.Contains(t, result.Output, "unexpected status 500")
+}
+
 func TestFetchTool_OutputSchema(t *testing.T) {
 	tool := NewFetchTool()
 
