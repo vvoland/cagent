@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -268,10 +269,15 @@ func createMCPTool(ctx context.Context, toolset latest.Toolset, _ string, runCon
 
 	// STDIO MCP Server from shell command
 	case toolset.Command != "":
-		// Auto-install missing command binary if needed
+		// Auto-install missing command binary if needed.
+		// If EnsureCommand fails (binary not on PATH, no aqua package, etc.),
+		// treat as transient: create the toolset with the original command
+		// and let mcp.Toolset.Start() retry on each conversation turn.
 		resolvedCommand, err := toolinstall.EnsureCommand(ctx, toolset.Command, toolset.Version)
 		if err != nil {
-			return nil, fmt.Errorf("resolving command %q: %w", toolset.Command, err)
+			slog.Warn("MCP command not yet available, will retry on next turn",
+				"command", toolset.Command, "error", err)
+			resolvedCommand = toolset.Command
 		}
 
 		env, err := environment.ExpandAll(ctx, environment.ToValues(toolset.Env), envProvider)

@@ -12,6 +12,8 @@ import (
 	"log/slog"
 	"net"
 	"net/url"
+	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -118,9 +120,9 @@ func NewRemoteToolset(name, urlString, transport string, headers map[string]stri
 }
 
 // errServerUnavailable is returned by doStart when the MCP server could not be
-// reached but the error is non-fatal (e.g. EOF). The toolset is considered
-// "started" so the agent can proceed, but watchConnection must not be spawned
-// because there is no live connection to monitor.
+// reached but the error is non-fatal (e.g. EOF, binary not found).
+// Start() propagates this so started remains false, and the agent runtime
+// retries via ensureToolSetsAreStarted on the next conversation turn.
 var errServerUnavailable = errors.New("MCP server unavailable")
 
 // Describe returns a short, user-visible description of this toolset instance.
@@ -155,16 +157,11 @@ func (ts *Toolset) Start(ctx context.Context) error {
 		return nil
 	}
 
-	ts.restarted = make(chan struct{})
+	if ts.restarted == nil {
+		ts.restarted = make(chan struct{})
+	}
 
 	if err := ts.doStart(ctx); err != nil {
-		if errors.Is(err, errServerUnavailable) {
-			// The server is unreachable but the error is non-fatal.
-			// Mark as started so the agent can proceed; tools will simply
-			// be empty. Don't spawn a watcher — there's nothing to watch.
-			ts.started = true
-			return nil
-		}
 		return err
 	}
 
@@ -240,10 +237,11 @@ func (ts *Toolset) doStart(ctx context.Context) error {
 		//
 		// Only retry when initialization fails due to sending the initialized notification.
 		if !isInitNotificationSendError(err) {
-			if errors.Is(err, io.EOF) {
+			if isServerUnavailableError(err) {
 				slog.Debug(
-					"MCP client unavailable (EOF), skipping MCP toolset",
+					"MCP client unavailable, will retry on next conversation turn",
 					"server", ts.logID,
+					"error", err,
 				)
 				return errServerUnavailable
 			}
@@ -546,6 +544,15 @@ func isInitNotificationSendError(err error) bool {
 		return true
 	}
 	return false
+}
+
+// isServerUnavailableError returns true if err indicates the MCP server process
+// could not be reached — binary missing/not-found, or process exited immediately
+// before completing the MCP handshake (io.EOF). These are retryable conditions.
+func isServerUnavailableError(err error) bool {
+	return errors.Is(err, io.EOF) ||
+		errors.Is(err, exec.ErrNotFound) ||
+		errors.Is(err, os.ErrNotExist)
 }
 
 func processMCPContent(toolResult *mcp.CallToolResult) *tools.ToolCallResult {
