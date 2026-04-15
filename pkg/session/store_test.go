@@ -629,6 +629,32 @@ func TestAgentModelOverrides_EmptyMap(t *testing.T) {
 	assert.Empty(t, retrieved.AgentModelOverrides)
 }
 
+func TestNewSQLiteSessionStore_RejectsNewerDatabase(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test_newer_db.db")
+
+	// Create a valid store first (applies all known migrations)
+	store, err := NewSQLiteSessionStore(dbPath)
+	require.NoError(t, err)
+	defer store.(*SQLiteSessionStore).Close()
+
+	// Inject a future migration into the database to simulate a newer version
+	db, err := sql.Open("sqlite", dbPath)
+	require.NoError(t, err)
+	_, err = db.Exec(
+		"INSERT INTO migrations (id, name, description, applied_at) VALUES (?, ?, ?, ?)",
+		9999, "9999_future_migration", "Added by a newer version", "2099-01-01T00:00:00Z")
+	require.NoError(t, err)
+	db.Close()
+
+	// Opening the store should fail with a clear error about version mismatch
+	_, err = NewSQLiteSessionStore(dbPath)
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrNewerDatabase)
+	assert.Contains(t, err.Error(), "9999")
+	assert.Contains(t, err.Error(), "upgrade docker-agent")
+}
+
 func TestNewSQLiteSessionStore_MigrationFailureRecovery(t *testing.T) {
 	tempDir := t.TempDir()
 	dbPath := filepath.Join(tempDir, "test_migration_recovery.db")

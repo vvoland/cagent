@@ -19,8 +19,9 @@ import (
 )
 
 var (
-	ErrEmptyID  = errors.New("session ID cannot be empty")
-	ErrNotFound = errors.New("session not found")
+	ErrEmptyID       = errors.New("session ID cannot be empty")
+	ErrNotFound      = errors.New("session not found")
+	ErrNewerDatabase = errors.New("session database was created by a newer version of docker-agent")
 )
 
 // parseRelativeSessionRef checks if ref is a relative session reference (e.g., "-1", "-2")
@@ -367,6 +368,12 @@ func (s *InMemorySessionStore) Close() error {
 func NewSQLiteSessionStore(path string) (Store, error) {
 	store, err := openAndMigrateSQLiteStore(path)
 	if err != nil {
+		// Don't attempt recovery for version mismatch - the user needs to upgrade,
+		// not silently lose their data by starting fresh.
+		if errors.Is(err, ErrNewerDatabase) {
+			return nil, err
+		}
+
 		// If migrations failed, try to recover by backing up the database and starting fresh
 		slog.Warn("Failed to open session store, attempting recovery", "error", err)
 
