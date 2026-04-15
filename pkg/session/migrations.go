@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/docker/docker-agent/pkg/version"
 )
 
 // Migration represents a database migration
@@ -42,6 +44,11 @@ func (m *MigrationManager) InitializeMigrations(ctx context.Context) error {
 		return fmt.Errorf("failed to create migrations table: %w", err)
 	}
 
+	// Check if the database was created by a newer version of the application
+	if err := m.checkForUnknownMigrations(ctx); err != nil {
+		return err
+	}
+
 	// Run all pending migrations
 	err = m.RunPendingMigrations(ctx)
 	if err != nil {
@@ -62,6 +69,30 @@ func (m *MigrationManager) createMigrationsTable(ctx context.Context) error {
 		)
 	`)
 	return err
+}
+
+// checkForUnknownMigrations checks if the database has migrations that this binary
+// doesn't know about, which indicates the database was created by a newer version.
+// This produces a clear error instead of cryptic SQL failures from schema mismatches.
+func (m *MigrationManager) checkForUnknownMigrations(ctx context.Context) error {
+	known := getAllMigrations()
+	maxKnownID := known[len(known)-1].ID
+
+	var maxAppliedID int
+	err := m.db.QueryRowContext(ctx, "SELECT COALESCE(MAX(id), 0) FROM migrations").Scan(&maxAppliedID)
+	if err != nil {
+		return fmt.Errorf("failed to check applied migrations: %w", err)
+	}
+
+	if maxAppliedID > maxKnownID {
+		return fmt.Errorf(
+			"%w: you are running docker-agent %s which supports migrations up to %d, "+
+				"but the session database has migration %d from a newer version; "+
+				"please upgrade docker-agent to the latest version",
+			ErrNewerDatabase, version.Version, maxKnownID, maxAppliedID)
+	}
+
+	return nil
 }
 
 // RunPendingMigrations executes all migrations that haven't been applied yet
