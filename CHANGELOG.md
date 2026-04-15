@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.45.0] - 2026-04-15
+
+This release improves template expression handling, adds circular navigation to completions, and fixes issues with skills and MCP toolset loading.
+
+## Bug Fixes
+- Fixes evaluation of JavaScript template expressions to handle failures independently - when one expression fails, other valid expressions in the same template are still expanded
+- Fixes skills loading functionality
+- Fixes retry behavior for MCP toolset startup when server is unavailable
+- Fixes MCP toolset creation to proceed even when command binary is unavailable
+
+## Improvements
+- Adds circular navigation wrapping to completion component, allowing users to cycle through completion options
+
+### Pull Requests
+
+- [#2400](https://github.com/docker/docker-agent/pull/2400) - fix: evaluate JS template expressions independently on failure
+- [#2403](https://github.com/docker/docker-agent/pull/2403) - docs: update CHANGELOG.md for v1.44.0
+- [#2407](https://github.com/docker/docker-agent/pull/2407) - add circular navigation wrapping to completion component
+- [#2413](https://github.com/docker/docker-agent/pull/2413) - fix: retry stdio MCP toolset when binary is unavailable at startup
+- [#2414](https://github.com/docker/docker-agent/pull/2414) - Fix skills loading
+
+
 ## [v1.44.0] - 2026-04-13
 
 This release introduces TUI customization capabilities, session management improvements, and OAuth security enhancements, along with numerous bug fixes and stability improvements.
@@ -1924,3 +1946,5 @@ This release improves the terminal user interface with better error handling and
 [v1.43.0]: https://github.com/docker/docker-agent/releases/tag/v1.43.0
 
 [v1.44.0]: https://github.com/docker/docker-agent/releases/tag/v1.44.0
+
+[v1.45.0]: https://github.com/docker/docker-agent/releases/tag/v1.45.0
