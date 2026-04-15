@@ -160,11 +160,11 @@ func (r *Runner) Run(ctx context.Context, ttyOut, out io.Writer, isTTY bool) ([]
 					return
 				}
 
-				progress.setRunning(item.eval.Title)
+				progress.setRunning(item.eval.displayTitle())
 				result, runErr := r.runSingleEval(ctx, item.eval)
 				if runErr != nil {
 					result.Error = runErr.Error()
-					slog.Error("Evaluation failed", "title", item.eval.Title, "error", runErr)
+					slog.Error("Evaluation failed", "title", item.eval.displayTitle(), "error", runErr)
 				}
 
 				results[item.index] = result
@@ -226,6 +226,22 @@ func (r *Runner) loadEvalSessions(ctx context.Context) ([]InputSession, error) {
 	slices.SortFunc(evals, func(a, b InputSession) int {
 		return cmp.Compare(b.Duration(), a.Duration())
 	})
+
+	// Repeat evals if requested
+	repeat := max(r.Repeat, 1)
+	if repeat > 1 {
+		original := evals
+		evals = make([]InputSession, 0, len(original)*repeat)
+		for i := range repeat {
+			for _, e := range original {
+				evals = append(evals, InputSession{
+					Session:     e.Session,
+					SourcePath:  e.SourcePath,
+					RepeatIndex: i + 1,
+				})
+			}
+		}
+	}
 
 	return evals, nil
 }
@@ -305,7 +321,9 @@ func (r *Runner) preBuildImages(ctx context.Context, out io.Writer, evals []Inpu
 
 func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Result, error) {
 	startTime := time.Now()
-	slog.Debug("Starting evaluation", "title", evalSess.Title)
+	title := evalSess.displayTitle()
+
+	slog.Debug("Starting evaluation", "title", title)
 
 	var evals *session.EvalCriteria
 	if evalSess.Evals != nil {
@@ -318,7 +336,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 
 	result := Result{
 		InputPath:         evalSess.SourcePath,
-		Title:             evalSess.Title,
+		Title:             title,
 		Question:          strings.Join(userMessages, "\n"),
 		SizeExpected:      evals.Size,
 		RelevanceExpected: float64(len(evals.Relevance)),
@@ -347,8 +365,12 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 	result.Size = getResponseSize(result.Response)
 
 	// Build session from events for database storage
-	result.Session = SessionFromEvents(events, evalSess.Title, userMessages)
+	result.Session = SessionFromEvents(events, title, userMessages)
 	result.Session.Evals = evals
+
+	// Re-apply the display title in case a session_title event overrode it.
+	// This ensures repeated evals retain their '#N' suffix in stored sessions.
+	result.Session.Title = title
 
 	if len(expectedToolCalls) > 0 || len(actualToolCalls) > 0 {
 		result.ToolCallsScore = toolCallF1Score(expectedToolCalls, actualToolCalls)
@@ -371,7 +393,7 @@ func (r *Runner) runSingleEval(ctx context.Context, evalSess *InputSession) (Res
 		result.RelevanceResults = results
 	}
 
-	slog.Debug("Evaluation complete", "title", evalSess.Title, "duration", time.Since(startTime))
+	slog.Debug("Evaluation complete", "title", title, "duration", time.Since(startTime))
 	return result, nil
 }
 

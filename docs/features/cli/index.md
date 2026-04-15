@@ -169,6 +169,7 @@ $ docker agent eval eval-config.yaml
 $ docker agent eval agent.yaml ./evals -c 8              # 8 concurrent evaluations
 $ docker agent eval agent.yaml --keep-containers         # Keep containers for debugging
 $ docker agent eval agent.yaml --only "auth*"            # Only run matching evals
+$ docker agent eval agent.yaml --repeat 5                # Repeat each eval 5 times
 ```
 
 ### `docker agent alias`
