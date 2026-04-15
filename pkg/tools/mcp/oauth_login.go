@@ -100,6 +100,7 @@ func PerformOAuthLogin(ctx context.Context, serverURL string) error {
 		state,
 		oauth2.S256ChallengeFromVerifier(verifier),
 		serverURL,
+		nil,
 	)
 
 	// Open the browser and wait for the callback.

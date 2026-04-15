@@ -741,9 +741,19 @@ func (t *Toolset) UnmarshalYAML(unmarshal func(any) error) error {
 }
 
 type Remote struct {
-	URL           string            `json:"url"`
-	TransportType string            `json:"transport_type,omitempty"`
-	Headers       map[string]string `json:"headers,omitempty"`
+	URL           string             `json:"url"`
+	TransportType string             `json:"transport_type,omitempty"`
+	Headers       map[string]string  `json:"headers,omitempty"`
+	OAuth         *RemoteOAuthConfig `json:"oauth,omitempty"`
+}
+
+// RemoteOAuthConfig holds explicit OAuth credentials for remote MCP servers
+// that do not support Dynamic Client Registration (RFC 7591).
+type RemoteOAuthConfig struct {
+	ClientID     string   `json:"clientId"`
+	ClientSecret string   `json:"clientSecret,omitempty"`
+	CallbackPort int      `json:"callbackPort,omitempty"`
+	Scopes       []string `json:"scopes,omitempty"`
 }
 
 // DeferConfig represents the deferred loading configuration for a toolset.
