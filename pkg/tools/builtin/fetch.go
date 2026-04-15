@@ -59,8 +59,8 @@ func (h *fetchHandler) CallTool(ctx context.Context, params FetchToolArgs) (*too
 
 	var results []FetchResult
 
-	// Group URLs by host to fetch robots.txt once per host
-	robotsCache := make(map[string]bool)
+	// Cache parsed robots.txt per host
+	robotsCache := make(map[string]*robotstxt.RobotsData)
 
 	for _, urlStr := range params.URLs {
 		result := h.fetchURL(ctx, client, urlStr, params.Format, robotsCache)
@@ -91,7 +91,7 @@ type FetchResult struct {
 	Error         string `json:"error,omitempty"`
 }
 
-func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr, format string, robotsCache map[string]bool) FetchResult {
+func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr, format string, robotsCache map[string]*robotstxt.RobotsData) FetchResult {
 	result := FetchResult{URL: urlStr}
 
 	// Validate URL
@@ -115,13 +115,18 @@ func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr
 
 	// Check robots.txt (with caching per host)
 	host := parsedURL.Host
-	allowed, cached := robotsCache[host]
+	robots, cached := robotsCache[host]
 	if !cached {
-		allowed = h.checkRobotsAllowed(ctx, client, parsedURL, useragent.Header)
-		robotsCache[host] = allowed
+		var err error
+		robots, err = h.fetchRobots(ctx, client, parsedURL, useragent.Header)
+		if err != nil {
+			result.Error = fmt.Sprintf("robots.txt check failed: %v", err)
+			return result
+		}
+		robotsCache[host] = robots
 	}
 
-	if !allowed {
+	if robots != nil && !robots.TestAgent(parsedURL.Path, useragent.Header) {
 		result.Error = "URL blocked by robots.txt"
 		return result
 	}
@@ -191,7 +196,10 @@ func (h *fetchHandler) fetchURL(ctx context.Context, client *http.Client, urlStr
 	return result
 }
 
-func (h *fetchHandler) checkRobotsAllowed(ctx context.Context, client *http.Client, targetURL *url.URL, userAgent string) bool {
+// fetchRobots fetches and parses robots.txt for the given URL's host.
+// Returns nil (allow all) if robots.txt is missing or unreachable.
+// Returns an error if the server returns a non-OK status or the content cannot be read/parsed.
+func (h *fetchHandler) fetchRobots(ctx context.Context, client *http.Client, targetURL *url.URL, userAgent string) (*robotstxt.RobotsData, error) {
 	// Build robots.txt URL
 	robotsURL := &url.URL{
 		Scheme: targetURL.Scheme,
@@ -203,7 +211,7 @@ func (h *fetchHandler) checkRobotsAllowed(ctx context.Context, client *http.Clie
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, robotsURL.String(), http.NoBody)
 	if err != nil {
 		// If we can't create request, allow the fetch
-		return true
+		return nil, nil
 	}
 
 	req.Header.Set("User-Agent", userAgent)
@@ -217,36 +225,33 @@ func (h *fetchHandler) checkRobotsAllowed(ctx context.Context, client *http.Clie
 	resp, err := robotsClient.Do(req)
 	if err != nil {
 		// If robots.txt is unreachable, allow the fetch
-		return true
+		return nil, nil
 	}
 	defer resp.Body.Close()
 
 	// If robots.txt doesn't exist (404), allow the fetch
 	if resp.StatusCode == http.StatusNotFound {
-		return true
+		return nil, nil
 	}
 
 	// For other non-200 status codes, fail the fetch
 	if resp.StatusCode != http.StatusOK {
-		return false
+		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
 
 	// Read robots.txt content (limit to 64KB)
 	robotsBody, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	if err != nil {
-		// If we can't read robots.txt, fail the fetch
-		return false
+		return nil, fmt.Errorf("failed to read robots.txt: %w", err)
 	}
 
 	// Parse robots.txt
 	robots, err := robotstxt.FromBytes(robotsBody)
 	if err != nil {
-		// If we can't parse robots.txt, fail the fetch
-		return false
+		return nil, fmt.Errorf("failed to parse robots.txt: %w", err)
 	}
 
-	// Check if the target URL path is allowed for our user agent
-	return robots.TestAgent(targetURL.Path, userAgent)
+	return robots, nil
 }
 
 func htmlToMarkdown(html string) string {
