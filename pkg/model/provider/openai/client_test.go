@@ -46,6 +46,41 @@ func TestConvertMessagesToResponseInput_OrphanedFunctionCall(t *testing.T) {
 	assert.Contains(t, outputIDs, "call_2")
 }
 
+func TestConvertMessagesToResponseInput_AssistantTextWithToolCalls(t *testing.T) {
+	// When an assistant message has both text content and tool calls,
+	// the text must not be silently discarded.
+	messages := []chat.Message{
+		{Role: chat.MessageRoleUser, Content: "hello"},
+		{
+			Role:    chat.MessageRoleAssistant,
+			Content: "Let me search that for you.",
+			ToolCalls: []tools.ToolCall{
+				{ID: "call_1", Type: "function", Function: tools.FunctionCall{Name: "search", Arguments: `{"q":"test"}`}},
+			},
+		},
+		{Role: chat.MessageRoleTool, Content: "result", ToolCallID: "call_1"},
+	}
+
+	input := convertMessagesToResponseInput(messages)
+
+	// We expect: user message, assistant text message, function call, function call output.
+	var foundAssistantText bool
+	var foundFunctionCall bool
+	for _, item := range input {
+		if item.OfMessage != nil && item.OfMessage.Role == "assistant" {
+			if item.OfMessage.Content.OfString.Valid() && item.OfMessage.Content.OfString.Value == "Let me search that for you." {
+				foundAssistantText = true
+			}
+		}
+		if item.OfFunctionCall != nil && item.OfFunctionCall.CallID == "call_1" {
+			foundFunctionCall = true
+		}
+	}
+
+	assert.True(t, foundFunctionCall, "function call should be present")
+	assert.True(t, foundAssistantText, "assistant text content should not be discarded when tool calls are present")
+}
+
 func TestConvertMessagesToResponseInput_NoOrphans(t *testing.T) {
 	// All tool calls have matching results — no placeholder needed.
 	messages := []chat.Message{
