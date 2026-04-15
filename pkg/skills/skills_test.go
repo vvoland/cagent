@@ -249,6 +249,28 @@ Run migrations with care.
 	assert.Equal(t, nestedDir, skills[0].BaseDir)
 }
 
+func TestLoadSkillsFromDir_NameFromDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	skillDir := filepath.Join(tmpDir, "hola")
+	require.NoError(t, os.MkdirAll(skillDir, 0o755))
+
+	// Skill without a name field — should derive name from directory.
+	skillContent := `---
+description: Say hello in Spanish
+---
+
+Run the hola command.
+`
+	require.NoError(t, os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillContent), 0o644))
+
+	skills := loadSkillsFromDir(tmpDir, false)
+
+	require.Len(t, skills, 1)
+	assert.Equal(t, "hola", skills[0].Name)
+	assert.Equal(t, "Say hello in Spanish", skills[0].Description)
+}
+
 func TestLoadSkillsFromDir_SkipHiddenAndSymlinks(t *testing.T) {
 	tmpDir := t.TempDir()
 
