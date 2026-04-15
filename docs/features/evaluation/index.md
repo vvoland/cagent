@@ -33,6 +33,12 @@ $ docker agent eval agent.yaml -c 8
 
 # Only run evals matching a pattern
 $ docker agent eval agent.yaml --only "auth*"
+
+# Repeat each eval 5 times to compute a baseline
+$ docker agent eval agent.yaml --repeat 5
+
+# Repeat a specific eval 5 times
+$ docker agent eval agent.yaml --only "auth*" --repeat 5
 ```
 
 ## Eval Directory Structure
@@ -162,6 +168,7 @@ $ docker agent eval <agent-file>|<registry-ref> [<eval-dir>|./evals]
 | `--base-image`      | (default)                   | Custom base Docker image for eval containers                      |
 | `--keep-containers` | `false`                     | Keep containers after evaluation (don't remove with `--rm`)       |
 | `-e, --env`         | (none)                      | Environment variables to pass to container (`KEY` or `KEY=VALUE`) |
+| `--repeat`          | `1`                         | Number of times to repeat each evaluation (useful for computing baselines) |
 
 ## Output
 

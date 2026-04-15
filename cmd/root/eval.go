@@ -45,6 +45,7 @@ func newEvalCmd() *cobra.Command {
 	cmd.Flags().StringVar(&flags.BaseImage, "base-image", "", "Custom base Docker image for running evaluations")
 	cmd.Flags().BoolVar(&flags.KeepContainers, "keep-containers", false, "Keep containers after evaluation (don't use --rm)")
 	cmd.Flags().StringSliceVarP(&flags.EnvVars, "env", "e", nil, "Environment variables to pass to container (KEY or KEY=VALUE)")
+	cmd.Flags().IntVar(&flags.Repeat, "repeat", 1, "Number of times to repeat each evaluation (useful for computing baselines)")
 
 	return cmd
 }

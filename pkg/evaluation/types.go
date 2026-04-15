@@ -11,7 +11,16 @@ import (
 type InputSession struct {
 	*session.Session
 
-	SourcePath string // Path to the source eval file (not serialized)
+	SourcePath  string // Path to the source eval file (not serialized)
+	RepeatIndex int    // Repeat iteration (1-based); 0 means no repeat
+}
+
+// displayTitle returns the title with an optional repeat suffix.
+func (s *InputSession) displayTitle() string {
+	if s.RepeatIndex > 0 {
+		return fmt.Sprintf("%s #%d", s.Title, s.RepeatIndex)
+	}
+	return s.Title
 }
 
 // Result contains the evaluation results for a single test case.
@@ -131,6 +140,7 @@ type Config struct {
 	BaseImage      string   // Custom base Docker image for running evaluations
 	KeepContainers bool     // If true, don't remove containers after evaluation (skip --rm)
 	EnvVars        []string // Environment variables to pass: KEY (value from env) or KEY=VALUE (explicit)
+	Repeat         int      // Number of times to repeat each evaluation (default 1)
 }
 
 // Session helper functions
