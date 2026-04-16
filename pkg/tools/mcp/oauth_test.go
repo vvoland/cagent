@@ -172,6 +172,80 @@ func TestGetValidToken_UsesStoredCredentialsForRefresh(t *testing.T) {
 	}
 }
 
+// TestGetValidToken_UsesStoredAuthServerForRefresh verifies that silent
+// refresh uses the discovered auth server rather than assuming the MCP
+// server URL also hosts the OAuth metadata.
+func TestGetValidToken_UsesStoredAuthServerForRefresh(t *testing.T) {
+	var refreshRequests int
+
+	authMux := http.NewServeMux()
+	authSrv := httptest.NewServer(authMux)
+	defer authSrv.Close()
+
+	authMux.HandleFunc("/.well-known/oauth-authorization-server", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"issuer":                 authSrv.URL,
+			"token_endpoint":         authSrv.URL + "/token",
+			"authorization_endpoint": authSrv.URL + "/authorize",
+		})
+	})
+	authMux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		refreshRequests++
+		if err := r.ParseForm(); err != nil {
+			t.Fatal(err)
+		}
+		if got := r.FormValue("refresh_token"); got != "old-rt" {
+			t.Fatalf("refresh_token = %q, want %q", got, "old-rt")
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"access_token":  "fresh-at",
+			"token_type":    "Bearer",
+			"expires_in":    3600,
+			"refresh_token": "fresh-rt",
+		})
+	})
+
+	mcpSrv := httptest.NewServer(http.NotFoundHandler())
+	defer mcpSrv.Close()
+
+	store := NewInMemoryTokenStore()
+	expiredToken := &OAuthToken{
+		AccessToken:  "old-at",
+		TokenType:    "Bearer",
+		RefreshToken: "old-rt",
+		ExpiresAt:    time.Now().Add(-1 * time.Hour),
+		ClientID:     "stored-cid",
+		ClientSecret: "stored-csec",
+		AuthServer:   authSrv.URL,
+	}
+	if err := store.StoreToken(mcpSrv.URL, expiredToken); err != nil {
+		t.Fatal(err)
+	}
+
+	transport := &oauthTransport{
+		base:       http.DefaultTransport,
+		tokenStore: store,
+		baseURL:    mcpSrv.URL,
+	}
+
+	got := transport.getValidToken(t.Context())
+	if got == nil {
+		t.Fatal("getValidToken returned nil, expected refreshed token")
+	}
+	if got.AccessToken != "fresh-at" {
+		t.Fatalf("AccessToken = %q, want %q", got.AccessToken, "fresh-at")
+	}
+	if got.AuthServer != authSrv.URL {
+		t.Fatalf("AuthServer = %q, want %q", got.AuthServer, authSrv.URL)
+	}
+	if refreshRequests != 1 {
+		t.Fatalf("refreshRequests = %d, want 1", refreshRequests)
+	}
+}
+
 // TestOAuthTokenClientCredentials_JSONRoundTrip verifies that ClientID and
 // ClientSecret survive JSON serialization (important for keyring storage).
 func TestOAuthTokenClientCredentials_JSONRoundTrip(t *testing.T) {
@@ -183,6 +257,7 @@ func TestOAuthTokenClientCredentials_JSONRoundTrip(t *testing.T) {
 		ExpiresAt:    time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
 		ClientID:     "cid",
 		ClientSecret: "csec",
+		AuthServer:   "https://auth.example.com",
 	}
 
 	data, err := json.Marshal(token)
@@ -200,6 +275,9 @@ func TestOAuthTokenClientCredentials_JSONRoundTrip(t *testing.T) {
 	}
 	if got.ClientSecret != "csec" {
 		t.Errorf("ClientSecret = %q, want %q", got.ClientSecret, "csec")
+	}
+	if got.AuthServer != "https://auth.example.com" {
+		t.Errorf("AuthServer = %q, want %q", got.AuthServer, "https://auth.example.com")
 	}
 }
 

@@ -259,9 +259,10 @@ func (t *oauthTransport) getValidToken(ctx context.Context) *OAuthToken {
 	slog.Debug("Attempting silent token refresh", "url", t.baseURL)
 
 	o := &oauth{metadataClient: &http.Client{Timeout: 5 * time.Second}}
-	metadata, err := o.getAuthorizationServerMetadata(ctx, t.baseURL)
+	authServer := cmp.Or(token.AuthServer, t.baseURL)
+	metadata, err := o.getAuthorizationServerMetadata(ctx, authServer)
 	if err != nil {
-		slog.Debug("Failed to fetch auth server metadata for refresh", "error", err)
+		slog.Debug("Failed to fetch auth server metadata for refresh", "auth_server", authServer, "error", err)
 		return nil
 	}
 
@@ -273,6 +274,7 @@ func (t *oauthTransport) getValidToken(ctx context.Context) *OAuthToken {
 		t.mu.Unlock()
 		return nil
 	}
+	newToken.AuthServer = authServer
 
 	t.mu.Lock()
 	t.refreshFailedAt = time.Time{} // reset on success
@@ -443,6 +445,7 @@ func (t *oauthTransport) handleManagedOAuthFlow(ctx context.Context, authServer,
 
 	token.ClientID = clientID
 	token.ClientSecret = clientSecret
+	token.AuthServer = resourceMetadata.AuthorizationServers[0]
 
 	if err := t.tokenStore.StoreToken(t.baseURL, token); err != nil {
 		return fmt.Errorf("failed to store token: %w", err)
@@ -539,6 +542,7 @@ func (t *oauthTransport) handleUnmanagedOAuthFlow(ctx context.Context, authServe
 		token.ExpiresIn = int(expiresIn)
 		token.ExpiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
 	}
+	token.AuthServer = resourceMetadata.AuthorizationServers[0]
 
 	if refreshToken, ok := tokenData["refresh_token"].(string); ok {
 		token.RefreshToken = refreshToken
