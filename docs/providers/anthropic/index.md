@@ -106,6 +106,28 @@ Object form (forward-compatible with future budget types):
 
 See the full schema on the [Model Configuration]({{ '/configuration/models/#task-budget' | relative_url }}) page.
 
+## Thinking Display
+
+Controls whether thinking blocks are returned in responses when thinking is enabled. Claude Opus 4.7 hides thinking content by default (`omitted`); earlier Claude 4 models default to `summarized`. Set `thinking_display` in `provider_opts` to override:
+
+```yaml
+models:
+  claude-opus-4-7:
+    provider: anthropic
+    model: claude-opus-4-7
+    thinking_budget: adaptive
+    provider_opts:
+      thinking_display: summarized # "summarized", "display", or "omitted"
+```
+
+Valid values:
+
+- `summarized`: thinking blocks are returned with summarized thinking text (default for Claude 4 models prior to Opus 4.7).
+- `display`: thinking blocks are returned for display (use this to re-enable thinking output on Opus 4.7).
+- `omitted`: thinking blocks are returned with an empty thinking field; the signature is still returned for multi-turn continuity (default for Opus 4.7). Useful to reduce time-to-first-text-token when streaming.
+
+Note: `thinking_display` applies to both `thinking_budget` with token counts and adaptive/effort-based budgets. Full thinking tokens are billed regardless of the `thinking_display` value.
+
 <div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Note
 </div>
