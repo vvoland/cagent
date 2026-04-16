@@ -171,6 +171,33 @@
               "description": "Effort level (e.g., \"low\", \"medium\", \"high\", \"none\", \"adaptive\")"
             }
           ]
+        },
+        "task_budget": {
+          "description": "Default total-token budget for an agentic task (forwarded to Anthropic as `output_config.task_budget`, with the required `task-budgets-2026-03-13` beta header attached automatically). Configurable on any Claude model — docker-agent does not gate by model name — but at the time of writing only Claude Opus 4.7 honors it. Accepts an integer token count or an object {type: tokens, total: N}.",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Token budget for the full task (combined thinking, tool calls, and output)."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["tokens"],
+                  "description": "Budget kind. Only \"tokens\" is supported today."
+                },
+                "total": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Total budget value."
+                }
+              },
+              "required": ["total"],
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -647,6 +674,38 @@
             1024,
             8192,
             32768
+          ]
+        },
+        "task_budget": {
+          "description": "Total-token budget for a full agentic task (forwarded to Anthropic as `output_config.task_budget`, with the required `task-budgets-2026-03-13` beta header attached automatically). Limits the combined tokens spent on thinking, tool calls, and output across the whole task. Configurable on any Claude model — docker-agent does not gate by model name — but at the time of writing only Claude Opus 4.7 honors it. Accepts an integer token count or an object {type: tokens, total: N}.",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total token budget for the task (e.g., 128000)."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["tokens"],
+                  "description": "Budget kind. Only \"tokens\" is supported today."
+                },
+                "total": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Total budget value."
+                }
+              },
+              "required": ["total"],
+              "additionalProperties": false
+            }
+          ],
+          "examples": [
+            64000,
+            128000,
+            { "type": "tokens", "total": 128000 }
           ]
         },
         "routing": {

@@ -67,6 +67,45 @@ models:
       interleaved_thinking: false # disable if needed
 ```
 
+## Task Budget
+
+`task_budget` caps the **total** number of tokens the model may spend across a
+multi-step agentic task — combined thinking, tool calls, and final output. It
+is forwarded as
+[`output_config.task_budget`](https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-7)
+and is ideal for letting long-running agents self-regulate effort without
+tightening `max_tokens` on every call.
+
+docker-agent automatically attaches the required `task-budgets-2026-03-13`
+beta header whenever this field is set. You can configure `task_budget` on
+**any** Claude model — docker-agent never gates it by model name. At the time
+of writing, only **Claude Opus 4.7** actually honors the field; other Claude
+models (Sonnet 4.5, Opus 4.5 / 4.6, etc.) are expected to reject requests
+that include it. Check the Anthropic release notes linked above for the
+current list of supported models.
+
+```yaml
+models:
+  opus:
+    provider: anthropic
+    model: claude-opus-4-7
+    task_budget: 128000 # integer shorthand → { type: tokens, total: 128000 }
+    thinking_budget: adaptive
+```
+
+Object form (forward-compatible with future budget types):
+
+```yaml
+  opus:
+    provider: anthropic
+    model: claude-opus-4-7
+    task_budget:
+      type: tokens
+      total: 128000
+```
+
+See the full schema on the [Model Configuration]({{ '/configuration/models/#task-budget' | relative_url }}) page.
+
 <div class="callout callout-info" markdown="1">
 <div class="callout-title">ℹ️ Note
 </div>

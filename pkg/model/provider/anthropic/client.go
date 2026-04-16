@@ -251,12 +251,15 @@ func (c *Client) CreateChatCompletionStream(
 		return nil, err
 	}
 
-	// Use Beta API when:
-	// 1. Interleaved thinking is enabled, or
-	// 2. Structured output is configured, or
-	// 3. Messages contain file attachments (Files API is Beta-only)
-	// Note: Structured outputs require beta header support (only available on BetaMessageNewParams)
-	if c.interleavedThinkingEnabled() || c.ModelOptions.StructuredOutput() != nil || hasFileAttachments(messages) {
+	// Route to the Beta Messages API when any of the following are set:
+	//  - interleaved thinking
+	//  - structured output (requires beta header)
+	//  - file attachments (Files API is Beta-only)
+	//  - task_budget (requires the task-budgets beta header)
+	if c.interleavedThinkingEnabled() ||
+		c.ModelOptions.StructuredOutput() != nil ||
+		hasFileAttachments(messages) ||
+		!c.ModelConfig.TaskBudget.IsZero() {
 		return c.createBetaStream(ctx, client, messages, requestTools, maxTokens)
 	}
 
