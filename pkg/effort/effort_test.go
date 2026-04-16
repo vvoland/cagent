@@ -43,7 +43,7 @@ func TestIsValid(t *testing.T) {
 
 	valid := []string{
 		"none", "minimal", "low", "medium", "high", "xhigh", "max",
-		"adaptive", "adaptive/low", "adaptive/medium", "adaptive/high", "adaptive/max",
+		"adaptive", "adaptive/low", "adaptive/medium", "adaptive/high", "adaptive/xhigh", "adaptive/max",
 		"ADAPTIVE/HIGH", "  adaptive  ",
 	}
 	for _, s := range valid {
@@ -54,7 +54,7 @@ func TestIsValid(t *testing.T) {
 	}
 
 	invalid := []string{
-		"", "unknown", "adaptive/none", "adaptive/minimal", "adaptive/xhigh",
+		"", "unknown", "adaptive/none", "adaptive/minimal",
 		"adaptive/", "adaptive/foo",
 	}
 	for _, s := range invalid {
@@ -102,8 +102,8 @@ func TestForAnthropic(t *testing.T) {
 		{Low, "low", true},
 		{Medium, "medium", true},
 		{High, "high", true},
+		{XHigh, "xhigh", true},
 		{Max, "max", true},
-		{XHigh, "", false},
 		{None, "", false},
 	} {
 		t.Run(string(tt.level), func(t *testing.T) {
@@ -168,7 +168,7 @@ func TestForGemini3(t *testing.T) {
 func TestIsValidAdaptive(t *testing.T) {
 	t.Parallel()
 
-	valid := []string{"low", "medium", "high", "max", "HIGH", "  Medium  "}
+	valid := []string{"low", "medium", "high", "xhigh", "max", "HIGH", "  Medium  "}
 	for _, s := range valid {
 		t.Run("valid_"+s, func(t *testing.T) {
 			t.Parallel()
@@ -176,7 +176,7 @@ func TestIsValidAdaptive(t *testing.T) {
 		})
 	}
 
-	invalid := []string{"", "none", "minimal", "xhigh", "unknown", "adaptive", "adaptive/high"}
+	invalid := []string{"", "none", "minimal", "unknown", "adaptive", "adaptive/high"}
 	for _, s := range invalid {
 		t.Run("invalid_"+s, func(t *testing.T) {
 			t.Parallel()
