@@ -283,6 +283,15 @@ func (c *Client) CreateChatCompletionStream(
 	if isOpenAIReasoningModel(c.ModelConfig.Model) {
 		if c.ModelOptions.NoThinking() {
 			params.ReasoningEffort = shared.ReasoningEffort("low")
+			// Hidden reasoning tokens count against the output budget even
+			// with low effort. Enforce a floor so visible text isn't starved.
+			if c.ModelConfig.MaxTokens != nil && *c.ModelConfig.MaxTokens < noThinkingMinOutputTokens {
+				if !isResponsesModel(c.ModelConfig.Model) {
+					params.MaxTokens = openai.Int(noThinkingMinOutputTokens)
+				} else {
+					params.MaxCompletionTokens = openai.Int(noThinkingMinOutputTokens)
+				}
+			}
 			slog.Debug("OpenAI request using low reasoning (NoThinking)")
 		} else if c.ModelConfig.ThinkingBudget != nil {
 			effortStr, err := openAIReasoningEffort(c.ModelConfig.ThinkingBudget)
@@ -407,6 +416,11 @@ func (c *Client) CreateResponseStream(
 			// (o3-mini, o1) only accept low/medium/high.
 			params.Reasoning = shared.ReasoningParam{
 				Effort: shared.ReasoningEffort("low"),
+			}
+			// Hidden reasoning tokens count against max_output_tokens even
+			// with low effort. Enforce a floor so visible text isn't starved.
+			if c.ModelConfig.MaxTokens != nil && *c.ModelConfig.MaxTokens < noThinkingMinOutputTokens {
+				params.MaxOutputTokens = param.NewOpt(noThinkingMinOutputTokens)
 			}
 			slog.Debug("OpenAI responses request using low reasoning (NoThinking)")
 		} else {
@@ -1049,6 +1063,14 @@ func isOpenAIReasoningModel(model string) bool {
 		strings.HasPrefix(m, "o4") ||
 		strings.HasPrefix(m, "gpt-5")
 }
+
+// noThinkingMinOutputTokens is the minimum max-output-token budget for
+// reasoning models when NoThinking is set.  Even with low reasoning effort
+// the model still produces hidden reasoning tokens that count against
+// max_output_tokens / max_completion_tokens.  A small budget (e.g. 20)
+// gets entirely consumed by reasoning, leaving nothing for visible text.
+// 256 tokens is enough for low-effort reasoning plus a short visible response.
+const noThinkingMinOutputTokens int64 = 256
 
 // openAIReasoningEffort validates a ThinkingBudget effort string for the
 // OpenAI API. Returns the effort string or an error.
