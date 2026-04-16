@@ -188,8 +188,12 @@ func (t *FilesystemToolset) handleWriteFile(ctx context.Context, toolCall tools.
 }
 
 func (t *FilesystemToolset) handleEditFile(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
-	var args builtin.EditFileArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
+	data := toolCall.Function.Arguments
+	if data == "" {
+		data = "{}"
+	}
+	args, err := builtin.ParseEditFileArgs([]byte(data))
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse arguments: %w", err)
 	}
 
