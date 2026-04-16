@@ -485,6 +485,11 @@ func (f *runExecFlags) buildAppOpts(args []string) ([]app.Opt, error) {
 	var opts []app.Opt
 	if firstMessage != nil {
 		opts = append(opts, app.WithFirstMessage(*firstMessage))
+	} else if f.attachmentPath != "" {
+		// When --attach is used without an explicit message, provide a default
+		// so that SendFirstMessage processes the attachment.
+		defaultMsg := ""
+		opts = append(opts, app.WithFirstMessage(defaultMsg))
 	}
 	if len(args) > 2 {
 		opts = append(opts, app.WithQueuedMessages(args[2:]))

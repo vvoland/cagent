@@ -3,6 +3,7 @@ package cli
 import (
 	"cmp"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -436,19 +437,44 @@ func CreateUserMessageWithAttachment(userContent, attachmentPath string) *sessio
 		})
 
 	default:
-		// Binary files (images, PDFs) are kept as file references.
+		// Binary files (images, PDFs) are handled based on type.
 		mimeType := chat.DetectMimeType(absPath)
 		if !chat.IsSupportedMimeType(mimeType) {
 			slog.Warn("Unsupported attachment file type", "path", absPath, "mime_type", mimeType)
 			return session.UserMessage(userContent)
 		}
-		multiContent = append(multiContent, chat.MessagePart{
-			Type: chat.MessagePartTypeFile,
-			File: &chat.MessageFile{
-				Path:     absPath,
-				MimeType: mimeType,
-			},
-		})
+		if chat.IsImageMimeType(mimeType) {
+			// Read, resize if needed, and inline as base64 data URL.
+			// This ensures cross-provider compatibility (not all providers
+			// support file references).
+			imgData, readErr := os.ReadFile(absPath)
+			if readErr != nil {
+				slog.Warn("Failed to read image attachment", "path", absPath, "error", readErr)
+				return session.UserMessage(userContent)
+			}
+			resized, resizeErr := chat.ResizeImage(imgData, mimeType)
+			if resizeErr != nil {
+				slog.Warn("Image resize failed for attachment", "path", absPath, "error", resizeErr)
+				return session.UserMessage(userContent)
+			}
+			dataURL := fmt.Sprintf("data:%s;base64,%s", resized.MimeType, base64.StdEncoding.EncodeToString(resized.Data))
+			multiContent = append(multiContent, chat.MessagePart{
+				Type: chat.MessagePartTypeImageURL,
+				ImageURL: &chat.MessageImageURL{
+					URL:    dataURL,
+					Detail: chat.ImageURLDetailAuto,
+				},
+			})
+		} else {
+			// Non-image binary files (e.g. PDFs) are kept as file references.
+			multiContent = append(multiContent, chat.MessagePart{
+				Type: chat.MessagePartTypeFile,
+				File: &chat.MessageFile{
+					Path:     absPath,
+					MimeType: mimeType,
+				},
+			})
+		}
 	}
 
 	return session.UserMessage(textContent, multiContent...)
