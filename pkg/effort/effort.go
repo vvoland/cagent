@@ -23,23 +23,28 @@ const (
 	Max     Level = "max"
 )
 
-// allLevels lists every non-adaptive level in ascending order.
-var allLevels = []Level{None, Minimal, Low, Medium, High, XHigh, Max}
+// allLevels is the set of recognised non-adaptive effort levels.
+var allLevels = map[Level]bool{
+	None: true, Minimal: true, Low: true, Medium: true, High: true, XHigh: true, Max: true,
+}
 
 // adaptiveEfforts are the effort sub-levels valid after "adaptive/".
-var adaptiveEfforts = map[string]bool{
-	string(Low): true, string(Medium): true, string(High): true, string(Max): true,
+var adaptiveEfforts = map[Level]bool{
+	Low: true, Medium: true, High: true, XHigh: true, Max: true,
+}
+
+// normalize lowercases and trims s for case-insensitive matching.
+func normalize(s string) Level {
+	return Level(strings.ToLower(strings.TrimSpace(s)))
 }
 
 // Parse normalises s (case-insensitive, trimmed) and returns the matching
 // Level.  It returns ("", false) for unknown strings, adaptive values, and
 // empty input.  Use [IsValid] for full validation including adaptive forms.
 func Parse(s string) (Level, bool) {
-	norm := strings.ToLower(strings.TrimSpace(s))
-	for _, l := range allLevels {
-		if norm == string(l) {
-			return l, true
-		}
+	l := normalize(s)
+	if allLevels[l] {
+		return l, true
 	}
 	return "", false
 }
@@ -48,22 +53,19 @@ func Parse(s string) (Level, bool) {
 // It accepts every [Level] constant, plain "adaptive", and the
 // "adaptive/<effort>" form.
 func IsValid(s string) bool {
-	if _, ok := Parse(s); ok {
+	norm := normalize(s)
+	if allLevels[norm] || norm == "adaptive" {
 		return true
 	}
-	norm := strings.ToLower(strings.TrimSpace(s))
-	if norm == "adaptive" {
-		return true
-	}
-	if after, ok := strings.CutPrefix(norm, "adaptive/"); ok {
-		return adaptiveEfforts[after]
+	if after, ok := strings.CutPrefix(string(norm), "adaptive/"); ok {
+		return adaptiveEfforts[Level(after)]
 	}
 	return false
 }
 
 // IsValidAdaptive reports whether sub is a valid effort for "adaptive/<sub>".
 func IsValidAdaptive(sub string) bool {
-	return adaptiveEfforts[strings.ToLower(strings.TrimSpace(sub))]
+	return adaptiveEfforts[normalize(sub)]
 }
 
 // ValidNames returns a human-readable list of accepted values, suitable for
@@ -88,13 +90,14 @@ func ForOpenAI(l Level) (string, bool) {
 }
 
 // ForAnthropic returns the Anthropic output_config effort string for l.
-// Anthropic accepts: low, medium, high, max.
+// Anthropic accepts: low, medium, high, xhigh, max.
+// xhigh is only supported by newer Claude models (e.g. Opus 4.7+).
 // Minimal is mapped to low as the closest equivalent.
 func ForAnthropic(l Level) (string, bool) {
 	switch l {
 	case Minimal:
 		return string(Low), true
-	case Low, Medium, High, Max:
+	case Low, Medium, High, XHigh, Max:
 		return string(l), true
 	default:
 		return "", false

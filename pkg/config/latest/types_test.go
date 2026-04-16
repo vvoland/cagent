@@ -179,6 +179,7 @@ func TestThinkingBudget_UnmarshalYAML_AdaptiveWithEffort(t *testing.T) {
 		{"adaptive/low", `thinking_budget: adaptive/low`, "adaptive/low"},
 		{"adaptive/medium", `thinking_budget: adaptive/medium`, "adaptive/medium"},
 		{"adaptive/high", `thinking_budget: adaptive/high`, "adaptive/high"},
+		{"adaptive/xhigh", `thinking_budget: adaptive/xhigh`, "adaptive/xhigh"},
 		{"adaptive/max", `thinking_budget: adaptive/max`, "adaptive/max"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -221,6 +222,7 @@ func TestThinkingBudget_IsAdaptive(t *testing.T) {
 		{"adaptive/high", &ThinkingBudget{Effort: "adaptive/high"}, true},
 		{"adaptive/low", &ThinkingBudget{Effort: "adaptive/low"}, true},
 		{"adaptive/medium", &ThinkingBudget{Effort: "adaptive/medium"}, true},
+		{"adaptive/xhigh", &ThinkingBudget{Effort: "adaptive/xhigh"}, true},
 		{"adaptive/max", &ThinkingBudget{Effort: "adaptive/max"}, true},
 		{"medium", &ThinkingBudget{Effort: "medium"}, false},
 		{"tokens", &ThinkingBudget{Tokens: 8192}, false},
@@ -246,6 +248,7 @@ func TestThinkingBudget_AdaptiveEffort(t *testing.T) {
 		{"adaptive/low", &ThinkingBudget{Effort: "adaptive/low"}, "low", true},
 		{"adaptive/medium", &ThinkingBudget{Effort: "adaptive/medium"}, "medium", true},
 		{"adaptive/high", &ThinkingBudget{Effort: "adaptive/high"}, "high", true},
+		{"adaptive/xhigh", &ThinkingBudget{Effort: "adaptive/xhigh"}, "xhigh", true},
 		{"adaptive/max", &ThinkingBudget{Effort: "adaptive/max"}, "max", true},
 		{"not adaptive", &ThinkingBudget{Effort: "medium"}, "", false},
 		{"tokens", &ThinkingBudget{Tokens: 8192}, "", false},
