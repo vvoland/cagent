@@ -26,6 +26,7 @@ type OAuthToken struct {
 	ExpiresAt    time.Time `json:"expires_at"`
 	ClientID     string    `json:"client_id,omitempty"`
 	ClientSecret string    `json:"client_secret,omitempty"`
+	AuthServer   string    `json:"auth_server,omitempty"`
 }
 
 // IsExpired checks if the token is expired
