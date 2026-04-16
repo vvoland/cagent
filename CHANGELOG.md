@@ -3,6 +3,65 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.46.0] - 2026-04-16
+
+This release adds OAuth credential configuration for MCP servers, evaluation testing improvements, and numerous stability fixes.
+
+## What's New
+- Adds support for explicit OAuth credentials configuration for remote MCP servers that don't support Dynamic Client Registration
+- Adds `--repeat` flag to eval command for running evaluations multiple times
+- Adds support for `xhigh` effort level in Anthropic adaptive thinking (Claude Opus 4.7+)
+- Adds `task_budget` configuration field for Claude Opus 4.7 to cap total tokens across multi-step tasks
+- Adds markdown rendering support in user_prompt dialog messages
+
+## Improvements
+- Improves image attachment handling by inlining as base64 data URLs for cross-provider compatibility
+- Improves robots.txt caching to store parsed data per host instead of boolean results
+- Improves session database version detection with clear upgrade messages for newer databases
+
+## Bug Fixes
+- Fixes `--attach` flag being silently ignored when used without a message argument
+- Fixes data race in AddMessageUsageRecord by adding mutex lock
+- Fixes data race in rule-based router by protecting lastSelectedID with mutex
+- Fixes panic in extractSystemBlocks when system message is empty with CacheControl
+- Fixes empty messages slice handling in SendUserMessage path
+- Fixes symlink-based path traversal vulnerability in ACP filesystem toolset
+- Fixes OAuth callback CSRF vulnerability by rejecting when expected state is not set
+- Fixes MCP tryRestart to use context-aware select instead of time.Sleep
+- Fixes assistant text being discarded when tool calls are present in Responses API conversion
+- Fixes MCP OAuth token refresh by remembering the discovered auth server
+
+## Technical Changes
+- Updates mutex handling for MCP Toolset.Instructions() method
+- Updates Go dependencies including Anthropic SDK and various UI libraries
+
+### Pull Requests
+
+- [#2394](https://github.com/docker/docker-agent/pull/2394) - Support explicit OAuth credentials for remote MCP servers
+- [#2427](https://github.com/docker/docker-agent/pull/2427) - docs: update CHANGELOG.md for v1.45.0
+- [#2428](https://github.com/docker/docker-agent/pull/2428) - fix: add mutex lock to AddMessageUsageRecord to prevent data race
+- [#2429](https://github.com/docker/docker-agent/pull/2429) - fix: add mutex to protect lastSelectedID in rule-based router
+- [#2430](https://github.com/docker/docker-agent/pull/2430) - fix: hold mutex for instructions read in MCP Toolset.Instructions()
+- [#2431](https://github.com/docker/docker-agent/pull/2431) - fix: prevent panic in extractSystemBlocks on empty system message wit…
+- [#2432](https://github.com/docker/docker-agent/pull/2432) - fix: guard against empty messages slice in SendUserMessage path
+- [#2433](https://github.com/docker/docker-agent/pull/2433) - fix: prevent symlink-based path traversal in ACP filesystem toolset
+- [#2434](https://github.com/docker/docker-agent/pull/2434) - fix: reject OAuth callback when expected state has not been set (CSRF)
+- [#2436](https://github.com/docker/docker-agent/pull/2436) - fix: replace time.Sleep with context-aware select in MCP tryRestart
+- [#2437](https://github.com/docker/docker-agent/pull/2437) - fix: cache parsed robots.txt per host instead of boolean result
+- [#2438](https://github.com/docker/docker-agent/pull/2438) - fix: preserve assistant text when tool calls present in Responses API conversion
+- [#2440](https://github.com/docker/docker-agent/pull/2440) - Add --repeat flag to eval command for running evaluations multiple times
+- [#2441](https://github.com/docker/docker-agent/pull/2441) - fix: detect newer session database and show clear upgrade message
+- [#2444](https://github.com/docker/docker-agent/pull/2444) - bump direct Go dependencies
+- [#2445](https://github.com/docker/docker-agent/pull/2445) - Add a pokemon example
+- [#2446](https://github.com/docker/docker-agent/pull/2446) - Render markdown in user_prompt dialog messages
+- [#2447](https://github.com/docker/docker-agent/pull/2447) - Add an advanced coder example
+- [#2448](https://github.com/docker/docker-agent/pull/2448) - fix(mcp): reuse discovered auth server for token refresh
+- [#2449](https://github.com/docker/docker-agent/pull/2449) - Fix --attach flag
+- [#2450](https://github.com/docker/docker-agent/pull/2450) - Support xhigh effort for Anthropic adaptive thinking (Opus 4.7+)
+- [#2453](https://github.com/docker/docker-agent/pull/2453) - feat(anthropic): add task_budget for Claude Opus 4.7
+- [#2454](https://github.com/docker/docker-agent/pull/2454) - chore: update cagent-action to v1.4.1
+
+
 ## [v1.45.0] - 2026-04-15
 
 This release improves template expression handling, adds circular navigation to completions, and fixes issues with skills and MCP toolset loading.
@@ -1948,3 +2007,5 @@ This release improves the terminal user interface with better error handling and
 [v1.44.0]: https://github.com/docker/docker-agent/releases/tag/v1.44.0
 
 [v1.45.0]: https://github.com/docker/docker-agent/releases/tag/v1.45.0
+
+[v1.46.0]: https://github.com/docker/docker-agent/releases/tag/v1.46.0
