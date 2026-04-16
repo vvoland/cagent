@@ -13,14 +13,17 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
 
 	"github.com/docker/docker-agent/pkg/chat"
+	"github.com/docker/docker-agent/pkg/config/latest"
 	"github.com/docker/docker-agent/pkg/model/provider/providerutil"
 	"github.com/docker/docker-agent/pkg/rag/prompts"
 	"github.com/docker/docker-agent/pkg/rag/types"
 	"github.com/docker/docker-agent/pkg/tools"
 )
 
-// createBetaStream creates a streaming chat completion using the Beta Messages API
-// This is used when extended thinking is enabled via thinking_budget
+// createBetaStream creates a streaming chat completion using the Beta
+// Messages API. It is used when any feature that requires a beta header is
+// enabled: extended/interleaved thinking, structured output, file attachments
+// (Files API), or task_budget.
 func (c *Client) createBetaStream(
 	ctx context.Context,
 	client anthropic.Client,
@@ -98,6 +101,11 @@ func (c *Client) createBetaStream(
 			slog.Debug("Anthropic Beta API using thinking_budget", "budget_tokens", tokens)
 		}
 	}
+
+	// Forward task_budget via `output_config.task_budget` (Anthropic
+	// Opus 4.7+) and enable the corresponding beta header. Older Claude
+	// models will reject the field — docker-agent does not gate by model.
+	configureTaskBudget(&params, c.ModelConfig.TaskBudget)
 
 	if len(requestTools) > 0 {
 		slog.Debug("Anthropic Beta API: Adding tools to request", "tool_count", len(requestTools))
@@ -457,4 +465,22 @@ func accumulateBetaStreamResponse(stream *ssestream.Stream[anthropic.BetaRawMess
 	}
 
 	return &msg, nil
+}
+
+// taskBudgetBeta is the Anthropic beta header required to send
+// `output_config.task_budget`. docker-agent attaches it automatically
+// whenever a TaskBudget is configured.
+const taskBudgetBeta anthropic.AnthropicBeta = "task-budgets-2026-03-13"
+
+// configureTaskBudget mutates params so the request carries the
+// `task-budgets` beta header and an `output_config.task_budget` payload.
+// No-op when tb is nil or zero.
+func configureTaskBudget(params *anthropic.BetaMessageNewParams, tb *latest.TaskBudget) {
+	payload := tb.AsMap()
+	if payload == nil {
+		return
+	}
+	params.Betas = append(params.Betas, taskBudgetBeta)
+	params.OutputConfig.SetExtraFields(map[string]any{"task_budget": payload})
+	slog.Debug("Anthropic Beta API using task_budget", "type", payload["type"], "total", payload["total"])
 }

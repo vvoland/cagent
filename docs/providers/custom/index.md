@@ -108,6 +108,7 @@ agents:
 | `parallel_tool_calls` | boolean    | Whether to enable parallel tool calls by default.                                     | —                        |
 | `track_usage`         | boolean    | Whether to track token usage by default.                                              | —                        |
 | `thinking_budget`     | string/int | Default reasoning effort/budget.                                                      | —                        |
+| `task_budget`         | int/object | Default total token budget for an agentic task (forwarded to Anthropic; honored by Claude Opus 4.7 today). Integer shorthand or `{type: tokens, total: N}`. | —                        |
 | `provider_opts`       | object     | Provider-specific options passed through to the client.                               | —                        |
 
 ## Default Inheritance

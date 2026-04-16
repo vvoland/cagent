@@ -252,6 +252,12 @@ type ProviderConfig struct {
 	TrackUsage *bool `json:"track_usage,omitempty"`
 	// ThinkingBudget controls reasoning effort/budget for models using this provider
 	ThinkingBudget *ThinkingBudget `json:"thinking_budget,omitempty"`
+	// TaskBudget caps the total tokens a model can spend across an agentic task.
+	// Forwarded to Anthropic as `output_config.task_budget` for every Claude
+	// model — docker-agent does not gate by model name. At the time of writing,
+	// only Claude Opus 4.7 actually honors it; other models will reject the
+	// field. Accepts an integer token count or a {type: tokens, total: N} object.
+	TaskBudget *TaskBudget `json:"task_budget,omitempty"`
 }
 
 // FallbackConfig represents fallback model configuration for an agent.
@@ -519,6 +525,12 @@ type ModelConfig struct {
 	// See [effort.ValidNames] for the full list of accepted strings.
 	// Provider-specific mappings are in the effort package.
 	ThinkingBudget *ThinkingBudget `json:"thinking_budget,omitempty"`
+	// TaskBudget caps the total tokens a model can spend across an agentic task.
+	// Forwarded to Anthropic as `output_config.task_budget` for every Claude
+	// model — docker-agent does not gate by model name. At the time of writing,
+	// only Claude Opus 4.7 actually honors it; other models will reject the
+	// field. Accepts an integer token count or a {type: tokens, total: N} object.
+	TaskBudget *TaskBudget `json:"task_budget,omitempty"`
 	// Routing defines rules for routing requests to different models.
 	// When routing is configured, this model becomes a rule-based router:
 	// - The provider/model fields define the fallback model
@@ -597,6 +609,7 @@ func (f *FlexibleModelConfig) isShorthandOnly() bool {
 		len(f.ProviderOpts) == 0 &&
 		f.TrackUsage == nil &&
 		f.ThinkingBudget == nil &&
+		f.TaskBudget == nil &&
 		len(f.Routing) == 0
 }
 
@@ -945,6 +958,112 @@ func (t *ThinkingBudget) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// TaskBudget caps the total tokens a model can spend across an agentic task
+// (combined thinking, tool calls, and final output). It is forwarded to
+// Anthropic as `output_config.task_budget` and docker-agent automatically
+// attaches the required `task-budgets-2026-03-13` beta header when set.
+//
+// docker-agent does not gate by model name — any Claude model accepts the
+// configuration, though at the time of writing only Claude Opus 4.7 actually
+// honors it; other models will reject requests containing the field. See:
+// https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-7
+//
+// Accepted YAML/JSON forms:
+//   - Integer shorthand ("tokens" budget):  task_budget: 128000
+//   - Full object:                          task_budget: {type: tokens, total: 128000}
+//
+// A value of 0 (or an empty object) disables the feature.
+type TaskBudget struct {
+	// Type is the budget kind. Only "tokens" is supported today; defaults to
+	// "tokens" when Total is set via the integer shorthand.
+	Type string `json:"type,omitempty"`
+	// Total is the total budget value (token count for Type == "tokens").
+	Total int `json:"total,omitempty"`
+}
+
+// IsZero reports whether the task budget is effectively unset.
+//
+// A budget is considered unset when Total <= 0 (there is no meaningful
+// "zero-token" budget, and validate() already rejects negative totals for
+// explicit object forms). This is what lets users disable the feature with
+// the shorthand `task_budget: 0`, which otherwise unmarshals to a non-empty
+// {Type: "tokens", Total: 0} struct.
+func (t *TaskBudget) IsZero() bool {
+	return t == nil || t.Total <= 0
+}
+
+// AsMap returns the API representation, or nil when the budget is zero.
+func (t *TaskBudget) AsMap() map[string]any {
+	if t.IsZero() {
+		return nil
+	}
+	typ := t.Type
+	if typ == "" {
+		typ = "tokens"
+	}
+	return map[string]any{"type": typ, "total": t.Total}
+}
+
+// validate checks the invariants shared by both YAML and JSON decoding.
+func (t *TaskBudget) validate() error {
+	if t.Total < 0 {
+		return fmt.Errorf("task_budget.total must be non-negative, got %d", t.Total)
+	}
+	if t.Type != "" && t.Type != "tokens" {
+		return fmt.Errorf("task_budget.type %q is not supported (only %q)", t.Type, "tokens")
+	}
+	return nil
+}
+
+// UnmarshalYAML accepts either an integer shorthand (tokens) or a full object.
+func (t *TaskBudget) UnmarshalYAML(unmarshal func(any) error) error {
+	var n int
+	if err := unmarshal(&n); err == nil {
+		*t = TaskBudget{Type: "tokens", Total: n}
+		return t.validate()
+	}
+	type alias TaskBudget
+	var raw alias
+	if err := unmarshal(&raw); err != nil {
+		return errors.New("task_budget must be an integer or a {type,total} object")
+	}
+	*t = TaskBudget(raw)
+	return t.validate()
+}
+
+// MarshalYAML emits the integer shorthand for a plain token budget, otherwise
+// the full {type, total} object.
+func (t TaskBudget) MarshalYAML() (any, error) {
+	if t.Type == "" || t.Type == "tokens" {
+		return t.Total, nil
+	}
+	return map[string]any{"type": t.Type, "total": t.Total}, nil
+}
+
+// UnmarshalJSON mirrors UnmarshalYAML: accepts int shorthand or full object.
+func (t *TaskBudget) UnmarshalJSON(data []byte) error {
+	var n int
+	if err := json.Unmarshal(data, &n); err == nil {
+		*t = TaskBudget{Type: "tokens", Total: n}
+		return t.validate()
+	}
+	type alias TaskBudget
+	var raw alias
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return errors.New("task_budget must be an integer or a {type,total} object")
+	}
+	*t = TaskBudget(raw)
+	return t.validate()
+}
+
+// MarshalJSON emits the integer shorthand for a plain token budget.
+func (t TaskBudget) MarshalJSON() ([]byte, error) {
+	if t.Type == "" || t.Type == "tokens" {
+		return json.Marshal(t.Total)
+	}
+	return json.Marshal(map[string]any{"type": t.Type, "total": t.Total})
 }
 
 // StructuredOutput defines a JSON schema for structured output

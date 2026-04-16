@@ -70,6 +70,7 @@ See the [Model Providers]({{ '/providers/overview/' | relative_url }}) section f
 | `presence_penalty`  | float      | Encourage topic diversity: 0.0 to 2.0             |
 | `base_url`          | string     | Custom API endpoint                               |
 | `thinking_budget`   | string/int | Reasoning effort configuration                    |
+| `task_budget`       | int/object | Total token budget for an agentic task (Anthropic; honored by Opus 4.7 today) |
 | `provider_opts`     | object     | Provider-specific options                         |
 
 ## Reasoning / Thinking Budget

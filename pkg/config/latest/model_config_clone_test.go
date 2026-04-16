@@ -24,6 +24,7 @@ func TestModelConfig_Clone_DeepCopiesPointerFields(t *testing.T) {
 		ParallelToolCalls: &parallel,
 		TrackUsage:        &trackUsage,
 		ThinkingBudget:    &ThinkingBudget{Effort: "high"},
+		TaskBudget:        &TaskBudget{Type: "tokens", Total: 128000},
 		ProviderOpts:      map[string]any{"key": "value"},
 		Routing: []RoutingRule{
 			{Model: "fast", Examples: []string{"quick question"}},
@@ -39,6 +40,7 @@ func TestModelConfig_Clone_DeepCopiesPointerFields(t *testing.T) {
 	*original.ParallelToolCalls = false
 	*original.TrackUsage = false
 	original.ThinkingBudget.Effort = "low"
+	original.TaskBudget.Total = 1
 	original.ProviderOpts["key"] = "mutated"
 	original.Routing[0].Examples[0] = "mutated"
 
@@ -49,6 +51,8 @@ func TestModelConfig_Clone_DeepCopiesPointerFields(t *testing.T) {
 	assert.True(t, *clone.ParallelToolCalls)
 	assert.True(t, *clone.TrackUsage)
 	assert.Equal(t, "high", clone.ThinkingBudget.Effort)
+	assert.Equal(t, 128000, clone.TaskBudget.Total)
+	assert.Equal(t, "tokens", clone.TaskBudget.Type)
 	assert.Equal(t, "value", clone.ProviderOpts["key"])
 	assert.Equal(t, "quick question", clone.Routing[0].Examples[0])
 }

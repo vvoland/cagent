@@ -261,6 +261,7 @@ agents:
 | `temperature`         | Default sampling temperature.                                                             |
 | `max_tokens`          | Default maximum response tokens.                                                          |
 | `thinking_budget`     | Default reasoning effort/budget.                                                          |
+| `task_budget`         | Default total token budget for an agentic task (Anthropic; honored by Claude Opus 4.7 today).  |
 | `top_p`               | Default top-p sampling parameter.                                                         |
 | `frequency_penalty`   | Default frequency penalty.                                                                |
 | `presence_penalty`    | Default presence penalty.                                                                 |

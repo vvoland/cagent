@@ -286,7 +286,7 @@ func resolveProviderType(cfg *latest.ModelConfig) string {
 // This sets default base URLs, token keys, api_type, and model-specific defaults (like thinking budget).
 //
 // The returned config is a deep-enough copy: the caller's ModelConfig, ProviderOpts map,
-// and ThinkingBudget pointer are never mutated.
+// and ThinkingBudget/TaskBudget pointers are never mutated.
 func applyProviderDefaults(cfg *latest.ModelConfig, customProviders map[string]latest.ProviderConfig) *latest.ModelConfig {
 	// Create a copy to avoid modifying the original.
 	// cloneModelConfig also deep-copies ProviderOpts so writes are safe.
@@ -336,6 +336,9 @@ func applyProviderDefaults(cfg *latest.ModelConfig, customProviders map[string]l
 			}
 			if enhancedCfg.ThinkingBudget == nil && providerCfg.ThinkingBudget != nil {
 				enhancedCfg.ThinkingBudget = providerCfg.ThinkingBudget
+			}
+			if enhancedCfg.TaskBudget == nil && providerCfg.TaskBudget != nil {
+				enhancedCfg.TaskBudget = providerCfg.TaskBudget
 			}
 
 			// Merge provider_opts from provider config (model opts take precedence)
