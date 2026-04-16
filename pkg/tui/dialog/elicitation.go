@@ -14,6 +14,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/docker/docker-agent/pkg/tools"
+	"github.com/docker/docker-agent/pkg/tui/components/markdown"
 	"github.com/docker/docker-agent/pkg/tui/core/layout"
 	"github.com/docker/docker-agent/pkg/tui/styles"
 )
@@ -378,7 +379,7 @@ func (d *ElicitationDialog) View() string {
 	content := NewContent(contentWidth)
 	content.AddTitle(d.title)
 	content.AddSeparator()
-	content.AddContent(styles.DialogContentStyle.Width(contentWidth).Render(d.message))
+	content.AddContent(renderMarkdownMessage(d.message, contentWidth))
 
 	if len(d.fields) > 0 {
 		content.AddSeparator()
@@ -509,7 +510,7 @@ func (d *ElicitationDialog) handleMouseClick(msg tea.MouseClickMsg) (layout.Mode
 	header := lipgloss.JoinVertical(lipgloss.Left,
 		styles.DialogTitleStyle.Width(contentWidth).Render(d.title),
 		RenderSeparator(contentWidth),
-		styles.DialogContentStyle.Width(contentWidth).Render(d.message),
+		renderMarkdownMessage(d.message, contentWidth),
 		RenderSeparator(contentWidth),
 	)
 	y := ContentStartRow(dialogRow, header)
@@ -611,4 +612,14 @@ func (d *ElicitationDialog) createInput(field ElicitationField, idx int) textinp
 	}
 
 	return ti
+}
+
+// renderMarkdownMessage renders a message string as markdown for display in dialogs.
+// Falls back to plain text rendering if the markdown renderer fails.
+func renderMarkdownMessage(message string, contentWidth int) string {
+	rendered, err := markdown.NewRenderer(contentWidth).Render(message)
+	if err != nil {
+		return styles.DialogContentStyle.Width(contentWidth).Render(message)
+	}
+	return strings.TrimRight(rendered, "\n")
 }
