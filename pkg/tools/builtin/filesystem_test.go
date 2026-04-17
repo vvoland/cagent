@@ -260,7 +260,7 @@ func TestFilesystemTool_EditFile(t *testing.T) {
 	assert.Contains(t, result.Output, "old text not found")
 }
 
-func TestEditFileArgs_UnmarshalJSON(t *testing.T) {
+func TestParseEditFileArgs(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -338,13 +338,61 @@ func TestEditFileArgs_UnmarshalJSON(t *testing.T) {
 				{OldText: "a", NewText: "b"},
 			},
 		},
+
+		// Malformed outer JSON — LLM brace/bracket counting errors.
+		{
+			name:     "repair: extra closing brace before array close",
+			input:    `{"path": "ci.yml", "edits": [{"oldText": "old", "newText": "new"}}]}`,
+			wantPath: "ci.yml",
+			wantEdits: []Edit{
+				{OldText: "old", NewText: "new"},
+			},
+		},
+		{
+			name:     "repair: extra closing brace with trailing newline",
+			input:    "{\"path\": \"ci.yml\", \"edits\": [{\"oldText\": \"old\", \"newText\": \"new\"}}]\n}",
+			wantPath: "ci.yml",
+			wantEdits: []Edit{
+				{OldText: "old", NewText: "new"},
+			},
+		},
+		{
+			name:     "repair: extra closing bracket (spurious array wrapper)",
+			input:    `{"path": "build.sh", "edits": [{"oldText": "a", "newText": "b"}]]}`,
+			wantPath: "build.sh",
+			wantEdits: []Edit{
+				{OldText: "a", NewText: "b"},
+			},
+		},
+		{
+			name:     "repair: stray backslash-n between tokens",
+			input:    "{\"path\": \"Dockerfile\", \"edits\": [{\"oldText\": \"a\", \"newText\": \"b\"}\\n]}",
+			wantPath: "Dockerfile",
+			wantEdits: []Edit{
+				{OldText: "a", NewText: "b"},
+			},
+		},
+		{
+			name:     "repair: stray backslash before property name",
+			input:    `{"path": "f.go", "edits": [{"oldText": "a", "newText": "b"},{\"oldText": "c", "newText": "d"}]}`,
+			wantPath: "f.go",
+			wantEdits: []Edit{
+				{OldText: "a", NewText: "b"},
+				{OldText: "c", NewText: "d"},
+			},
+		},
+		{
+			name:       "unrepairable garbage",
+			input:      `{totally broken <<<>>>`,
+			wantErr:    true,
+			wantErrMsg: "failed to parse edit_file arguments",
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var args EditFileArgs
-			err := json.Unmarshal([]byte(tc.input), &args)
+			args, err := ParseEditFileArgs([]byte(tc.input))
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErrMsg)

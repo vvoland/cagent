@@ -166,40 +166,109 @@ type EditFileArgs struct {
 	Edits []Edit `json:"edits" jsonschema:"Array of edit operations"`
 }
 
-// UnmarshalJSON handles LLM-generated arguments where "edits" may be
-// a JSON string instead of a JSON array (double-serialized).
-func (a *EditFileArgs) UnmarshalJSON(data []byte) error {
+// ParseEditFileArgs parses LLM-generated edit_file arguments, handling two
+// common failure modes:
+//  1. The outer JSON itself is malformed — typically extra closing braces/brackets
+//     or stray escape sequences caused by the model losing track of nesting depth
+//     when the text payload contains structural characters (e.g. YAML, Dockerfiles).
+//  2. The "edits" field is double-serialized (a JSON string instead of an array).
+func ParseEditFileArgs(data []byte) (EditFileArgs, error) {
 	var raw struct {
 		Path  string          `json:"path"`
 		Edits json.RawMessage `json:"edits"`
 	}
+
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("failed to parse edit_file arguments: %w", err)
+		repaired, ok := tryRepairEditFileJSON(data)
+		if !ok {
+			return EditFileArgs{}, fmt.Errorf("failed to parse edit_file arguments: %w", err)
+		}
+		if err := json.Unmarshal(repaired, &raw); err != nil {
+			return EditFileArgs{}, fmt.Errorf("failed to parse edit_file arguments after repair: %w", err)
+		}
+		slog.Debug("Repaired malformed edit_file JSON arguments")
 	}
 
-	a.Path = raw.Path
+	args := EditFileArgs{Path: raw.Path}
 
 	// When edits is missing or null (e.g. during argument streaming in
 	// the TUI, or partial tool calls), accept the partial result.
 	if len(raw.Edits) == 0 || string(raw.Edits) == "null" {
-		return nil
+		return args, nil
 	}
 
 	// Try parsing edits as an array first (normal case).
-	if err := json.Unmarshal(raw.Edits, &a.Edits); err == nil {
-		return nil
+	if err := json.Unmarshal(raw.Edits, &args.Edits); err == nil {
+		return args, nil
 	}
 
 	// Try unwrapping a double-serialized JSON string.
 	var editsStr string
 	if err := json.Unmarshal(raw.Edits, &editsStr); err != nil {
-		return fmt.Errorf("edits field is neither an array nor a JSON string: %w", err)
+		return EditFileArgs{}, fmt.Errorf("edits field is neither an array nor a JSON string: %w", err)
 	}
-	if err := json.Unmarshal([]byte(editsStr), &a.Edits); err != nil {
-		return fmt.Errorf("failed to parse double-serialized edits string: %w", err)
+	if err := json.Unmarshal([]byte(editsStr), &args.Edits); err != nil {
+		return EditFileArgs{}, fmt.Errorf("failed to parse double-serialized edits string: %w", err)
 	}
 
-	return nil
+	return args, nil
+}
+
+// tryRepairEditFileJSON attempts to fix common LLM JSON malformations by
+// iteratively removing the offending character(s) at each json.SyntaxError
+// offset. Observed failure modes from production sessions:
+//
+//   - Extra '}' — model loses brace count (e.g. "}}]}" instead of "}]}")
+//   - Extra ']' — model adds a spurious array wrapper
+//   - Stray '\' — model emits an escape sequence outside of a string value
+//     (e.g. literal \n between tokens, or \" where " is expected)
+func tryRepairEditFileJSON(data []byte) ([]byte, bool) {
+	current := append([]byte(nil), data...) // defensive copy
+	for range 3 {
+		var synErr *json.SyntaxError
+		if err := json.Unmarshal(current, &json.RawMessage{}); err == nil {
+			return current, true
+		} else if !errors.As(err, &synErr) {
+			return nil, false
+		}
+
+		// json.SyntaxError.Offset is 1-based.
+		offset := int(synErr.Offset) - 1
+		if offset < 0 || offset >= len(current) {
+			return nil, false
+		}
+
+		ch := current[offset]
+		removeCount := 1
+
+		switch ch {
+		case '}', ']':
+			// Extra closing delimiter — just remove it.
+		case '\\':
+			// Stray escape sequence outside a string value. For \n, \t, \r
+			// both characters are garbage so remove them. For \" the quote
+			// is a valid structural character (string delimiter), so only
+			// strip the backslash.
+			if offset+1 < len(current) {
+				switch current[offset+1] {
+				case 'n', 't', 'r':
+					removeCount = 2
+				}
+			}
+		default:
+			return nil, false
+		}
+
+		repaired := make([]byte, 0, len(current)-removeCount)
+		repaired = append(repaired, current[:offset]...)
+		repaired = append(repaired, current[offset+removeCount:]...)
+		current = repaired
+	}
+
+	if json.Valid(current) {
+		return current, true
+	}
+	return nil, false
 }
 
 func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
@@ -245,7 +314,7 @@ func (t *FilesystemTool) Tools(context.Context) ([]tools.Tool, error) {
 			Description:  "Make line-based edits to a text file. Each edit replaces exact line sequences with new content.",
 			Parameters:   tools.MustSchemaFor[EditFileArgs](),
 			OutputSchema: tools.MustSchemaFor[string](),
-			Handler:      tools.NewHandler(t.handleEditFile),
+			Handler:      t.editFileHandler(),
 			Annotations: tools.ToolAnnotations{
 				Title: "Edit",
 			},
@@ -464,6 +533,24 @@ func countTreeNodes(node *fsx.TreeNode) (files, dirs int) {
 		}
 	}
 	return files, dirs
+}
+
+// editFileHandler returns a ToolHandler that parses edit_file arguments with
+// repair logic for malformed JSON, then delegates to handleEditFile.
+// This bypasses tools.NewHandler because Go's json.Unmarshal scanner rejects
+// structurally invalid JSON before calling any custom UnmarshalJSON method.
+func (t *FilesystemTool) editFileHandler() tools.ToolHandler {
+	return func(ctx context.Context, toolCall tools.ToolCall) (*tools.ToolCallResult, error) {
+		data := toolCall.Function.Arguments
+		if data == "" {
+			data = "{}"
+		}
+		args, err := ParseEditFileArgs([]byte(data))
+		if err != nil {
+			return nil, err
+		}
+		return t.handleEditFile(ctx, args)
+	}
 }
 
 func (t *FilesystemTool) handleEditFile(ctx context.Context, args EditFileArgs) (*tools.ToolCallResult, error) {

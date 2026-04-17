@@ -1,7 +1,6 @@
 package editfile
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -118,8 +117,8 @@ func renderEditFile(toolCall tools.ToolCall, width int, splitView bool, toolStat
 }
 
 func renderEditFileUncached(toolCall tools.ToolCall, width int, splitView bool, toolStatus types.ToolStatus) string {
-	var args builtin.EditFileArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
+	args, err := builtin.ParseEditFileArgs([]byte(toolCall.Function.Arguments))
+	if err != nil {
 		return ""
 	}
 
@@ -169,8 +168,8 @@ func countDiffLines(toolCall tools.ToolCall, _ types.ToolStatus) (added, removed
 }
 
 func countDiffLinesUncached(toolCall tools.ToolCall) (added, removed int) {
-	var args builtin.EditFileArgs
-	if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
+	args, err := builtin.ParseEditFileArgs([]byte(toolCall.Function.Arguments))
+	if err != nil {
 		return 0, 0
 	}
 

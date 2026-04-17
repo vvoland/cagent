@@ -1,7 +1,6 @@
 package editfile
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/docker/docker-agent/pkg/tools/builtin"
@@ -32,8 +31,8 @@ func render(
 	_ int,
 ) string {
 	// Parse tool arguments to extract the file path for display.
-	var args builtin.EditFileArgs
-	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
+	args, err := builtin.ParseEditFileArgs([]byte(msg.ToolCall.Function.Arguments))
+	if err != nil {
 		// If arguments cannot be parsed, fail silently to avoid breaking the TUI.
 		return ""
 	}
@@ -111,8 +110,8 @@ func renderCollapsed(
 	width,
 	_ int,
 ) string {
-	var args builtin.EditFileArgs
-	if err := json.Unmarshal([]byte(msg.ToolCall.Function.Arguments), &args); err != nil {
+	args, err := builtin.ParseEditFileArgs([]byte(msg.ToolCall.Function.Arguments))
+	if err != nil {
 		return ""
 	}
 
