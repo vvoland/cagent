@@ -35,6 +35,10 @@ func TestDebug_Title(t *testing.T) {
 
 			title := runCLI(t, "debug", "title", "testdata/basic.yaml", "--model="+tt.model, "What can you do?")
 
+			// The non-empty check is the key invariant: reasoning models
+			// (o-series, gpt-5) must produce visible title text despite
+			// hidden reasoning tokens consuming part of the output budget.
+			assert.NotEmpty(t, title, "title must not be empty")
 			assert.Equal(t, tt.want, title)
 		})
 	}

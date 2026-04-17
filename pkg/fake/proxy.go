@@ -218,6 +218,8 @@ func DefaultMatcher(onError func(err error)) recorder.MatcherFunc {
 	// Normalize Gemini thinkingConfig (varies based on provider defaults for thinking budget).
 	// This handles both camelCase (API) variants of the thinkingConfig field.
 	thinkingConfigRegex := regexp.MustCompile(`"thinkingConfig":\{[^}]*\},?`)
+	// Normalize OpenAI reasoning config (varies based on NoThinking flag and thinking budget).
+	reasoningRegex := regexp.MustCompile(`"reasoning":\{[^}]*\},?`)
 
 	return func(r *http.Request, i cassette.Request) bool {
 		if r.Body == nil || r.Body == http.NoBody {
@@ -246,9 +248,11 @@ func DefaultMatcher(onError func(err error)) recorder.MatcherFunc {
 		normalizedReq := callIDRegex.ReplaceAllString(string(reqBody), "call_ID")
 		normalizedReq = maxTokensRegex.ReplaceAllString(normalizedReq, "")
 		normalizedReq = thinkingConfigRegex.ReplaceAllString(normalizedReq, "")
+		normalizedReq = reasoningRegex.ReplaceAllString(normalizedReq, "")
 		normalizedCassette := callIDRegex.ReplaceAllString(i.Body, "call_ID")
 		normalizedCassette = maxTokensRegex.ReplaceAllString(normalizedCassette, "")
 		normalizedCassette = thinkingConfigRegex.ReplaceAllString(normalizedCassette, "")
+		normalizedCassette = reasoningRegex.ReplaceAllString(normalizedCassette, "")
 
 		return normalizedReq == normalizedCassette
 	}
