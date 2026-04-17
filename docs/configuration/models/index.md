@@ -178,6 +178,22 @@ models:
       interleaved_thinking: false # disable if needed
 ```
 
+## Thinking Display (Anthropic)
+
+For Anthropic Claude models, `thinking_display` controls whether thinking blocks are returned in responses when thinking is enabled. Claude Opus 4.7 hides thinking content by default (`omitted`); set this provider option to receive summarized thinking:
+
+```yaml
+models:
+  opus-4-7:
+    provider: anthropic
+    model: claude-opus-4-7
+    thinking_budget: adaptive
+    provider_opts:
+      thinking_display: summarized # "summarized", "display", or "omitted"
+```
+
+See the [Anthropic provider page](/providers/anthropic/#thinking-display) for details.
+
 ## Examples by Provider
 
 ```yaml

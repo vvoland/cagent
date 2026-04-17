@@ -90,17 +90,7 @@ func (c *Client) createBetaStream(
 	// Configure thinking if a thinking budget is set in the model config.
 	// The beta client is also used for structured output and file attachments,
 	// which don't require thinking.
-	if budget := c.ModelConfig.ThinkingBudget; budget != nil {
-		if effort, ok := anthropicThinkingEffort(budget); ok {
-			adaptive := anthropic.BetaThinkingConfigAdaptiveParam{}
-			params.Thinking = anthropic.BetaThinkingConfigParamUnion{OfAdaptive: &adaptive}
-			params.OutputConfig.Effort = anthropic.BetaOutputConfigEffort(effort)
-			slog.Debug("Anthropic Beta API using adaptive thinking", "effort", effort)
-		} else if tokens, ok := validThinkingTokens(int64(budget.Tokens), maxTokens); ok {
-			params.Thinking = anthropic.BetaThinkingConfigParamOfEnabled(tokens)
-			slog.Debug("Anthropic Beta API using thinking_budget", "budget_tokens", tokens)
-		}
-	}
+	c.applyBetaThinkingConfig(&params, maxTokens)
 
 	// Forward task_budget via `output_config.task_budget` (Anthropic
 	// Opus 4.7+) and enable the corresponding beta header. Older Claude
