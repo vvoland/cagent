@@ -150,11 +150,27 @@ func (h *shellHandler) RunShell(ctx context.Context, params RunShellArgs) (*tool
 	return h.runNativeCommand(timeoutCtx, ctx, params.Cmd, cwd, timeout), nil
 }
 
+// waitDelayAfterShellExit caps how long cmd.Wait() blocks on stdout/stderr
+// copy goroutines after the direct shell child has exited.
+//
+// When cmd.Stdout/Stderr are not *os.File, Go's exec package creates OS pipes
+// and spawns copy goroutines; cmd.Wait() only returns after *both* the child
+// exits and those goroutines see EOF on the pipes. If the command backgrounds
+// a grandchild (e.g. `docker run ... &`, `sleep 10 &`) that inherits the pipe
+// fds, the pipes stay open and Wait() blocks until the configured timeout.
+//
+// cmd.WaitDelay tells Go to force-close the pipes and return this long after
+// the direct child has exited, letting the grandchild keep running while the
+// tool call returns promptly. A short delay is plenty because any output the
+// shell itself produced is already flushed by the time it exits.
+const waitDelayAfterShellExit = 500 * time.Millisecond
+
 func (h *shellHandler) runNativeCommand(timeoutCtx, ctx context.Context, command, cwd string, timeout time.Duration) *tools.ToolCallResult {
 	cmd := exec.Command(h.shell, append(h.shellArgsPrefix, command)...)
 	cmd.Env = h.env
 	cmd.Dir = cwd
 	cmd.SysProcAttr = platformSpecificSysProcAttr()
+	cmd.WaitDelay = waitDelayAfterShellExit
 
 	var outBuf bytes.Buffer
 	cmd.Stdout = &outBuf
