@@ -2,7 +2,10 @@ package builtin
 
 import (
 	"os"
+	"os/exec"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -176,4 +179,73 @@ func TestShellTool_RelativeCwdResolvesAgainstWorkingDir(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, result.Output, subdir,
 		"relative cwd must resolve against the configured workingDir, not the process cwd")
+}
+
+// Regression test for a shell-tool hang caused by backgrounded grandchildren.
+//
+// A command like `sleep 10 &` makes the shell exit immediately, but the
+// backgrounded sleep inherits stdout/stderr. Without cmd.WaitDelay, Go's
+// exec.Cmd.Wait() blocks reading the pipe until the configured timeout,
+// which makes the tool call hang (observed in eval runs where the agent
+// launched a server with `docker run ... &`).
+//
+// With the WaitDelay safeguard the tool must return within a small fraction
+// of the configured timeout.
+func TestShellTool_BackgroundedChildDoesNotBlockReturn(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell backgrounding semantics; skipped on Windows")
+	}
+
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: t.TempDir()}})
+
+	start := time.Now()
+	result, err := tool.handler.RunShell(t.Context(), RunShellArgs{
+		// sleep inherits stdout/stderr from the shell and holds the pipe
+		// open for 30s. The tool must return as soon as the shell exits.
+		Cmd:     "sleep 30 &",
+		Timeout: 20,
+	})
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Less(t, elapsed, 5*time.Second,
+		"shell tool must return promptly when the command backgrounds a child "+
+			"that inherits stdout/stderr; elapsed=%s", elapsed)
+}
+
+// Even when the backgrounded child detaches into its own session (so the
+// shell tool's process-group kill cannot reach it on timeout), cmd.WaitDelay
+// must still allow the tool call to return.
+func TestShellTool_DetachedBackgroundedChildDoesNotBlockReturn(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell backgrounding semantics; skipped on Windows")
+	}
+	if _, err := exec.LookPath("setsid"); err != nil {
+		t.Skip("setsid not available")
+	}
+
+	tool := NewShellTool(nil, &config.RuntimeConfig{Config: config.Config{WorkingDir: t.TempDir()}})
+
+	done := make(chan struct{})
+	var result *tools.ToolCallResult
+	var err error
+	go func() {
+		defer close(done)
+		result, err = tool.handler.RunShell(t.Context(), RunShellArgs{
+			// setsid places sleep in its own session/process group, so the
+			// process-group kill fallback in the timeout path cannot reach
+			// it. Only cmd.WaitDelay can unblock Wait() here.
+			Cmd:     "setsid sleep 30 &",
+			Timeout: 20,
+		})
+	}()
+
+	select {
+	case <-done:
+		require.NoError(t, err)
+		require.NotNil(t, result)
+	case <-time.After(10 * time.Second):
+		t.Fatal("shell tool hung when command backgrounded a detached child")
+	}
 }
