@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v1.47.0] - 2026-04-20
+
+This release fixes several issues with AI model interactions, including title generation failures with reasoning models and shell command hangs.
+
+## Bug Fixes
+- Fixes title generation failures with OpenAI reasoning models by using low reasoning effort instead of omitting it
+- Fixes shell command hangs when a tool command backgrounds a child process
+- Repairs malformed JSON in edit_file tool call arguments that was causing parsing failures
+- Moves reasoning token budget floor to OpenAI provider for better token management
+
+## Improvements
+- Increases title generation token budget for reasoning models to ensure adequate output space
+- Adds thinking_display provider option for Anthropic models to control visibility of thinking blocks
+
+## Technical Changes
+- Adds test assertion for non-empty title in end-to-end title generation tests
+
+### Pull Requests
+
+- [#2412](https://github.com/docker/docker-agent/pull/2412) - fix: title generation fails with OpenAI reasoning models
+- [#2451](https://github.com/docker/docker-agent/pull/2451) - Add thinking_display provider_opt for Anthropic models
+- [#2452](https://github.com/docker/docker-agent/pull/2452) - fix: repair malformed JSON in edit_file tool call arguments
+- [#2455](https://github.com/docker/docker-agent/pull/2455) - docs: update CHANGELOG.md for v1.46.0
+- [#2462](https://github.com/docker/docker-agent/pull/2462) - shell: fix hang when a tool command backgrounds a child process
+- [#2463](https://github.com/docker/docker-agent/pull/2463) - bump direct Go dependencies
+
+
 ## [v1.46.0] - 2026-04-16
 
 This release adds OAuth credential configuration for MCP servers, evaluation testing improvements, and numerous stability fixes.
@@ -2009,3 +2036,5 @@ This release improves the terminal user interface with better error handling and
 [v1.45.0]: https://github.com/docker/docker-agent/releases/tag/v1.45.0
 
 [v1.46.0]: https://github.com/docker/docker-agent/releases/tag/v1.46.0
+
+[v1.47.0]: https://github.com/docker/docker-agent/releases/tag/v1.47.0
