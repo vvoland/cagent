@@ -133,14 +133,17 @@ func mergeFromProviderConfig(dst *latest.ModelConfig, src latest.ProviderConfig)
 	}
 }
 
-// applyAliasFallbacks applies BaseURL and TokenKey defaults from a built-in
-// alias when the model config does not already specify them.
+// applyAliasFallbacks applies BaseURL, TokenKey, and api_type defaults from a
+// built-in alias when the model config does not already specify them.
 func applyAliasFallbacks(dst *latest.ModelConfig, alias Alias) {
 	if dst.BaseURL == "" {
 		dst.BaseURL = alias.BaseURL
 	}
 	if dst.TokenKey == "" {
 		dst.TokenKey = alias.TokenEnvVar
+	}
+	if alias.APIType != "" {
+		setProviderOptIfAbsent(dst, "api_type", alias.APIType)
 	}
 }
 

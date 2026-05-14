@@ -5,6 +5,8 @@ import (
 	"maps"
 	"slices"
 	"strings"
+
+	"github.com/docker/docker-agent/pkg/chatgpt"
 )
 
 // Alias defines the configuration for a provider alias.
@@ -67,6 +69,11 @@ var Aliases = map[string]Alias{
 		APIType:     "openai",
 		BaseURL:     "https://api.githubcopilot.com",
 		TokenEnvVar: "GITHUB_TOKEN",
+	},
+	"chatgpt": {
+		APIType:     "openai_responses",
+		BaseURL:     "https://chatgpt.com/backend-api/codex",
+		TokenEnvVar: chatgpt.TokenEnvVar,
 	},
 }
 
